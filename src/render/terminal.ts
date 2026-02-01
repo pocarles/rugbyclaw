@@ -76,8 +76,8 @@ function formatMatchLine(match: MatchOutput): string {
     scorePart = '   vs   ';
   }
 
-  const homeName = match.home.name.padEnd(25);
-  const awayName = match.away.name.padStart(25);
+  const homeName = (match.home.name || 'TBD').padEnd(25);
+  const awayName = (match.away.name || 'TBD').padStart(25);
 
   let line = `  ${homeName} ${scorePart} ${awayName}`;
 

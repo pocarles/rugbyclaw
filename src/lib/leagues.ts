@@ -39,25 +39,25 @@ export const LEAGUES: Record<string, League> = {
 
   // European Cups
   champions_cup: {
-    id: '4426',
+    id: '4550',
     slug: 'champions_cup',
-    name: 'Champions Cup',
+    name: 'European Rugby Champions Cup',
     country: 'Europe',
     sport: 'rugby',
   },
   challenge_cup: {
-    id: '4427',
+    id: '5418',
     slug: 'challenge_cup',
-    name: 'Challenge Cup',
+    name: 'European Rugby Challenge Cup',
     country: 'Europe',
     sport: 'rugby',
   },
 
   // International
   six_nations: {
-    id: '4422',
+    id: '4714',
     slug: 'six_nations',
-    name: 'Six Nations',
+    name: 'Six Nations Championship',
     country: 'Europe',
     sport: 'rugby',
   },

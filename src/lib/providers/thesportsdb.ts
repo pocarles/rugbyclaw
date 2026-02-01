@@ -259,7 +259,7 @@ export class TheSportsDBProvider implements Provider {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const allMatches: Match[] = [];
+    const matchMap = new Map<string, Match>();
 
     for (const leagueId of leagueIds) {
       try {
@@ -268,14 +268,19 @@ export class TheSportsDBProvider implements Provider {
           const matchDate = new Date(m.date);
           return matchDate >= today && matchDate < tomorrow;
         });
-        allMatches.push(...todayMatches);
+        // Deduplicate by match ID
+        for (const match of todayMatches) {
+          if (!matchMap.has(match.id)) {
+            matchMap.set(match.id, match);
+          }
+        }
       } catch {
         // Skip leagues that fail
       }
     }
 
     // Sort by time
-    return allMatches.sort((a, b) => a.timestamp - b.timestamp);
+    return Array.from(matchMap.values()).sort((a, b) => a.timestamp - b.timestamp);
   }
 
   /**
