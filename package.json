@@ -1,0 +1,54 @@
+{
+  "name": "rugbyclaw",
+  "version": "0.1.0",
+  "description": "Rugby scores, fixtures, and results CLI + OpenClaw skill",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "rugbyclaw": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "rugby",
+    "sports",
+    "cli",
+    "scores",
+    "fixtures",
+    "openclaw"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pocarles/rugbyclaw.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pocarles/rugbyclaw/issues"
+  },
+  "homepage": "https://github.com/pocarles/rugbyclaw#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "inquirer": "^9.2.15",
+    "ora": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
