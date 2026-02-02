@@ -23,7 +23,7 @@ export const LEAGUES: Record<string, League> = {
     sport: 'rugby',
   },
   urc: {
-    id: '4654',
+    id: '4446',
     slug: 'urc',
     name: 'United Rugby Championship',
     country: 'Multi',
@@ -62,7 +62,7 @@ export const LEAGUES: Record<string, League> = {
     sport: 'rugby',
   },
   rugby_championship: {
-    id: '4421',
+    id: '4986',
     slug: 'rugby_championship',
     name: 'The Rugby Championship',
     country: 'Southern',
@@ -71,7 +71,7 @@ export const LEAGUES: Record<string, League> = {
 
   // Southern Hemisphere Club
   super_rugby: {
-    id: '4717',
+    id: '4551',
     slug: 'super_rugby',
     name: 'Super Rugby Pacific',
     country: 'Pacific',
