@@ -77,6 +77,47 @@ export const LEAGUES: Record<string, League> = {
     country: 'Pacific',
     sport: 'rugby',
   },
+  currie_cup: {
+    id: '5069',
+    slug: 'currie_cup',
+    name: 'Currie Cup',
+    country: 'South Africa',
+    sport: 'rugby',
+  },
+  npc: {
+    id: '5278',
+    slug: 'npc',
+    name: 'NPC (Bunnings)',
+    country: 'New Zealand',
+    sport: 'rugby',
+  },
+
+  // Americas
+  mlr: {
+    id: '5070',
+    slug: 'mlr',
+    name: 'Major League Rugby',
+    country: 'United States',
+    sport: 'rugby',
+  },
+
+  // World Cups
+  rugby_world_cup: {
+    id: '4574',
+    slug: 'rugby_world_cup',
+    name: 'Rugby World Cup',
+    country: 'World',
+    sport: 'rugby',
+  },
+
+  // Women's
+  womens_six_nations: {
+    id: '5563',
+    slug: 'womens_six_nations',
+    name: "Women's Six Nations",
+    country: 'Europe',
+    sport: 'rugby',
+  },
 } as const;
 
 /**
@@ -129,6 +170,14 @@ export function resolveLeague(input: string): League | undefined {
     'super rugby': 'super_rugby',
     'trc': 'rugby_championship',
     'the rugby championship': 'rugby_championship',
+    'currie': 'currie_cup',
+    'bunnings npc': 'npc',
+    'major league rugby': 'mlr',
+    'rwc': 'rugby_world_cup',
+    'world cup': 'rugby_world_cup',
+    "women's six nations": 'womens_six_nations',
+    'womens 6 nations': 'womens_six_nations',
+    'w6n': 'womens_six_nations',
   };
 
   if (aliases[normalized]) {
