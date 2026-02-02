@@ -1,6 +1,8 @@
 # Rugbyclaw 🏉
 
-A CLI tool for rugby scores, fixtures, and results — with optional OpenClaw integration for AI-powered notifications.
+A CLI tool for rugby scores, fixtures, and results powered by [API-Sports Rugby API](https://api-sports.io).
+
+Clean architecture, reliable data, Rugby Union focus.
 
 ## Features
 
@@ -9,7 +11,6 @@ A CLI tool for rugby scores, fixtures, and results — with optional OpenClaw in
 - **Results** — Recent results with personality-driven summaries
 - **Team tracking** — Follow specific teams across competitions
 - **Calendar export** — Add matches to your calendar (ICS format)
-- **Proactive notifications** — Weekly digest, day-before, hour-before, and live score alerts
 
 ## Installation
 
@@ -39,16 +40,19 @@ rugbyclaw results champions_cup
 ## Setup
 
 Run `rugbyclaw config` to configure your preferences:
+- Enter your API-Sports Rugby API key (get yours at [api-sports.io](https://api-sports.io))
 - Select favorite leagues
 - Search and add favorite teams
 - Set your timezone
+
+API key is stored securely in `~/.config/rugbyclaw/secrets.json` (mode 600).
 
 ## Commands
 
 ### `rugbyclaw config`
 
 Interactive setup wizard:
-- Enter your API key
+- Enter your API-Sports Rugby API key
 - Select favorite leagues
 - Search and add favorite teams
 - Set your timezone
@@ -102,26 +106,31 @@ rugbyclaw calendar 123456 --out ~/Desktop/match.ics
 
 ### `rugbyclaw notify`
 
-Generate notifications for cron/OpenClaw integration.
-
-```bash
-rugbyclaw notify --weekly   # Monday digest
-rugbyclaw notify --daily    # Day/hour reminders
-rugbyclaw notify --live     # Live score updates
-```
+_Planned for future release._ Live score alerts and proactive notifications will be added in a future update.
 
 ## Supported Leagues
 
+**8 competitions covered:**
+
+### Club Competitions (5)
 | Slug | League |
 |------|--------|
-| `top14` | French Top 14 |
-| `premiership` | English Premiership |
-| `urc` | United Rugby Championship |
-| `champions_cup` | Champions Cup |
+| `top14` | Top 14 (France) |
+| `premiership` | Premiership Rugby (England) |
+| `urc` | United Rugby Championship (Multi-nation) |
+| `pro_d2` | Pro D2 (France) |
+| `super_rugby` | Super Rugby Pacific (Southern Hemisphere) |
+
+### European Cups (2)
+| Slug | League |
+|------|--------|
+| `champions_cup` | European Rugby Champions Cup |
+| `challenge_cup` | European Rugby Challenge Cup |
+
+### International (1)
+| Slug | League |
+|------|--------|
 | `six_nations` | Six Nations |
-| `pro_d2` | Pro D2 |
-| `super_rugby` | Super Rugby Pacific |
-| `rugby_championship` | The Rugby Championship |
 
 ## OpenClaw Integration
 
@@ -139,10 +148,17 @@ rugbyclaw scores --json | jq '.matches[0]'
 
 ## Configuration Files
 
-- `~/.config/rugbyclaw/config.json` — User preferences
+- `~/.config/rugbyclaw/config.json` — User preferences (leagues, teams, timezone)
 - `~/.config/rugbyclaw/secrets.json` — API key (mode 600)
-- `~/.config/rugbyclaw/state.json` — Notification state
-- `~/.cache/rugbyclaw/` — Response cache
+- `~/.cache/rugbyclaw/` — Response cache (SWR caching for performance)
+
+## Technical Details
+
+- **Data Provider:** API-Sports Rugby API (sole provider)
+- **Architecture:** TypeScript, ES modules, Commander.js CLI
+- **Caching:** SWR (stale-while-revalidate) for performance
+- **Season Detection:** Smart season detection per competition type
+- **Focus:** Rugby Union only
 
 ## License
 
