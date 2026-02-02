@@ -12,6 +12,14 @@ Clean architecture, reliable data, Rugby Union focus.
 - **Team tracking** — Follow specific teams across competitions
 - **Calendar export** — Add matches to your calendar (ICS format)
 
+## Documentation
+
+📖 **[Full Documentation](./docs/)** - Command reference, guides, and troubleshooting
+
+- [Getting Started](./docs/getting-started.md) - Install and configure in 5 minutes
+- [Commands Reference](./docs/commands/) - Detailed command documentation
+- [Troubleshooting](./docs/troubleshooting.md) - Common issues and solutions
+
 ## Installation
 
 ```bash
