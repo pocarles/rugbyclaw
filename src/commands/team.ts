@@ -113,7 +113,24 @@ async function handleNext(
     allLeagueFixtures.push(...fixtures);
   }
 
-  // If not in favorites, search and find a team that exists in our leagues
+  // If not in favorites, first try to match team name in fixtures
+  if (!teamId) {
+    const searchLower = nameOrId.toLowerCase();
+
+    // Find team in fixtures by partial name match
+    for (const match of allLeagueFixtures) {
+      if (match.homeTeam.name.toLowerCase().includes(searchLower)) {
+        teamId = match.homeTeam.id;
+        break;
+      }
+      if (match.awayTeam.name.toLowerCase().includes(searchLower)) {
+        teamId = match.awayTeam.id;
+        break;
+      }
+    }
+  }
+
+  // If still not found, try search API
   if (!teamId) {
     const searchResults = await provider.searchTeams(nameOrId);
     if (searchResults.length === 0) {
@@ -197,7 +214,24 @@ async function handleLast(
     allLeagueResults.push(...results);
   }
 
-  // If not in favorites, search and find a team that exists in our leagues
+  // If not in favorites, first try to match team name in results
+  if (!teamId) {
+    const searchLower = nameOrId.toLowerCase();
+
+    // Find team in results by partial name match
+    for (const match of allLeagueResults) {
+      if (match.homeTeam.name.toLowerCase().includes(searchLower)) {
+        teamId = match.homeTeam.id;
+        break;
+      }
+      if (match.awayTeam.name.toLowerCase().includes(searchLower)) {
+        teamId = match.awayTeam.id;
+        break;
+      }
+    }
+  }
+
+  // If still not found, try search API
   if (!teamId) {
     const searchResults = await provider.searchTeams(nameOrId);
     if (searchResults.length === 0) {
