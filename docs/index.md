@@ -2,9 +2,11 @@
 
 > Track rugby scores, fixtures, and results from your terminal
 
+**Works out of the box** — no setup required. Just `npm install -g rugbyclaw` and start using it.
+
 ## Getting Started
 
-- [Installation & Setup](./getting-started.md) - Get up and running in 5 minutes
+- [Installation & Setup](./getting-started.md) - Install and start using in 30 seconds
 
 ## Commands
 
