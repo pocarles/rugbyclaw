@@ -284,6 +284,34 @@ export class TheSportsDBProvider implements Provider {
   }
 
   /**
+   * Get all teams in a league by name.
+   * Uses search_all_teams.php which works on free tier.
+   */
+  async getLeagueTeams(leagueName: string): Promise<Team[]> {
+    const endpoint = `search_all_teams.php?l=${encodeURIComponent(leagueName)}`;
+
+    const data = await this.fetch<{ teams: TheSportsDBTeam[] | null }>(
+      endpoint,
+      CACHE_PROFILES.long // Teams rarely change, cache longer
+    );
+
+    if (!data.teams) {
+      return [];
+    }
+
+    // Filter to rugby teams only
+    return data.teams
+      .filter((t) => !t.strLeague || t.strLeague.toLowerCase().includes('rugby') || t.strLeague === leagueName)
+      .map((t) => ({
+        id: t.idTeam,
+        name: t.strTeam,
+        shortName: t.strTeamShort,
+        badge: t.strTeamBadge,
+        country: t.strCountry,
+      }));
+  }
+
+  /**
    * Get team's next matches.
    *
    * Note: Free tier only returns HOME matches.

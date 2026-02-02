@@ -95,4 +95,6 @@ export const CACHE_PROFILES = {
   live: { stale_after: 30 * 1000, expires_after: 60 * 1000 },
   /** For team search: stale after 1hr, expires after 24hr */
   search: { stale_after: 60 * 60 * 1000, expires_after: 24 * 60 * 60 * 1000 },
+  /** For static data (league teams): stale after 24hr, expires after 7 days */
+  long: { stale_after: 24 * 60 * 60 * 1000, expires_after: 7 * 24 * 60 * 60 * 1000 },
 } as const;

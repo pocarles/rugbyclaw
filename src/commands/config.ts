@@ -86,73 +86,69 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     },
   ]);
 
-  // Step 3: Favorite teams
+  // Step 3: Favorite teams (per league selection)
   console.log(chalk.cyan('\nStep 3: Favorite Teams'));
-  console.log(chalk.dim('Search for teams to follow (optional)\n'));
+  console.log(chalk.dim('Select teams to follow from each league\n'));
 
-  const favoriteTeams: FavoriteTeam[] = [...existingConfig.favorite_teams];
+  const favoriteTeams: FavoriteTeam[] = [];
+  const existingTeamIds = new Set(existingConfig.favorite_teams.map((t) => t.id));
 
-  let addMore = true;
-  while (addMore) {
-    const { searchTeam } = await inquirer.prompt<{ searchTeam: boolean }>([
-      {
-        type: 'confirm',
-        name: 'searchTeam',
-        message: favoriteTeams.length === 0
-          ? 'Would you like to add a favorite team?'
-          : 'Add another team?',
-        default: favoriteTeams.length === 0,
-      },
-    ]);
+  for (const leagueSlug of favoriteLeagues) {
+    const league = LEAGUES[leagueSlug];
+    console.log(chalk.dim(`Loading ${league.name} teams...`));
 
-    if (!searchTeam) {
-      addMore = false;
-      continue;
-    }
+    try {
+      const teams = await provider.getLeagueTeams(league.searchName || league.name);
 
-    const { query } = await inquirer.prompt<{ query: string }>([
-      {
-        type: 'input',
-        name: 'query',
-        message: 'Team name to search:',
-      },
-    ]);
+      if (teams.length === 0) {
+        console.log(chalk.yellow(`No teams found for ${league.name}\n`));
+        continue;
+      }
 
-    if (!query) continue;
+      // Sort teams alphabetically
+      teams.sort((a, b) => a.name.localeCompare(b.name));
 
-    console.log(chalk.dim('Searching...'));
-    const teams = await provider.searchTeams(query);
+      const teamChoices = teams.map((t) => ({
+        name: t.name,
+        value: t,
+        checked: existingTeamIds.has(t.id),
+      }));
 
-    if (teams.length === 0) {
-      console.log(chalk.yellow('No teams found. Try a different search.\n'));
-      continue;
-    }
+      const { selectedTeams } = await inquirer.prompt<{ selectedTeams: typeof teams }>([
+        {
+          type: 'checkbox',
+          name: 'selectedTeams',
+          message: `Select ${league.name} teams:`,
+          choices: teamChoices,
+          pageSize: 15,
+        },
+      ]);
 
-    const teamChoices = teams.slice(0, 10).map((t) => ({
-      name: `${t.name}${t.country ? ` (${t.country})` : ''}`,
-      value: t,
-    }));
+      for (const team of selectedTeams) {
+        // Check if already added from another league
+        const existing = favoriteTeams.find((t) => t.id === team.id);
+        if (existing) {
+          // Add this league to the team's leagueIds
+          if (!existing.leagueIds.includes(league.id)) {
+            existing.leagueIds.push(league.id);
+          }
+        } else {
+          favoriteTeams.push({
+            id: team.id,
+            name: team.name,
+            slug: team.name.toLowerCase().replace(/\s+/g, '-'),
+            leagueIds: [league.id],
+          });
+        }
+      }
 
-    const { selectedTeam } = await inquirer.prompt<{ selectedTeam: typeof teams[0] | null }>([
-      {
-        type: 'list',
-        name: 'selectedTeam',
-        message: 'Select team:',
-        choices: [
-          ...teamChoices,
-          { name: 'None of these', value: null },
-        ],
-      },
-    ]);
-
-    if (selectedTeam && !favoriteTeams.some((t) => t.id === selectedTeam.id)) {
-      favoriteTeams.push({
-        id: selectedTeam.id,
-        name: selectedTeam.name,
-        slug: selectedTeam.name.toLowerCase().replace(/\s+/g, '-'),
-        leagueIds: favoriteLeagues.map((slug) => LEAGUES[slug].id),
-      });
-      console.log(chalk.green(`✓ Added ${selectedTeam.name}\n`));
+      if (selectedTeams.length > 0) {
+        console.log(chalk.green(`✓ Selected ${selectedTeams.length} team(s)\n`));
+      } else {
+        console.log('');
+      }
+    } catch (error) {
+      console.log(chalk.yellow(`Could not load teams for ${league.name}\n`));
     }
   }
 

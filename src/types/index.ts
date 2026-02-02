@@ -14,6 +14,7 @@ export interface League {
   name: string;
   country: string;
   sport: 'rugby';
+  searchName?: string; // TheSportsDB league name for team search
 }
 
 export interface Score {
