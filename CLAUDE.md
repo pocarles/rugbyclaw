@@ -6,7 +6,6 @@ Rugby scores, fixtures, and results CLI tool.
 
 - **CLI-first** — Standalone Node.js/TypeScript tool
 - **OpenClaw skill layer** — Wraps CLI for natural language (in `skill/`)
-- **TheSportsDB API** — Data provider with BYOK model
 - **SWR caching** — `~/.cache/rugbyclaw/` with SHA-256 hashed filenames
 
 ## Commands
@@ -30,7 +29,7 @@ rugbyclaw notify              # Notifications (--weekly, --daily, --live)
 - State: `~/.config/rugbyclaw/state.json`
 - Cache: `~/.cache/rugbyclaw/`
 
-## Verified League IDs (TheSportsDB)
+## Supported League IDs
 
 | League | ID | Slug |
 |--------|-----|------|

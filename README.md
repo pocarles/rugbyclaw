@@ -36,14 +36,12 @@ rugbyclaw team toulouse next
 rugbyclaw results champions_cup
 ```
 
-## API Key
+## Setup
 
-Rugbyclaw uses [TheSportsDB](https://www.thesportsdb.com/api.php) for data.
-
-- **Free tier**: Use API key `123` for testing (30 req/min, limited features)
-- **Premium**: $9/month for higher limits and live scores
-
-The `rugbyclaw config` wizard will guide you through setup.
+Run `rugbyclaw config` to configure your preferences:
+- Select favorite leagues
+- Search and add favorite teams
+- Set your timezone
 
 ## Commands
 

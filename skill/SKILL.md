@@ -17,10 +17,9 @@ rugbyclaw config
 ```
 
 The config wizard will:
-1. Ask for your TheSportsDB API key (free at thesportsdb.com, use "123" for testing)
-2. Let you select favorite leagues (Top 14, Premiership, URC, Champions Cup, etc.)
-3. Let you search and add favorite teams
-4. Set your timezone
+1. Let you select favorite leagues (Top 14, Premiership, URC, Champions Cup, etc.)
+2. Let you search and add favorite teams
+3. Set your timezone
 
 ## Commands
 
