@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
-import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
+import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import {
   renderMatch,
   renderTeamSearch,
@@ -39,7 +39,7 @@ export async function teamCommand(
     process.exit(1);
   }
 
-  const provider = new TheSportsDBProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets.api_key);
 
   try {
     switch (action.toLowerCase()) {
@@ -65,7 +65,7 @@ export async function teamCommand(
 
 async function handleSearch(
   query: string,
-  provider: TheSportsDBProvider,
+  provider: ApiSportsProvider,
   options: TeamOptions
 ): Promise<void> {
   const teams = await provider.searchTeams(query);
@@ -90,7 +90,7 @@ async function handleSearch(
 
 async function handleNext(
   nameOrId: string,
-  provider: TheSportsDBProvider,
+  provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
   options: TeamOptions
 ): Promise<void> {
@@ -191,7 +191,7 @@ async function handleNext(
 
 async function handleLast(
   nameOrId: string,
-  provider: TheSportsDBProvider,
+  provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
   options: TeamOptions
 ): Promise<void> {

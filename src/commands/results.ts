@@ -1,6 +1,6 @@
 import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
-import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
+import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
 import { generateNeutralSummary } from '../lib/personality.js';
 import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
@@ -29,7 +29,7 @@ export async function resultsCommand(
     process.exit(1);
   }
 
-  const provider = new TheSportsDBProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets.api_key);
   const limit = parseInt(options.limit || '15', 10);
 
   let matches: Match[] = [];

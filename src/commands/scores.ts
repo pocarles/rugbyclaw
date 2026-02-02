@@ -1,6 +1,6 @@
 import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
-import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
+import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderScores, matchToOutput, renderError } from '../render/terminal.js';
 import type { ScoresOutput } from '../types/index.js';
 
@@ -34,7 +34,7 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
     process.exit(1);
   }
 
-  const provider = new TheSportsDBProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets.api_key);
 
   try {
     const matches = await provider.getToday(leagueIds);

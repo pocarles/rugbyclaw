@@ -1,54 +1,61 @@
 import type { League } from '../types/index.js';
 
 /**
- * Supported rugby leagues with TheSportsDB IDs.
+ * Supported rugby leagues with API-Sports IDs.
  *
- * IDs verified against TheSportsDB API.
- * Southern hemisphere IDs to be confirmed.
+ * Rugby Union only. IDs verified against API-Sports Rugby API.
+ * https://api-sports.io/documentation/rugby/v1
  */
 export const LEAGUES: Record<string, League> = {
-  // European Club
+  // Club Competitions - Europe
   top14: {
-    id: '4430',
+    id: '16',
     slug: 'top14',
-    name: 'French Top 14',
+    name: 'Top 14',
     country: 'France',
     sport: 'rugby',
   },
   premiership: {
-    id: '4414',
+    id: '13',
     slug: 'premiership',
-    name: 'English Premiership',
-    searchName: 'English Prem Rugby',
+    name: 'Premiership Rugby',
     country: 'England',
     sport: 'rugby',
   },
   urc: {
-    id: '4446',
+    id: '76',
     slug: 'urc',
     name: 'United Rugby Championship',
     country: 'Multi',
     sport: 'rugby',
   },
   pro_d2: {
-    id: '5172',
+    id: '17',
     slug: 'pro_d2',
     name: 'Pro D2',
-    searchName: 'French Pro D2',
     country: 'France',
+    sport: 'rugby',
+  },
+
+  // Club Competitions - Southern Hemisphere
+  super_rugby: {
+    id: '71',
+    slug: 'super_rugby',
+    name: 'Super Rugby Pacific',
+    country: 'Pacific',
     sport: 'rugby',
   },
 
   // European Cups
   champions_cup: {
-    id: '4550',
+    id: '54',
     slug: 'champions_cup',
     name: 'European Rugby Champions Cup',
     country: 'Europe',
     sport: 'rugby',
   },
   challenge_cup: {
-    id: '5418',
+    id: '52',
     slug: 'challenge_cup',
     name: 'European Rugby Challenge Cup',
     country: 'Europe',
@@ -57,70 +64,9 @@ export const LEAGUES: Record<string, League> = {
 
   // International
   six_nations: {
-    id: '4714',
+    id: '51',
     slug: 'six_nations',
-    name: 'Six Nations Championship',
-    country: 'Europe',
-    sport: 'rugby',
-  },
-  rugby_championship: {
-    id: '4986',
-    slug: 'rugby_championship',
-    name: 'The Rugby Championship',
-    searchName: 'Rugby Championship',
-    country: 'Southern',
-    sport: 'rugby',
-  },
-
-  // Southern Hemisphere Club
-  super_rugby: {
-    id: '4551',
-    slug: 'super_rugby',
-    name: 'Super Rugby Pacific',
-    searchName: 'Super Rugby',
-    country: 'Pacific',
-    sport: 'rugby',
-  },
-  currie_cup: {
-    id: '5069',
-    slug: 'currie_cup',
-    name: 'Currie Cup',
-    country: 'South Africa',
-    sport: 'rugby',
-  },
-  npc: {
-    id: '5278',
-    slug: 'npc',
-    name: 'NPC (Bunnings)',
-    searchName: 'New Zealand National Provincial Championship',
-    country: 'New Zealand',
-    sport: 'rugby',
-  },
-
-  // Americas
-  mlr: {
-    id: '5070',
-    slug: 'mlr',
-    name: 'Major League Rugby',
-    country: 'United States',
-    sport: 'rugby',
-  },
-
-  // World Cups
-  rugby_world_cup: {
-    id: '4574',
-    slug: 'rugby_world_cup',
-    name: 'Rugby World Cup',
-    country: 'World',
-    sport: 'rugby',
-  },
-
-  // Women's
-  womens_six_nations: {
-    id: '5563',
-    slug: 'womens_six_nations',
-    name: "Women's Six Nations",
-    searchName: 'Six Nations Women',
+    name: 'Six Nations',
     country: 'Europe',
     sport: 'rugby',
   },
@@ -161,29 +107,41 @@ export function resolveLeague(input: string): League | undefined {
 
   // Common aliases
   const aliases: Record<string, string> = {
+    // Top 14
     'top 14': 'top14',
     'french top 14': 'top14',
+
+    // Premiership
     'prem': 'premiership',
     'gallagher premiership': 'premiership',
     'english premiership': 'premiership',
+    'gallagher': 'premiership',
+
+    // URC
     'united rugby championship': 'urc',
+
+    // Pro D2
+    'prod2': 'pro_d2',
+    'pro d2': 'pro_d2',
+
+    // Super Rugby
+    'super rugby': 'super_rugby',
+    'super rugby pacific': 'super_rugby',
+    'srp': 'super_rugby',
+
+    // Champions Cup
+    'heineken champions cup': 'champions_cup',
+    'champions': 'champions_cup',
+    'hcup': 'champions_cup',
+
+    // Challenge Cup
+    'challenge': 'challenge_cup',
+    'epcr challenge cup': 'challenge_cup',
+
+    // Six Nations
     '6 nations': 'six_nations',
     'six nations': 'six_nations',
     '6n': 'six_nations',
-    'heineken champions cup': 'champions_cup',
-    'champions': 'champions_cup',
-    'challenge': 'challenge_cup',
-    'super rugby': 'super_rugby',
-    'trc': 'rugby_championship',
-    'the rugby championship': 'rugby_championship',
-    'currie': 'currie_cup',
-    'bunnings npc': 'npc',
-    'major league rugby': 'mlr',
-    'rwc': 'rugby_world_cup',
-    'world cup': 'rugby_world_cup',
-    "women's six nations": 'womens_six_nations',
-    'womens 6 nations': 'womens_six_nations',
-    'w6n': 'womens_six_nations',
   };
 
   if (aliases[normalized]) {

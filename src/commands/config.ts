@@ -7,8 +7,7 @@ import {
   saveSecrets,
 } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
-import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
-import { getStaticTeams } from '../lib/teams-data.js';
+import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import type { Config, Secrets, FavoriteTeam, Team } from '../types/index.js';
 
 interface ConfigOptions {
@@ -24,45 +23,34 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
 
   // Step 1: API Key
   console.log(chalk.cyan('Step 1: API Key'));
-  console.log(chalk.dim('Get your free API key at https://www.thesportsdb.com/api.php'));
-  console.log(chalk.dim('Use "123" for testing (limited to 30 req/min)\n'));
+  console.log(chalk.dim('Get your API key at https://api-sports.io'));
+  console.log(chalk.dim('Free tier: 100 requests/day\n'));
 
   const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
     {
       type: 'input',
       name: 'apiKey',
-      message: 'TheSportsDB API key:',
-      default: existingSecrets?.api_key || '123',
+      message: 'API-Sports API key:',
+      default: existingSecrets?.api_key,
       validate: (input: string) => input.length > 0 || 'API key is required',
     },
   ]);
 
   // Test the API key
   console.log(chalk.dim('\nTesting API key...'));
-  const provider = new TheSportsDBProvider(apiKey);
+  const provider = new ApiSportsProvider(apiKey);
 
   try {
     await provider.getLeagueFixtures(LEAGUES.top14.id);
     console.log(chalk.green('✓ API key is valid\n'));
-  } catch {
-    console.log(chalk.red('✗ API key test failed. Continuing anyway...\n'));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.log(chalk.red(`✗ API key test failed: ${message}`));
+    console.log(chalk.yellow('Continuing anyway...\n'));
   }
 
-  const { apiTier } = await inquirer.prompt<{ apiTier: 'free' | 'premium' }>([
-    {
-      type: 'list',
-      name: 'apiTier',
-      message: 'API tier:',
-      choices: [
-        { name: 'Free (30 req/min, limited features)', value: 'free' },
-        { name: 'Premium ($9/month, 100 req/min, live scores)', value: 'premium' },
-      ],
-      default: existingSecrets?.api_tier || 'free',
-    },
-  ]);
-
-  // Save secrets
-  const secrets: Secrets = { api_key: apiKey, api_tier: apiTier };
+  // Save secrets (api_tier not relevant for API-Sports, but keep structure)
+  const secrets: Secrets = { api_key: apiKey, api_tier: 'premium' };
   await saveSecrets(secrets);
 
   // Step 2: Favorite leagues
@@ -98,18 +86,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     console.log(chalk.dim(`Loading ${league.name} teams...`));
 
     try {
-      const teams = await provider.getLeagueTeams(league.id, league.searchName || league.name);
-
-      // Supplement with static data if API returns incomplete results
-      const staticTeams = await getStaticTeams(leagueSlug);
-      if (staticTeams.length > 0) {
-        const teamIds = new Set(teams.map((t) => t.id));
-        for (const staticTeam of staticTeams) {
-          if (!teamIds.has(staticTeam.id)) {
-            teams.push(staticTeam);
-          }
-        }
-      }
+      const teams = await provider.getLeagueTeams(league.id);
 
       if (teams.length === 0) {
         console.log(chalk.yellow(`No teams found for ${league.name}\n`));
@@ -125,7 +102,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
         checked: existingTeamIds.has(t.id),
       }));
 
-      const { selectedTeams } = await inquirer.prompt<{ selectedTeams: typeof teams }>([
+      const { selectedTeams } = await inquirer.prompt<{ selectedTeams: Team[] }>([
         {
           type: 'checkbox',
           name: 'selectedTeams',
@@ -158,54 +135,9 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
       } else {
         console.log('');
       }
-    } catch {
-      // Fall back to static data if API fails
-      const staticTeams = await getStaticTeams(leagueSlug);
-      if (staticTeams.length > 0) {
-        console.log(chalk.dim(`Using cached team data for ${league.name}...`));
-
-        const teamChoices = staticTeams
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map((t) => ({
-            name: t.name,
-            value: t,
-            checked: existingTeamIds.has(t.id),
-          }));
-
-        const { selectedTeams } = await inquirer.prompt<{ selectedTeams: Team[] }>([
-          {
-            type: 'checkbox',
-            name: 'selectedTeams',
-            message: `Select ${league.name} teams:`,
-            choices: teamChoices,
-            pageSize: 15,
-          },
-        ]);
-
-        for (const team of selectedTeams) {
-          const existing = favoriteTeams.find((t) => t.id === team.id);
-          if (existing) {
-            if (!existing.leagueIds.includes(league.id)) {
-              existing.leagueIds.push(league.id);
-            }
-          } else {
-            favoriteTeams.push({
-              id: team.id,
-              name: team.name,
-              slug: team.name.toLowerCase().replace(/\s+/g, '-'),
-              leagueIds: [league.id],
-            });
-          }
-        }
-
-        if (selectedTeams.length > 0) {
-          console.log(chalk.green(`✓ Selected ${selectedTeams.length} team(s)\n`));
-        } else {
-          console.log('');
-        }
-      } else {
-        console.log(chalk.yellow(`Could not load teams for ${league.name}\n`));
-      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.log(chalk.yellow(`Could not load teams for ${league.name}: ${message}\n`));
     }
   }
 

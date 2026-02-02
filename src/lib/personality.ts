@@ -101,7 +101,7 @@ function getResultType(
 
 /**
  * Check if team earned a try bonus point (4+ tries).
- * Note: TheSportsDB doesn't provide try count, so we estimate from score.
+ * Note: API-Sports doesn't provide try count, so we estimate from score.
  * 4 tries = minimum 20 points (unconverted) to 28 points (all converted)
  * This is a rough heuristic.
  */

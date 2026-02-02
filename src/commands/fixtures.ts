@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
-import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
+import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
 import { matchesToICS } from '../lib/ics.js';
 import type { FixturesOutput, Match } from '../types/index.js';
@@ -32,7 +32,7 @@ export async function fixturesCommand(
     process.exit(1);
   }
 
-  const provider = new TheSportsDBProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets.api_key);
   const limit = parseInt(options.limit || '15', 10);
 
   let matches: Match[] = [];

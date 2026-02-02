@@ -1,6 +1,6 @@
 import { loadConfig, loadSecrets, loadState, saveState, isConfigured } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
-import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
+import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { generateSummary } from '../lib/personality.js';
 import { renderNotify, matchToOutput, renderError } from '../render/terminal.js';
 import type {
@@ -43,7 +43,7 @@ function canNotify(state: MatchNotificationState | undefined, now: number): bool
  * Weekly digest: list all matches for favorite teams this week.
  */
 async function handleWeekly(
-  provider: TheSportsDBProvider,
+  provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>
 ): Promise<Notification[]> {
   const notifications: Notification[] = [];
@@ -104,7 +104,7 @@ async function handleWeekly(
  * Daily check: day-before and hour-before reminders.
  */
 async function handleDaily(
-  provider: TheSportsDBProvider,
+  provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
   state: State
 ): Promise<{ notifications: Notification[]; state: State }> {
@@ -199,7 +199,7 @@ async function handleDaily(
  * Live polling: score updates during matches.
  */
 async function handleLive(
-  provider: TheSportsDBProvider,
+  provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
   state: State
 ): Promise<{ notifications: Notification[]; state: State }> {
@@ -355,7 +355,7 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
     process.exit(1);
   }
 
-  const provider = new TheSportsDBProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets.api_key);
   let notifications: Notification[] = [];
 
   try {
