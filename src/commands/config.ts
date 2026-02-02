@@ -5,9 +5,8 @@ import {
   saveConfig,
   loadSecrets,
   saveSecrets,
-  isConfigured,
 } from '../lib/config.js';
-import { LEAGUES, getLeagueSlugs } from '../lib/leagues.js';
+import { LEAGUES } from '../lib/leagues.js';
 import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
 import { getStaticTeams } from '../lib/teams-data.js';
 import type { Config, Secrets, FavoriteTeam, Team } from '../types/index.js';
@@ -45,7 +44,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   try {
     await provider.getLeagueFixtures(LEAGUES.top14.id);
     console.log(chalk.green('✓ API key is valid\n'));
-  } catch (error) {
+  } catch {
     console.log(chalk.red('✗ API key test failed. Continuing anyway...\n'));
   }
 
@@ -99,7 +98,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     console.log(chalk.dim(`Loading ${league.name} teams...`));
 
     try {
-      let teams = await provider.getLeagueTeams(league.id, league.searchName || league.name);
+      const teams = await provider.getLeagueTeams(league.id, league.searchName || league.name);
 
       // Supplement with static data if API returns incomplete results
       const staticTeams = await getStaticTeams(leagueSlug);
@@ -159,7 +158,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
       } else {
         console.log('');
       }
-    } catch (error) {
+    } catch {
       // Fall back to static data if API fails
       const staticTeams = await getStaticTeams(leagueSlug);
       if (staticTeams.length > 0) {

@@ -3,7 +3,7 @@ import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
-import { matchToICS, matchesToICS } from '../lib/ics.js';
+import { matchesToICS } from '../lib/ics.js';
 import type { FixturesOutput, Match } from '../types/index.js';
 
 interface FixturesOptions {

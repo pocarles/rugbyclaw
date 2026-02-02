@@ -281,7 +281,7 @@ export function renderNotify(output: NotifyOutput): string {
 /**
  * Convert a Match to MatchOutput for rendering.
  */
-export function matchToOutput(match: Match, teamId?: string): MatchOutput {
+export function matchToOutput(match: Match, _teamId?: string): MatchOutput {
   return {
     id: match.id,
     home: {

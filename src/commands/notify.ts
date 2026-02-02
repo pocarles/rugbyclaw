@@ -110,8 +110,6 @@ async function handleDaily(
 ): Promise<{ notifications: Notification[]; state: State }> {
   const notifications: Notification[] = [];
   const now = Date.now();
-  const tomorrow = now + DAY_MS;
-  const hourFromNow = now + HOUR_MS;
 
   const leagueIds = config.favorite_leagues
     .map((slug) => LEAGUES[slug]?.id)
