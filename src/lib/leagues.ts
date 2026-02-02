@@ -16,7 +16,7 @@ export const LEAGUES: Record<string, League> = {
     sport: 'rugby',
   },
   premiership: {
-    id: '4413',
+    id: '4414',
     slug: 'premiership',
     name: 'English Premiership',
     country: 'England',
