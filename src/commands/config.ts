@@ -98,7 +98,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     console.log(chalk.dim(`Loading ${league.name} teams...`));
 
     try {
-      const teams = await provider.getLeagueTeams(league.searchName || league.name);
+      const teams = await provider.getLeagueTeams(league.id, league.searchName || league.name);
 
       if (teams.length === 0) {
         console.log(chalk.yellow(`No teams found for ${league.name}\n`));

@@ -284,31 +284,70 @@ export class TheSportsDBProvider implements Provider {
   }
 
   /**
-   * Get all teams in a league by name.
-   * Uses search_all_teams.php which works on free tier.
+   * Get all teams in a league using hybrid approach:
+   * 1. Search API (up to 10 teams)
+   * 2. Extract from fixtures + results
    */
-  async getLeagueTeams(leagueName: string): Promise<Team[]> {
-    const endpoint = `search_all_teams.php?l=${encodeURIComponent(leagueName)}`;
+  async getLeagueTeams(leagueId: string, leagueName?: string): Promise<Team[]> {
+    const teamMap = new Map<string, Team>();
 
-    const data = await this.fetch<{ teams: TheSportsDBTeam[] | null }>(
-      endpoint,
-      CACHE_PROFILES.long // Teams rarely change, cache longer
-    );
-
-    if (!data.teams) {
-      return [];
+    // Method 1: Try search_all_teams API (limited to 10 results)
+    if (leagueName) {
+      try {
+        const endpoint = `search_all_teams.php?l=${encodeURIComponent(leagueName)}`;
+        const data = await this.fetch<{ teams: TheSportsDBTeam[] | null }>(
+          endpoint,
+          CACHE_PROFILES.long
+        );
+        if (data.teams) {
+          for (const t of data.teams) {
+            if (!teamMap.has(t.idTeam)) {
+              teamMap.set(t.idTeam, {
+                id: t.idTeam,
+                name: t.strTeam,
+                shortName: t.strTeamShort,
+                badge: t.strTeamBadge,
+                country: t.strCountry,
+              });
+            }
+          }
+        }
+      } catch {
+        // Continue if search fails
+      }
     }
 
-    // Filter to rugby teams only
-    return data.teams
-      .filter((t) => !t.strLeague || t.strLeague.toLowerCase().includes('rugby') || t.strLeague === leagueName)
-      .map((t) => ({
-        id: t.idTeam,
-        name: t.strTeam,
-        shortName: t.strTeamShort,
-        badge: t.strTeamBadge,
-        country: t.strCountry,
-      }));
+    // Method 2: Extract from fixtures
+    try {
+      const fixtures = await this.getLeagueFixtures(leagueId);
+      for (const match of fixtures) {
+        if (!teamMap.has(match.homeTeam.id)) {
+          teamMap.set(match.homeTeam.id, match.homeTeam);
+        }
+        if (!teamMap.has(match.awayTeam.id)) {
+          teamMap.set(match.awayTeam.id, match.awayTeam);
+        }
+      }
+    } catch {
+      // Continue even if fixtures fail
+    }
+
+    // Method 3: Extract from results
+    try {
+      const results = await this.getLeagueResults(leagueId);
+      for (const match of results) {
+        if (!teamMap.has(match.homeTeam.id)) {
+          teamMap.set(match.homeTeam.id, match.homeTeam);
+        }
+        if (!teamMap.has(match.awayTeam.id)) {
+          teamMap.set(match.awayTeam.id, match.awayTeam);
+        }
+      }
+    } catch {
+      // Continue even if results fail
+    }
+
+    return Array.from(teamMap.values());
   }
 
   /**
