@@ -9,7 +9,8 @@ import {
 } from '../lib/config.js';
 import { LEAGUES, getLeagueSlugs } from '../lib/leagues.js';
 import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
-import type { Config, Secrets, FavoriteTeam } from '../types/index.js';
+import { getStaticTeams } from '../lib/teams-data.js';
+import type { Config, Secrets, FavoriteTeam, Team } from '../types/index.js';
 
 interface ConfigOptions {
   json?: boolean;
@@ -98,7 +99,18 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     console.log(chalk.dim(`Loading ${league.name} teams...`));
 
     try {
-      const teams = await provider.getLeagueTeams(league.id, league.searchName || league.name);
+      let teams = await provider.getLeagueTeams(league.id, league.searchName || league.name);
+
+      // Supplement with static data if API returns incomplete results
+      const staticTeams = await getStaticTeams(leagueSlug);
+      if (staticTeams.length > 0) {
+        const teamIds = new Set(teams.map((t) => t.id));
+        for (const staticTeam of staticTeams) {
+          if (!teamIds.has(staticTeam.id)) {
+            teams.push(staticTeam);
+          }
+        }
+      }
 
       if (teams.length === 0) {
         console.log(chalk.yellow(`No teams found for ${league.name}\n`));
@@ -148,7 +160,53 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
         console.log('');
       }
     } catch (error) {
-      console.log(chalk.yellow(`Could not load teams for ${league.name}\n`));
+      // Fall back to static data if API fails
+      const staticTeams = await getStaticTeams(leagueSlug);
+      if (staticTeams.length > 0) {
+        console.log(chalk.dim(`Using cached team data for ${league.name}...`));
+
+        const teamChoices = staticTeams
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((t) => ({
+            name: t.name,
+            value: t,
+            checked: existingTeamIds.has(t.id),
+          }));
+
+        const { selectedTeams } = await inquirer.prompt<{ selectedTeams: Team[] }>([
+          {
+            type: 'checkbox',
+            name: 'selectedTeams',
+            message: `Select ${league.name} teams:`,
+            choices: teamChoices,
+            pageSize: 15,
+          },
+        ]);
+
+        for (const team of selectedTeams) {
+          const existing = favoriteTeams.find((t) => t.id === team.id);
+          if (existing) {
+            if (!existing.leagueIds.includes(league.id)) {
+              existing.leagueIds.push(league.id);
+            }
+          } else {
+            favoriteTeams.push({
+              id: team.id,
+              name: team.name,
+              slug: team.name.toLowerCase().replace(/\s+/g, '-'),
+              leagueIds: [league.id],
+            });
+          }
+        }
+
+        if (selectedTeams.length > 0) {
+          console.log(chalk.green(`✓ Selected ${selectedTeams.length} team(s)\n`));
+        } else {
+          console.log('');
+        }
+      } else {
+        console.log(chalk.yellow(`Could not load teams for ${league.name}\n`));
+      }
     }
   }
 

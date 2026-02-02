@@ -1,0 +1,963 @@
+{
+  "updated_at": "2026-02-02T01:05:55Z",
+  "leagues": {
+    "top14": [
+  {
+    "id": "135332",
+    "name": "ASM Clermont Auvergne",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qh7djg1622926100.png"
+  },
+  {
+    "id": "135328",
+    "name": "Aviron Bayonnais",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/z0fq591714808782.png"
+  },
+  {
+    "id": "135331",
+    "name": "Castres Olympique",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/2hzwdf1536392242.png"
+  },
+  {
+    "id": "135341",
+    "name": "Lyon OU",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/kjljr41536392388.png"
+  },
+  {
+    "id": "135334",
+    "name": "Montpellier Hérault Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/xbsi1g1536392475.png"
+  },
+  {
+    "id": "135338",
+    "name": "RC Toulonnais",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/c4997c1536393005.png"
+  },
+  {
+    "id": "135336",
+    "name": "Racing Métro 92",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ywxugl1536392844.png"
+  },
+  {
+    "id": "137384",
+    "name": "Section Paloise",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/zak92e1573136893.png"
+  },
+  {
+    "id": "135337",
+    "name": "Stade Français Paris",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/lr2v3f1622926121.png"
+  },
+  {
+    "id": "135340",
+    "name": "Stade Rochelais",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/a4yd1y1536393155.png"
+  },
+  {
+    "id": "135339",
+    "name": "Stade Toulousain",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/z7pjfg1622926113.png"
+  },
+  {
+    "id": "141952",
+    "name": "US Montauban",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/6wog8v1694604440.png"
+  },
+  {
+    "id": "137386",
+    "name": "USA Perpignan",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/9jsg3o1573137449.png"
+  },
+  {
+    "id": "135329",
+    "name": "Union Bordeaux Bègles",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qiw7sx1536393400.png"
+  }
+],
+    "premiership": [
+  {
+    "id": "135199",
+    "name": "Bath Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/u4l0r31546689367.png"
+  },
+  {
+    "id": "135740",
+    "name": "Bristol Bears",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/erh80w1678806719.png"
+  },
+  {
+    "id": "135200",
+    "name": "Exeter Chiefs",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/jm86xd1662987821.png"
+  },
+  {
+    "id": "135201",
+    "name": "Gloucester",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/v9unxi1536943971.png"
+  },
+  {
+    "id": "135202",
+    "name": "Harlequins",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ez76vo1546689062.png"
+  },
+  {
+    "id": "135180",
+    "name": "Leicester Tigers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/d59nhl1523219441.png"
+  },
+  {
+    "id": "135205",
+    "name": "Newcastle Red Bulls",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/mj85w41757527653.png"
+  },
+  {
+    "id": "135206",
+    "name": "Northampton Saints",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/vlmoaz1728111362.png"
+  },
+  {
+    "id": "135207",
+    "name": "Sale Sharks",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/nbl5tt1552065785.png"
+  },
+  {
+    "id": "135208",
+    "name": "Saracens",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ek19321758786974.png"
+  }
+],
+    "urc": [
+  {
+    "id": "135595",
+    "name": "Benetton",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/txsuxw1453647910.png"
+  },
+  {
+    "id": "136666",
+    "name": "Bulls",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/7dtgtv1649010361.png"
+  },
+  {
+    "id": "135596",
+    "name": "Cardiff Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/p8728b1647091605.png"
+  },
+  {
+    "id": "135597",
+    "name": "Connacht",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/4ziybw1647168615.png"
+  },
+  {
+    "id": "135602",
+    "name": "Dragons",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/d1fk1n1663329343.png"
+  },
+  {
+    "id": "135598",
+    "name": "Edinburgh",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/5t1tbn1536391225.png"
+  },
+  {
+    "id": "135600",
+    "name": "Glasgow",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/0kki0e1578143411.png"
+  },
+  {
+    "id": "135599",
+    "name": "Leinster",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qtff3q1716739427.png"
+  },
+  {
+    "id": "136668",
+    "name": "Lions",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/6y804o1649010370.png"
+  },
+  {
+    "id": "135601",
+    "name": "Munster",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/s3d28t1716493148.png"
+  },
+  {
+    "id": "135603",
+    "name": "Ospreys",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/zctq2h1552074123.png"
+  },
+  {
+    "id": "135604",
+    "name": "Scarlets",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/vtxpxp1453652163.png"
+  },
+  {
+    "id": "136670",
+    "name": "Stormers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/d1v82u1757674073.png"
+  },
+  {
+    "id": "136669",
+    "name": "The Sharks",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/r1f6sk1716742644.png"
+  },
+  {
+    "id": "135605",
+    "name": "Ulster",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/j8usvw1716743144.png"
+  },
+  {
+    "id": "135606",
+    "name": "Zebre",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/y0vaog1716739157.png"
+  }
+],
+    "pro_d2": [
+  {
+    "id": "144856",
+    "name": "Aurillac",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/bswjkc1694604193.png"
+  },
+  {
+    "id": "137387",
+    "name": "Biarritz Olympique",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/upyi9y1642977994.png"
+  },
+  {
+    "id": "144857",
+    "name": "Béziers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qzhtx91694603874.png"
+  },
+  {
+    "id": "135330",
+    "name": "CA Brive",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/90p5p01536392092.png"
+  },
+  {
+    "id": "144859",
+    "name": "Carcassonne",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/lcprlg1758540777.png"
+  },
+  {
+    "id": "144860",
+    "name": "Colomiers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/5s3tax1641776881.png"
+  },
+  {
+    "id": "135333",
+    "name": "FC Grenoble",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/f9zv8i1694603701.png"
+  },
+  {
+    "id": "137388",
+    "name": "Mont-de-Marsan",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ae633r1694604315.png"
+  },
+  {
+    "id": "144862",
+    "name": "Nevers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/xts28v1641776892.png"
+  },
+  {
+    "id": "135335",
+    "name": "Oyonnax Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ycq1jr1536392680.png"
+  },
+  {
+    "id": "144863",
+    "name": "Provence",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/n7v08q1694604058.png"
+  },
+  {
+    "id": "137385",
+    "name": "SU Agen Lot-et-Garonne",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/lv21jo1622926130.png"
+  },
+  {
+    "id": "145705",
+    "name": "Soyaux Angoulême XV Charente",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/h46olj1694604135.png"
+  },
+  {
+    "id": "141953",
+    "name": "US Dax",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qzy07l1694075027.png"
+  },
+  {
+    "id": "145704",
+    "name": "Valence Romans Drôme Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/j1yna91646160710.png"
+  },
+  {
+    "id": "144865",
+    "name": "Vannes",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/foy0571694603578.png"
+  }
+],
+    "champions_cup": [
+  {
+    "id": "135332",
+    "name": "ASM Clermont Auvergne",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qh7djg1622926100.png"
+  },
+  {
+    "id": "135328",
+    "name": "Aviron Bayonnais",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/z0fq591714808782.png"
+  },
+  {
+    "id": "135199",
+    "name": "Bath Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/u4l0r31546689367.png"
+  },
+  {
+    "id": "135740",
+    "name": "Bristol Bears",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/erh80w1678806719.png"
+  },
+  {
+    "id": "136666",
+    "name": "Bulls",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/7dtgtv1649010361.png"
+  },
+  {
+    "id": "135331",
+    "name": "Castres Olympique",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/2hzwdf1536392242.png"
+  },
+  {
+    "id": "135598",
+    "name": "Edinburgh",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/5t1tbn1536391225.png"
+  },
+  {
+    "id": "135600",
+    "name": "Glasgow",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/0kki0e1578143411.png"
+  },
+  {
+    "id": "135201",
+    "name": "Gloucester",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/v9unxi1536943971.png"
+  },
+  {
+    "id": "135202",
+    "name": "Harlequins",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ez76vo1546689062.png"
+  },
+  {
+    "id": "135180",
+    "name": "Leicester Tigers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/d59nhl1523219441.png"
+  },
+  {
+    "id": "135599",
+    "name": "Leinster",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qtff3q1716739427.png"
+  },
+  {
+    "id": "135601",
+    "name": "Munster",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/s3d28t1716493148.png"
+  },
+  {
+    "id": "135206",
+    "name": "Northampton Saints",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/vlmoaz1728111362.png"
+  },
+  {
+    "id": "135338",
+    "name": "RC Toulonnais",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/c4997c1536393005.png"
+  },
+  {
+    "id": "135207",
+    "name": "Sale Sharks",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/nbl5tt1552065785.png"
+  },
+  {
+    "id": "135208",
+    "name": "Saracens",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ek19321758786974.png"
+  },
+  {
+    "id": "135604",
+    "name": "Scarlets",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/vtxpxp1453652163.png"
+  },
+  {
+    "id": "137384",
+    "name": "Section Paloise",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/zak92e1573136893.png"
+  },
+  {
+    "id": "135340",
+    "name": "Stade Rochelais",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/a4yd1y1536393155.png"
+  },
+  {
+    "id": "135339",
+    "name": "Stade Toulousain",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/z7pjfg1622926113.png"
+  },
+  {
+    "id": "136670",
+    "name": "Stormers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/d1v82u1757674073.png"
+  },
+  {
+    "id": "136669",
+    "name": "The Sharks",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/r1f6sk1716742644.png"
+  },
+  {
+    "id": "135329",
+    "name": "Union Bordeaux Bègles",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qiw7sx1536393400.png"
+  }
+],
+    "challenge_cup": [
+  {
+    "id": "135595",
+    "name": "Benetton",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/txsuxw1453647910.png"
+  },
+  {
+    "id": "147880",
+    "name": "Black Lion",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/m0zs931716752391.png"
+  },
+  {
+    "id": "135596",
+    "name": "Cardiff Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/p8728b1647091605.png"
+  },
+  {
+    "id": "135920",
+    "name": "Cheetahs",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/2qubuj1536390598.png"
+  },
+  {
+    "id": "135597",
+    "name": "Connacht",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/4ziybw1647168615.png"
+  },
+  {
+    "id": "135602",
+    "name": "Dragons",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/d1fk1n1663329343.png"
+  },
+  {
+    "id": "135200",
+    "name": "Exeter Chiefs",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/jm86xd1662987821.png"
+  },
+  {
+    "id": "136668",
+    "name": "Lions",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/6y804o1649010370.png"
+  },
+  {
+    "id": "135341",
+    "name": "Lyon OU",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/kjljr41536392388.png"
+  },
+  {
+    "id": "135334",
+    "name": "Montpellier Hérault Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/xbsi1g1536392475.png"
+  },
+  {
+    "id": "135205",
+    "name": "Newcastle Red Bulls",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/mj85w41757527653.png"
+  },
+  {
+    "id": "135603",
+    "name": "Ospreys",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/zctq2h1552074123.png"
+  },
+  {
+    "id": "135336",
+    "name": "Racing Métro 92",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ywxugl1536392844.png"
+  },
+  {
+    "id": "135337",
+    "name": "Stade Français Paris",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/lr2v3f1622926121.png"
+  },
+  {
+    "id": "141952",
+    "name": "US Montauban",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/6wog8v1694604440.png"
+  },
+  {
+    "id": "137386",
+    "name": "USA Perpignan",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/9jsg3o1573137449.png"
+  },
+  {
+    "id": "135605",
+    "name": "Ulster",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/j8usvw1716743144.png"
+  },
+  {
+    "id": "135606",
+    "name": "Zebre",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/y0vaog1716739157.png"
+  }
+],
+    "six_nations": [
+  {
+    "id": "137123",
+    "name": "England Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/um3r931580670804.png"
+  },
+  {
+    "id": "137128",
+    "name": "France Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/5xtbu91580670779.png"
+  },
+  {
+    "id": "137130",
+    "name": "Ireland Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/b80l3m1566376999.png"
+  },
+  {
+    "id": "137175",
+    "name": "Italy Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/gtnxor1566381467.png"
+  },
+  {
+    "id": "137136",
+    "name": "Scotland Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/bewu1g1566377149.png"
+  },
+  {
+    "id": "137141",
+    "name": "Wales Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/8aegaf1566382610.png"
+  }
+],
+    "rugby_championship": [
+  {
+    "id": "137124",
+    "name": "Argentina Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/tzui081688463129.png"
+  },
+  {
+    "id": "137125",
+    "name": "Australia Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/uc5umy1566382527.png"
+  },
+  {
+    "id": "137133",
+    "name": "New Zealand Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/fhr0ys1566381231.png"
+  },
+  {
+    "id": "137137",
+    "name": "South Africa Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/k5174f1721829684.png"
+  }
+],
+    "super_rugby": [
+  {
+    "id": "136656",
+    "name": "ACT Brumbies",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/0r9shp1555144049.png"
+  },
+  {
+    "id": "136661",
+    "name": "Blues Super Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/w8kypi1555143121.png"
+  },
+  {
+    "id": "136662",
+    "name": "Chiefs Super Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ut9cpz1555142819.png"
+  },
+  {
+    "id": "136663",
+    "name": "Crusaders Super Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/8nj0g71592726411.png"
+  },
+  {
+    "id": "137390",
+    "name": "Fijian Drua",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/hwkiae1642447086.png"
+  },
+  {
+    "id": "136664",
+    "name": "Highlanders Super Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/p3fghu1554410255.png"
+  },
+  {
+    "id": "136665",
+    "name": "Hurricanes Super Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/rl0dh31554410874.png"
+  },
+  {
+    "id": "144952",
+    "name": "Moana Pasifika",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/369q921642447525.png"
+  },
+  {
+    "id": "136660",
+    "name": "New South Wales Waratahs",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/yx31xh1555683522.png"
+  },
+  {
+    "id": "136658",
+    "name": "Queensland Reds",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/q499dj1554411648.png"
+  },
+  {
+    "id": "137391",
+    "name": "Western Force",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/pwelh51573084191.png"
+  }
+],
+    "currie_cup": [
+  {
+    "id": "142062",
+    "name": "Blue Bulls",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/uzsinm1752668938.png"
+  },
+  {
+    "id": "142063",
+    "name": "Boland Cavaliers",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/04o3ss1625358974.png"
+  },
+  {
+    "id": "142067",
+    "name": "Free State Cheetahs",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/fc24hq1752674187.png"
+  },
+  {
+    "id": "142068",
+    "name": "Golden Lions",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/9m704r1665228008.png"
+  },
+  {
+    "id": "142070",
+    "name": "Griquas",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/cv86da1651859337.png"
+  },
+  {
+    "id": "142072",
+    "name": "Pumas",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/5eltim1651859350.png"
+  },
+  {
+    "id": "142073",
+    "name": "Sharks XV",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/mc8yuh1720081670.png"
+  },
+  {
+    "id": "142075",
+    "name": "Western Province",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/z80ejs1651859373.png"
+  }
+],
+    "npc": [
+  {
+    "id": "145931",
+    "name": "Auckland",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/by4lk71694617222.png"
+  },
+  {
+    "id": "145932",
+    "name": "Bay of Plenty",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/l5p4bp1694618114.png"
+  },
+  {
+    "id": "145933",
+    "name": "Canterbury",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/k861411648907649.png"
+  },
+  {
+    "id": "145934",
+    "name": "Counties Manukau",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/g7d85u1648907657.png"
+  },
+  {
+    "id": "145935",
+    "name": "Hawkes Bay",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/n2ut6h1648907665.png"
+  },
+  {
+    "id": "145936",
+    "name": "Manawatu",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qzis9i1694618120.png"
+  },
+  {
+    "id": "145937",
+    "name": "North Harbour",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qee9p31648907679.png"
+  },
+  {
+    "id": "145938",
+    "name": "Northland",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/8ojw051694618128.png"
+  },
+  {
+    "id": "145939",
+    "name": "Otago",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/6onld01694618136.png"
+  },
+  {
+    "id": "145940",
+    "name": "Southland",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/57foyk1648907703.png"
+  },
+  {
+    "id": "145942",
+    "name": "Taranaki",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/y4qamm1648907716.png"
+  },
+  {
+    "id": "145941",
+    "name": "Tasman",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/lixu581694617296.png"
+  },
+  {
+    "id": "145943",
+    "name": "Waikato",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/cpi82g1648907724.png"
+  },
+  {
+    "id": "145944",
+    "name": "Wellington",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/uw0qe01648907733.png"
+  }
+],
+    "mlr": [
+  {
+    "id": "150756",
+    "name": "Anthem RC",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/5i0grs1738855904.png"
+  },
+  {
+    "id": "154437",
+    "name": "California Legion",
+    "badge": "https://www.thesportsdb.com/images/media/team/badge/owicd21768403679.png"
+  },
+  {
+    "id": "147377",
+    "name": "Chicago Hounds",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/iydfsu1685480309.png"
+  },
+  {
+    "id": "142077",
+    "name": "Houston SaberCats",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/4ogduo1646507490.png"
+  },
+  {
+    "id": "147378",
+    "name": "Miami Sharks",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/8w895b1685480732.png"
+  },
+  {
+    "id": "142082",
+    "name": "New England Free Jacks",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/d91cl41646507768.png"
+  },
+  {
+    "id": "142083",
+    "name": "New Orleans Gold",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/9nz4sf1646507914.png"
+  },
+  {
+    "id": "142084",
+    "name": "Old Glory DC",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/g4nu1v1646508005.png"
+  },
+  {
+    "id": "150757",
+    "name": "Rugby FC Los Angeles",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/tib4qp1738856179.png"
+  },
+  {
+    "id": "142079",
+    "name": "San Diego Legion",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/unizrw1625361756.png"
+  },
+  {
+    "id": "142080",
+    "name": "Seattle Seawolves",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/yundjw1646508303.png"
+  },
+  {
+    "id": "142081",
+    "name": "Utah Warriors",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/pamu5j1646508475.png"
+  }
+],
+    "rugby_world_cup": [
+  {
+    "id": "137124",
+    "name": "Argentina Rugby",
+    "badge": null
+  },
+  {
+    "id": "137125",
+    "name": "Australia Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/uc5umy1566382527.png"
+  },
+  {
+    "id": "145717",
+    "name": "Belgium Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/sn6yd81646184363.png"
+  },
+  {
+    "id": "148538",
+    "name": "Brazil Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/yuqo3g1719407654.png"
+  },
+  {
+    "id": "137126",
+    "name": "Canada Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/euxlik1566381764.png"
+  },
+  {
+    "id": "147338",
+    "name": "Chile Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/xejg471716592211.png"
+  },
+  {
+    "id": "137123",
+    "name": "England Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/um3r931580670804.png"
+  },
+  {
+    "id": "137127",
+    "name": "Fiji Rugby",
+    "badge": null
+  },
+  {
+    "id": "137128",
+    "name": "France Rugby",
+    "badge": null
+  },
+  {
+    "id": "137129",
+    "name": "Georgia Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/qyir8r1566382728.png"
+  },
+  {
+    "id": "148539",
+    "name": "Hong Kong Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/9zynsz1719407896.png"
+  },
+  {
+    "id": "137130",
+    "name": "Ireland Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/b80l3m1566376999.png"
+  },
+  {
+    "id": "137175",
+    "name": "Italy Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/gtnxor1566381467.png"
+  },
+  {
+    "id": "137131",
+    "name": "Japan Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/twkt1h1566377267.png"
+  },
+  {
+    "id": "137132",
+    "name": "Namibia Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/3xjzaq1566381678.png"
+  },
+  {
+    "id": "137133",
+    "name": "New Zealand Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/fhr0ys1566381231.png"
+  },
+  {
+    "id": "141517",
+    "name": "Portugal Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/4a7uix1738929941.png"
+  },
+  {
+    "id": "141518",
+    "name": "Romania Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/2bpf4z1738928955.png"
+  },
+  {
+    "id": "137135",
+    "name": "Samoa Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/t3igma1756294610.png"
+  },
+  {
+    "id": "137136",
+    "name": "Scotland Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/bewu1g1566377149.png"
+  },
+  {
+    "id": "137137",
+    "name": "South Africa Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/k5174f1721829684.png"
+  },
+  {
+    "id": "141519",
+    "name": "Spain Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/e14h291623948543.png"
+  },
+  {
+    "id": "137138",
+    "name": "Tonga Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/c17bu51566382452.png"
+  },
+  {
+    "id": "137140",
+    "name": "USA Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/umtlrj1566382360.png"
+  },
+  {
+    "id": "137139",
+    "name": "Uruguay Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/bvyp1z1566382945.png"
+  },
+  {
+    "id": "137141",
+    "name": "Wales Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/8aegaf1566382610.png"
+  },
+  {
+    "id": "145720",
+    "name": "Zimbabwe Rugby",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/bhlxjp1738938906.png"
+  }
+],
+    "womens_six_nations": [
+  {
+    "id": "150799",
+    "name": "England Rugby Women",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/ozailr1738950323.png"
+  },
+  {
+    "id": "150800",
+    "name": "France Rugby Women",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/8jq1oy1738950330.png"
+  },
+  {
+    "id": "150804",
+    "name": "Ireland Rugby Women",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/i0iaov1738950347.png"
+  },
+  {
+    "id": "150803",
+    "name": "Italy Rugby Women",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/2f5nxq1738950356.png"
+  },
+  {
+    "id": "150801",
+    "name": "Scotland Rugby Women",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/1z8wxs1738950365.png"
+  },
+  {
+    "id": "150802",
+    "name": "Wales Rugby Women",
+    "badge": "https://r2.thesportsdb.com/images/media/team/badge/xwv7f51738950374.png"
+  }
+]
+  }
+}
