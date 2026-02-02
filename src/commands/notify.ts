@@ -392,8 +392,13 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
 
     if (options.json) {
       console.log(JSON.stringify(output, null, 2));
-    } else if (!options.quiet && notifications.length > 0) {
-      console.log(renderNotify(output));
+    } else if (!options.quiet) {
+      if (notifications.length > 0) {
+        console.log(renderNotify(output));
+      } else {
+        const mode = options.weekly ? 'weekly' : options.daily ? 'daily' : 'live';
+        console.log(`No ${mode} notifications at this time.`);
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

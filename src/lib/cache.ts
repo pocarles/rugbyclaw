@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { createHash } from 'node:crypto';
 import type { CacheEntry, CacheOptions } from './providers/types.js';
 
 const CACHE_DIR = join(homedir(), '.cache', 'rugbyclaw');
@@ -49,8 +50,8 @@ export class Cache {
   }
 
   private keyToFilename(key: string): string {
-    // Hash the key for filesystem-safe name
-    const hash = Buffer.from(key).toString('base64url').slice(0, 32);
+    // Use SHA-256 hash for unique, collision-free filenames
+    const hash = createHash('sha256').update(key).digest('hex').slice(0, 32);
     return `${hash}.json`;
   }
 

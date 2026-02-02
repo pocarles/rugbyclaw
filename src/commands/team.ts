@@ -98,35 +98,50 @@ async function handleNext(
       t.slug.includes(nameOrId.toLowerCase())
   )?.id;
 
-  // If not in favorites, search for it
+  // Get league fixtures once
+  const leagueIds = config.favorite_leagues
+    .map((slug) => LEAGUES[slug]?.id)
+    .filter(Boolean) as string[];
+
+  const allLeagueFixtures: Match[] = [];
+  for (const leagueId of leagueIds) {
+    const fixtures = await provider.getLeagueFixtures(leagueId);
+    allLeagueFixtures.push(...fixtures);
+  }
+
+  // If not in favorites, search and find a team that exists in our leagues
   if (!teamId) {
     const searchResults = await provider.searchTeams(nameOrId);
     if (searchResults.length === 0) {
       console.log(renderWarning(`No team found for "${nameOrId}"`));
       process.exit(0);
     }
-    teamId = searchResults[0].id;
+
+    // Find first search result that appears in our league fixtures
+    for (const team of searchResults) {
+      const hasMatches = allLeagueFixtures.some(
+        (m) => m.homeTeam.id === team.id || m.awayTeam.id === team.id
+      );
+      if (hasMatches) {
+        teamId = team.id;
+        break;
+      }
+    }
+
+    // Fallback to first result if no matches found
+    if (!teamId) {
+      teamId = searchResults[0].id;
+    }
   }
 
-  // Strategy: Query league fixtures and filter by team
-  // This works around the free tier "home only" limitation
-  const leagueIds = config.favorite_leagues
-    .map((slug) => LEAGUES[slug]?.id)
-    .filter(Boolean) as string[];
-
-  const allFixtures: Match[] = [];
-
-  for (const leagueId of leagueIds) {
-    const fixtures = await provider.getLeagueFixtures(leagueId);
-    const teamFixtures = fixtures.filter(
-      (m) => m.homeTeam.id === teamId || m.awayTeam.id === teamId
-    );
-    allFixtures.push(...teamFixtures);
-  }
+  // Filter fixtures for this team
+  const teamFixtures = allLeagueFixtures.filter(
+    (m) => m.homeTeam.id === teamId || m.awayTeam.id === teamId
+  );
 
   // Sort by date and get next match
-  allFixtures.sort((a, b) => a.timestamp - b.timestamp);
-  const nextMatch = allFixtures.find((m) => m.timestamp > Date.now());
+  teamFixtures.sort((a, b) => a.timestamp - b.timestamp);
+  const nextMatch = teamFixtures.find((m) => m.timestamp > Date.now());
 
   if (!nextMatch) {
     console.log(renderWarning('No upcoming matches found.'));
@@ -156,37 +171,50 @@ async function handleLast(
       t.slug.includes(nameOrId.toLowerCase())
   )?.id;
 
-  let teamName = nameOrId;
+  // Get league results once
+  const leagueIds = config.favorite_leagues
+    .map((slug) => LEAGUES[slug]?.id)
+    .filter(Boolean) as string[];
 
-  // If not in favorites, search for it
+  const allLeagueResults: Match[] = [];
+  for (const leagueId of leagueIds) {
+    const results = await provider.getLeagueResults(leagueId);
+    allLeagueResults.push(...results);
+  }
+
+  // If not in favorites, search and find a team that exists in our leagues
   if (!teamId) {
     const searchResults = await provider.searchTeams(nameOrId);
     if (searchResults.length === 0) {
       console.log(renderWarning(`No team found for "${nameOrId}"`));
       process.exit(0);
     }
-    teamId = searchResults[0].id;
-    teamName = searchResults[0].name;
+
+    // Find first search result that appears in our league results
+    for (const team of searchResults) {
+      const hasMatches = allLeagueResults.some(
+        (m) => m.homeTeam.id === team.id || m.awayTeam.id === team.id
+      );
+      if (hasMatches) {
+        teamId = team.id;
+        break;
+      }
+    }
+
+    // Fallback to first result if no matches found
+    if (!teamId) {
+      teamId = searchResults[0].id;
+    }
   }
 
-  // Strategy: Query league results and filter by team
-  const leagueIds = config.favorite_leagues
-    .map((slug) => LEAGUES[slug]?.id)
-    .filter(Boolean) as string[];
-
-  const allResults: Match[] = [];
-
-  for (const leagueId of leagueIds) {
-    const results = await provider.getLeagueResults(leagueId);
-    const teamResults = results.filter(
-      (m) => m.homeTeam.id === teamId || m.awayTeam.id === teamId
-    );
-    allResults.push(...teamResults);
-  }
+  // Filter results for this team
+  const teamResults = allLeagueResults.filter(
+    (m) => m.homeTeam.id === teamId || m.awayTeam.id === teamId
+  );
 
   // Sort by date (most recent first)
-  allResults.sort((a, b) => b.timestamp - a.timestamp);
-  const lastMatch = allResults[0];
+  teamResults.sort((a, b) => b.timestamp - a.timestamp);
+  const lastMatch = teamResults[0];
 
   if (!lastMatch) {
     console.log(renderWarning('No recent results found.'));
