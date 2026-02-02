@@ -151,3 +151,11 @@ export function matchToICS(match: Match): string {
   const event = matchToCalendarEvent(match);
   return generateICS(event);
 }
+
+/**
+ * Generate ICS from multiple matches.
+ */
+export function matchesToICS(matches: Match[]): string {
+  const events = matches.map(matchToCalendarEvent);
+  return generateMultiEventICS(events);
+}

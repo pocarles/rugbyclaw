@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
@@ -7,13 +8,16 @@ import {
   matchToOutput,
   renderError,
   renderWarning,
+  renderSuccess,
 } from '../render/terminal.js';
 import { generateSummary } from '../lib/personality.js';
+import { matchToICS } from '../lib/ics.js';
 import type { Match, TeamSearchOutput, MatchOutput } from '../types/index.js';
 
 interface TeamOptions {
   json?: boolean;
   quiet?: boolean;
+  ics?: boolean;
 }
 
 export async function teamCommand(
@@ -148,12 +152,23 @@ async function handleNext(
     process.exit(0);
   }
 
+  // Export to ICS if requested
+  if (options.ics) {
+    const ics = matchToICS(nextMatch);
+    const filename = `${nextMatch.homeTeam.name.toLowerCase().replace(/\s+/g, '-')}-vs-${nextMatch.awayTeam.name.toLowerCase().replace(/\s+/g, '-')}.ics`;
+    await writeFile(filename, ics);
+    if (!options.quiet) {
+      console.log(renderSuccess(`Calendar saved to ${filename}`));
+    }
+    return;
+  }
+
   const output = matchToOutput(nextMatch, teamId);
 
   if (options.json) {
     console.log(JSON.stringify(output, null, 2));
   } else if (!options.quiet) {
-    console.log(renderMatch(output));
+    console.log(renderMatch(output, true)); // Show calendar hint
   }
 }
 

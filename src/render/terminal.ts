@@ -63,7 +63,7 @@ function formatStatus(status: string): string {
 /**
  * Format a score with team names.
  */
-function formatMatchLine(match: MatchOutput): string {
+function formatMatchLine(match: MatchOutput, showId = false): string {
   const status = formatStatus(match.status);
   const time = match.status === 'scheduled' ? formatTime(match.time) : '';
 
@@ -85,6 +85,11 @@ function formatMatchLine(match: MatchOutput): string {
     line += `  ${status}`;
   } else if (time) {
     line += `  ${chalk.cyan(time)}`;
+  }
+
+  // Show match ID for calendar export
+  if (showId && match.id) {
+    line += chalk.dim(`  [${match.id}]`);
   }
 
   return line;
@@ -127,7 +132,7 @@ export function renderScores(output: ScoresOutput): string {
 /**
  * Render fixtures output.
  */
-export function renderFixtures(output: FixturesOutput): string {
+export function renderFixtures(output: FixturesOutput, showIds = false): string {
   if (output.matches.length === 0) {
     return chalk.dim('No upcoming fixtures found.');
   }
@@ -153,9 +158,13 @@ export function renderFixtures(output: FixturesOutput): string {
   for (const [date, matches] of byDate) {
     lines.push(chalk.yellow(formatDate(date)));
     for (const match of matches) {
-      lines.push(formatMatchLine(match));
+      lines.push(formatMatchLine(match, showIds));
     }
     lines.push('');
+  }
+
+  if (showIds) {
+    lines.push(chalk.dim('Tip: rugbyclaw calendar <id> to export to .ics'));
   }
 
   return lines.join('\n');
@@ -216,7 +225,7 @@ export function renderTeamSearch(output: TeamSearchOutput): string {
 /**
  * Render a single match (for team next/last).
  */
-export function renderMatch(match: MatchOutput): string {
+export function renderMatch(match: MatchOutput, showCalendarHint = false): string {
   const lines: string[] = [];
 
   const status = formatStatus(match.status);
@@ -240,6 +249,12 @@ export function renderMatch(match: MatchOutput): string {
   if (match.venue) {
     lines.push('');
     lines.push(chalk.dim(`📍 ${match.venue}`));
+  }
+
+  // Show calendar export hint for scheduled matches
+  if (showCalendarHint && match.status === 'scheduled' && match.id) {
+    lines.push('');
+    lines.push(chalk.dim(`📅 rugbyclaw calendar ${match.id}`));
   }
 
   return lines.join('\n');

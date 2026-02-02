@@ -40,6 +40,8 @@ program
   .command('fixtures [league]')
   .description('Upcoming matches')
   .option('-n, --limit <number>', 'Number of matches to show', '15')
+  .option('--ics', 'Export fixtures to .ics calendar file')
+  .option('--show-ids', 'Show match IDs for calendar export')
   .action(async (league, options) => {
     await fixturesCommand(league, { ...program.opts(), ...options });
   });
@@ -68,8 +70,9 @@ teamCmd
 teamCmd
   .command('next <name>')
   .description("Team's next match")
-  .action(async (name) => {
-    await teamCommand(name, 'next', program.opts());
+  .option('--ics', 'Export match to .ics calendar file')
+  .action(async (name, options) => {
+    await teamCommand(name, 'next', { ...program.opts(), ...options });
   });
 
 teamCmd

@@ -1,13 +1,17 @@
+import { writeFile } from 'node:fs/promises';
 import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { TheSportsDBProvider } from '../lib/providers/thesportsdb.js';
-import { renderFixtures, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
+import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
+import { matchToICS, matchesToICS } from '../lib/ics.js';
 import type { FixturesOutput, Match } from '../types/index.js';
 
 interface FixturesOptions {
   json?: boolean;
   quiet?: boolean;
   limit?: string;
+  ics?: boolean;
+  showIds?: boolean;
 }
 
 export async function fixturesCommand(
@@ -76,10 +80,27 @@ export async function fixturesCommand(
       generated_at: new Date().toISOString(),
     };
 
+    // Export to ICS file
+    if (options.ics) {
+      if (matches.length === 0) {
+        console.log(renderWarning('No fixtures to export.'));
+        process.exit(0);
+      }
+      const ics = matchesToICS(matches);
+      const filename = leagueName
+        ? `${leagueName.toLowerCase().replace(/\s+/g, '-')}-fixtures.ics`
+        : 'rugby-fixtures.ics';
+      await writeFile(filename, ics);
+      if (!options.quiet) {
+        console.log(renderSuccess(`Exported ${matches.length} fixtures to ${filename}`));
+      }
+      return;
+    }
+
     if (options.json) {
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
-      console.log(renderFixtures(output));
+      console.log(renderFixtures(output, options.showIds));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
