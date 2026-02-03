@@ -5,6 +5,9 @@ import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 
 const BASE_URL = 'https://v1.rugby.api-sports.io';
+const PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
+
+export type ProviderMode = 'direct' | 'proxy';
 
 /**
  * API-Sports response wrapper
@@ -159,22 +162,36 @@ function getCurrentSeason(leagueId?: string): number {
 /**
  * API-Sports provider implementation.
  *
+ * Supports two modes:
+ * - 'direct': Uses user's API key directly with API-Sports
+ * - 'proxy': Uses the Rugbyclaw proxy (no API key required, rate limited)
+ *
  * Docs: https://api-sports.io/documentation/rugby/v1
  *
  * Pro tier: 7,500 requests/day, 300 requests/min
  */
 export class ApiSportsProvider implements Provider {
   readonly name = 'API-Sports';
-  private apiKey: string;
+  private apiKey: string | null;
+  private mode: ProviderMode;
   private cache = getCache();
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  constructor(apiKey?: string) {
+    this.apiKey = apiKey || null;
+    this.mode = apiKey ? 'direct' : 'proxy';
+  }
+
+  /**
+   * Check if using proxy mode (no user API key).
+   */
+  isProxyMode(): boolean {
+    return this.mode === 'proxy';
   }
 
   private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
     const searchParams = new URLSearchParams(params);
-    const url = `${BASE_URL}/${endpoint}?${searchParams}`;
+    const baseUrl = this.mode === 'proxy' ? PROXY_URL : BASE_URL;
+    const url = `${baseUrl}/${endpoint}?${searchParams}`;
     const key = cacheKey(endpoint, params);
 
     // Check cache first
@@ -185,22 +202,25 @@ export class ApiSportsProvider implements Provider {
 
     // Fetch fresh data
     try {
-      const response = await fetch(url, {
-        headers: {
-          'x-apisports-key': this.apiKey,
-        },
-      });
+      const headers: Record<string, string> = {};
+      if (this.mode === 'direct' && this.apiKey) {
+        headers['x-apisports-key'] = this.apiKey;
+      }
+
+      const response = await fetch(url, { headers });
 
       if (response.status === 429) {
         // Return stale data if available on rate limit
         if (cached) {
           return cached.data.response;
         }
-        throw new ProviderError(
-          'Rate limit exceeded. Try again later.',
-          'RATE_LIMITED',
-          this.name
-        );
+
+        // Different message for proxy vs direct mode
+        const message = this.mode === 'proxy'
+          ? 'Daily limit reached. Run "rugbyclaw config" to add your own API key for unlimited access.'
+          : 'Rate limit exceeded. Try again later.';
+
+        throw new ProviderError(message, 'RATE_LIMITED', this.name);
       }
 
       if (response.status === 401 || response.status === 403) {

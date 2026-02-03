@@ -11,6 +11,12 @@ const STATE_PATH = join(CONFIG_DIR, 'state.json');
 
 const CURRENT_SCHEMA_VERSION = 1;
 
+/**
+ * Default leagues for proxy mode (users without their own API key).
+ * Most popular: Top 14, Premiership, URC, Champions Cup, Six Nations
+ */
+export const DEFAULT_PROXY_LEAGUES = ['top14', 'premiership', 'urc', 'champions_cup', 'six_nations'];
+
 // Default config
 const DEFAULT_CONFIG: Config = {
   schema_version: CURRENT_SCHEMA_VERSION,
@@ -96,11 +102,33 @@ export async function saveSecrets(secrets: Secrets): Promise<void> {
 }
 
 /**
- * Check if rugbyclaw is configured.
+ * Check if rugbyclaw is fully configured (has API key).
  */
 export async function isConfigured(): Promise<boolean> {
   const secrets = await loadSecrets();
   return secrets !== null && secrets.api_key.length > 0;
+}
+
+/**
+ * Check if user has customized their leagues (ran config wizard).
+ */
+export async function hasCustomConfig(): Promise<boolean> {
+  return existsSync(CONFIG_PATH);
+}
+
+/**
+ * Get effective leagues (user's favorites or defaults for proxy mode).
+ */
+export async function getEffectiveLeagues(): Promise<string[]> {
+  const config = await loadConfig();
+
+  // If user has configured favorite leagues, use those
+  if (config.favorite_leagues.length > 0) {
+    return config.favorite_leagues;
+  }
+
+  // Otherwise use default proxy leagues
+  return DEFAULT_PROXY_LEAGUES;
 }
 
 /**

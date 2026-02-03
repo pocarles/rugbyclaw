@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
+import { loadConfig, loadSecrets, getEffectiveLeagues, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
@@ -18,21 +18,10 @@ export async function fixturesCommand(
   leagueInput: string | undefined,
   options: FixturesOptions
 ): Promise<void> {
-  // Check configuration
-  if (!(await isConfigured())) {
-    console.log(renderError('Not configured. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
   const config = await loadConfig();
+  // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
-
-  if (!secrets) {
-    console.log(renderError('API key not found. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
-  const provider = new ApiSportsProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets?.api_key);
   const limit = parseInt(options.limit || '15', 10);
 
   let matches: Match[] = [];
@@ -49,18 +38,20 @@ export async function fixturesCommand(
         process.exit(1);
       }
 
+      if (!secrets?.api_key && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
+        console.log(renderError(`"${league.name}" is not available in free mode.`));
+        console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
+        process.exit(1);
+      }
+
       leagueName = league.name;
       matches = await provider.getLeagueFixtures(league.id);
     } else {
-      // All favorite leagues
-      const leagueIds = config.favorite_leagues
+      // Get effective leagues (user's favorites or defaults)
+      const favoriteLeagues = secrets?.api_key ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+      const leagueIds = favoriteLeagues
         .map((slug) => LEAGUES[slug]?.id)
         .filter(Boolean) as string[];
-
-      if (leagueIds.length === 0) {
-        console.log(renderWarning('No favorite leagues configured.'));
-        process.exit(0);
-      }
 
       for (const id of leagueIds) {
         const leagueMatches = await provider.getLeagueFixtures(id);
@@ -76,7 +67,7 @@ export async function fixturesCommand(
 
     const output: FixturesOutput = {
       league: leagueName,
-      matches: matches.map((m) => matchToOutput(m)),
+      matches: matches.map((m) => matchToOutput(m, { timeZone: config.timezone })),
       generated_at: new Date().toISOString(),
     };
 
@@ -100,7 +91,7 @@ export async function fixturesCommand(
     if (options.json) {
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
-      console.log(renderFixtures(output, options.showIds));
+      console.log(renderFixtures(output, options.showIds, config.timezone));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

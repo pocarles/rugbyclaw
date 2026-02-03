@@ -48,9 +48,10 @@ rugbyclaw results champions_cup
 ## Setup
 
 Run `rugbyclaw config` to configure your preferences:
-- Enter your API-Sports Rugby API key (get yours at [api-sports.io](https://api-sports.io))
-- Select favorite leagues
-- Search and add favorite teams
+- No API key required (free mode uses a proxy with limits)
+- (Optional) add your API-Sports Rugby API key (get yours at [api-sports.io](https://api-sports.io))
+- Select favorite leagues (free mode is limited to default leagues)
+- (Optional) pick favorite teams
 - Set your timezone
 
 API key is stored securely in `~/.config/rugbyclaw/secrets.json` (mode 600).
@@ -60,9 +61,9 @@ API key is stored securely in `~/.config/rugbyclaw/secrets.json` (mode 600).
 ### `rugbyclaw config`
 
 Interactive setup wizard:
-- Enter your API-Sports Rugby API key
+- Choose free mode (default) or add an API key (optional)
 - Select favorite leagues
-- Search and add favorite teams
+- (Optional) add favorite teams
 - Set your timezone
 
 ### `rugbyclaw scores`
@@ -114,7 +115,22 @@ rugbyclaw calendar 123456 --out ~/Desktop/match.ics
 
 ### `rugbyclaw notify`
 
-_Planned for future release._ Live score alerts and proactive notifications will be added in a future update.
+Generate notifications for cron/OpenClaw integration.
+
+```bash
+rugbyclaw notify --weekly   # Weekly digest
+rugbyclaw notify --daily    # Day/hour reminders
+rugbyclaw notify --live     # Live score updates
+```
+
+### `rugbyclaw status`
+
+Show current mode (free vs API key), timezone, and effective leagues.
+
+```bash
+rugbyclaw status
+rugbyclaw status --json
+```
 
 ## Supported Leagues
 

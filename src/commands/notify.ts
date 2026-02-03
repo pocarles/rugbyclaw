@@ -1,4 +1,4 @@
-import { loadConfig, loadSecrets, loadState, saveState, isConfigured } from '../lib/config.js';
+import { loadConfig, loadSecrets, loadState, saveState, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { generateSummary } from '../lib/personality.js';
@@ -44,17 +44,13 @@ function canNotify(state: MatchNotificationState | undefined, now: number): bool
  */
 async function handleWeekly(
   provider: ApiSportsProvider,
-  config: Awaited<ReturnType<typeof loadConfig>>
+  leagueIds: string[],
+  teamIds: string[],
+  timeZone: string
 ): Promise<Notification[]> {
   const notifications: Notification[] = [];
   const now = Date.now();
   const weekEnd = now + 7 * DAY_MS;
-
-  const leagueIds = config.favorite_leagues
-    .map((slug) => LEAGUES[slug]?.id)
-    .filter(Boolean) as string[];
-
-  const teamIds = config.favorite_teams.map((t) => t.id);
 
   const allFixtures: Match[] = [];
 
@@ -82,10 +78,11 @@ async function handleWeekly(
   const matchList = allFixtures
     .map((m) => {
       const date = new Date(m.date);
-      const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+      const day = date.toLocaleDateString('en-US', { weekday: 'short', timeZone });
       const time = date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
+        timeZone,
       });
       return `${m.homeTeam.name} vs ${m.awayTeam.name} (${day} ${time})`;
     })
@@ -105,17 +102,13 @@ async function handleWeekly(
  */
 async function handleDaily(
   provider: ApiSportsProvider,
-  config: Awaited<ReturnType<typeof loadConfig>>,
+  leagueIds: string[],
+  teamIds: string[],
+  timeZone: string,
   state: State
 ): Promise<{ notifications: Notification[]; state: State }> {
   const notifications: Notification[] = [];
   const now = Date.now();
-
-  const leagueIds = config.favorite_leagues
-    .map((slug) => LEAGUES[slug]?.id)
-    .filter(Boolean) as string[];
-
-  const teamIds = config.favorite_teams.map((t) => t.id);
 
   for (const leagueId of leagueIds) {
     const fixtures = await provider.getLeagueFixtures(leagueId);
@@ -159,13 +152,14 @@ async function handleDaily(
         const time = date.toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit',
+          timeZone,
         });
 
         notifications.push({
           type: 'day_before',
           match_id: match.id,
           message: `${match.homeTeam.name} plays tomorrow at ${time} vs ${match.awayTeam.name}${match.venue ? ` at ${match.venue}` : ''}`,
-          match: matchToOutput(match),
+          match: matchToOutput(match, { timeZone }),
         });
       }
 
@@ -184,7 +178,7 @@ async function handleDaily(
           type: 'hour_before',
           match_id: match.id,
           message: `${match.homeTeam.name} kicks off in ~1 hour vs ${match.awayTeam.name}`,
-          match: matchToOutput(match),
+          match: matchToOutput(match, { timeZone }),
         });
       }
 
@@ -200,124 +194,116 @@ async function handleDaily(
  */
 async function handleLive(
   provider: ApiSportsProvider,
-  config: Awaited<ReturnType<typeof loadConfig>>,
+  leagueIds: string[],
+  teamIds: string[],
+  timeZone: string,
   state: State
 ): Promise<{ notifications: Notification[]; state: State }> {
   const notifications: Notification[] = [];
   const now = Date.now();
+  // Use the cheaper "today" query path (one request per league, cached) instead of
+  // fetching full season fixtures + results on every poll.
+  const allMatches = await provider.getToday(leagueIds);
 
-  const leagueIds = config.favorite_leagues
-    .map((slug) => LEAGUES[slug]?.id)
-    .filter(Boolean) as string[];
+  for (const match of allMatches) {
+    const isTracked =
+      teamIds.length === 0 ||
+      teamIds.includes(match.homeTeam.id) ||
+      teamIds.includes(match.awayTeam.id);
 
-  const teamIds = config.favorite_teams.map((t) => t.id);
+    if (!isTracked) continue;
 
-  for (const leagueId of leagueIds) {
-    // Check fixtures for live matches
-    const fixtures = await provider.getLeagueFixtures(leagueId);
-    const results = await provider.getLeagueResults(leagueId);
-    const allMatches = [...fixtures, ...results];
+    const matchState = state.matches[match.id] || {
+      match_id: match.id,
+      status: 'scheduled' as const,
+      last_score_hash: '',
+      last_notified_at: 0,
+      notified: {
+        day_before: false,
+        hour_before: false,
+        kickoff: false,
+        halftime: false,
+        fulltime: false,
+      },
+    };
 
-    for (const match of allMatches) {
-      const isTracked =
-        teamIds.length === 0 ||
-        teamIds.includes(match.homeTeam.id) ||
-        teamIds.includes(match.awayTeam.id);
+    const currentHash = scoreHash(match);
+    const previousStatus = matchState.status;
 
-      if (!isTracked) continue;
-
-      const matchState = state.matches[match.id] || {
-        match_id: match.id,
-        status: 'scheduled' as const,
-        last_score_hash: '',
-        last_notified_at: 0,
-        notified: {
-          day_before: false,
-          hour_before: false,
-          kickoff: false,
-          halftime: false,
-          fulltime: false,
-        },
-      };
-
-      const currentHash = scoreHash(match);
-      const previousStatus = matchState.status;
-
-      // Kickoff detection
-      if (
-        match.status === 'live' &&
-        previousStatus === 'scheduled' &&
-        !matchState.notified.kickoff &&
-        canNotify(matchState, now)
-      ) {
-        matchState.status = 'live';
-        matchState.notified.kickoff = true;
-        matchState.last_notified_at = now;
-        matchState.last_score_hash = currentHash;
-        state.matches[match.id] = matchState;
-
-        notifications.push({
-          type: 'kickoff',
-          match_id: match.id,
-          message: `🏉 Kickoff! ${match.homeTeam.name} vs ${match.awayTeam.name}`,
-          match: matchToOutput(match),
-        });
-        continue;
-      }
-
-      // Score change detection
-      if (
-        match.status === 'live' &&
-        currentHash !== matchState.last_score_hash &&
-        canNotify(matchState, now)
-      ) {
-        matchState.status = 'live';
-        matchState.last_score_hash = currentHash;
-        matchState.last_notified_at = now;
-        state.matches[match.id] = matchState;
-
-        const score = match.score
-          ? `${match.score.home}-${match.score.away}`
-          : 'Score update';
-
-        notifications.push({
-          type: 'score_update',
-          match_id: match.id,
-          message: `🏉 ${match.homeTeam.name} ${score} ${match.awayTeam.name}`,
-          match: matchToOutput(match),
-        });
-        continue;
-      }
-
-      // Fulltime detection
-      if (
-        match.status === 'finished' &&
-        previousStatus !== 'finished' &&
-        !matchState.notified.fulltime &&
-        canNotify(matchState, now)
-      ) {
-        matchState.status = 'finished';
-        matchState.notified.fulltime = true;
-        matchState.last_notified_at = now;
-        matchState.last_score_hash = currentHash;
-        state.matches[match.id] = matchState;
-
-        const teamId =
-          teamIds.find(
-            (id) => id === match.homeTeam.id || id === match.awayTeam.id
-          ) || undefined;
-        const summary = generateSummary(match, teamId);
-
-        notifications.push({
-          type: 'fulltime',
-          match_id: match.id,
-          message: summary || `FT: ${match.homeTeam.name} ${match.score?.home}-${match.score?.away} ${match.awayTeam.name}`,
-          match: matchToOutput(match),
-        });
-      }
-
+    // Kickoff detection
+    if (
+      match.status === 'live' &&
+      previousStatus === 'scheduled' &&
+      !matchState.notified.kickoff &&
+      canNotify(matchState, now)
+    ) {
+      matchState.status = 'live';
+      matchState.notified.kickoff = true;
+      matchState.last_notified_at = now;
+      matchState.last_score_hash = currentHash;
       state.matches[match.id] = matchState;
+
+      notifications.push({
+        type: 'kickoff',
+        match_id: match.id,
+        message: `🏉 Kickoff! ${match.homeTeam.name} vs ${match.awayTeam.name}`,
+        match: matchToOutput(match, { timeZone }),
+      });
+      continue;
     }
+
+    // Score change detection
+    if (
+      match.status === 'live' &&
+      currentHash !== matchState.last_score_hash &&
+      canNotify(matchState, now)
+    ) {
+      matchState.status = 'live';
+      matchState.last_score_hash = currentHash;
+      matchState.last_notified_at = now;
+      state.matches[match.id] = matchState;
+
+      const score = match.score
+        ? `${match.score.home}-${match.score.away}`
+        : 'Score update';
+
+      notifications.push({
+        type: 'score_update',
+        match_id: match.id,
+        message: `🏉 ${match.homeTeam.name} ${score} ${match.awayTeam.name}`,
+        match: matchToOutput(match, { timeZone }),
+      });
+      continue;
+    }
+
+    // Fulltime detection
+    if (
+      match.status === 'finished' &&
+      previousStatus !== 'finished' &&
+      !matchState.notified.fulltime &&
+      canNotify(matchState, now)
+    ) {
+      matchState.status = 'finished';
+      matchState.notified.fulltime = true;
+      matchState.last_notified_at = now;
+      matchState.last_score_hash = currentHash;
+      state.matches[match.id] = matchState;
+
+      const teamId =
+        teamIds.find(
+          (id) => id === match.homeTeam.id || id === match.awayTeam.id
+        ) || undefined;
+      const summary = generateSummary(match, teamId);
+
+      notifications.push({
+        type: 'fulltime',
+        match_id: match.id,
+        message: summary || `FT: ${match.homeTeam.name} ${match.score?.home}-${match.score?.away} ${match.awayTeam.name}`,
+        match: matchToOutput(match, { timeZone }),
+      });
+    }
+
+    state.matches[match.id] = matchState;
   }
 
   // Prune old matches (older than 7 days)
@@ -332,50 +318,41 @@ async function handleLive(
 }
 
 export async function notifyCommand(options: NotifyOptions): Promise<void> {
-  // Check configuration
-  if (!(await isConfigured())) {
-    if (options.json) {
-      console.log(JSON.stringify({ error: 'Not configured' }));
-    } else {
-      console.log(renderError('Not configured. Run "rugbyclaw config" first.'));
-    }
-    process.exit(1);
-  }
-
   const config = await loadConfig();
   const secrets = await loadSecrets();
   let state = await loadState();
+  const timeZone = config.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  if (!secrets) {
-    if (options.json) {
-      console.log(JSON.stringify({ error: 'API key not found' }));
-    } else {
-      console.log(renderError('API key not found. Run "rugbyclaw config" first.'));
-    }
-    process.exit(1);
-  }
+  const hasApiKey = Boolean(secrets?.api_key);
+  const leagueSlugs = hasApiKey
+    ? (config.favorite_leagues.length > 0 ? config.favorite_leagues : DEFAULT_PROXY_LEAGUES)
+    : DEFAULT_PROXY_LEAGUES;
+  const leagueIds = leagueSlugs
+    .map((slug) => LEAGUES[slug]?.id)
+    .filter(Boolean) as string[];
+  const teamIds = config.favorite_teams.map((t) => t.id);
 
-  const provider = new ApiSportsProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets?.api_key);
   let notifications: Notification[] = [];
 
   try {
     if (options.weekly) {
-      notifications = await handleWeekly(provider, config);
+      notifications = await handleWeekly(provider, leagueIds, teamIds, timeZone);
     } else if (options.daily) {
-      const result = await handleDaily(provider, config, state);
+      const result = await handleDaily(provider, leagueIds, teamIds, timeZone, state);
       notifications = result.notifications;
       state = result.state;
       await saveState(state);
     } else if (options.live) {
-      const result = await handleLive(provider, config, state);
+      const result = await handleLive(provider, leagueIds, teamIds, timeZone, state);
       notifications = result.notifications;
       state = result.state;
       await saveState(state);
     } else {
       // Default: run all checks
-      const weeklyNotifs = await handleWeekly(provider, config);
-      const dailyResult = await handleDaily(provider, config, state);
-      const liveResult = await handleLive(provider, config, dailyResult.state);
+      const weeklyNotifs = await handleWeekly(provider, leagueIds, teamIds, timeZone);
+      const dailyResult = await handleDaily(provider, leagueIds, teamIds, timeZone, state);
+      const liveResult = await handleLive(provider, leagueIds, teamIds, timeZone, dailyResult.state);
 
       notifications = [...weeklyNotifs, ...dailyResult.notifications, ...liveResult.notifications];
       state = liveResult.state;

@@ -9,17 +9,26 @@ Rugby scores, fixtures, and results for OpenClaw.
 
 ## Prerequisites
 
-Install and configure the rugbyclaw CLI:
+Install the rugbyclaw CLI:
 
 ```bash
 npm install -g rugbyclaw
-rugbyclaw config
 ```
 
-The config wizard will:
-1. Let you select favorite leagues (Top 14, Premiership, URC, Champions Cup, etc.)
-2. Let you search and add favorite teams
-3. Set your timezone
+No API key is required (free mode uses a proxy with limits).
+
+Optional but recommended setup:
+
+```bash
+rugbyclaw config
+rugbyclaw status --json
+```
+
+The config wizard can:
+1. Keep you on free mode (default) or let you add an API key (optional)
+2. Let you select favorite leagues (free mode is limited to default leagues)
+3. Optionally pick favorite teams
+4. Set your timezone
 
 ## Commands
 
@@ -85,9 +94,20 @@ This outputs an .ics file the user can import into any calendar app.
 ## Error Handling
 
 If commands fail, the JSON output includes an `error` field. Common issues:
-- "Not configured" — User needs to run `rugbyclaw config`
-- "Rate limit exceeded" — Wait a minute, or upgrade API key
+- "Rate limit exceeded" — Wait a bit, or add an API key for higher limits
 - "No matches found" — Check league slug or try different search
+
+## Agent Setup Checklist
+
+If you're unsure how Rugbyclaw is configured, run:
+
+```bash
+rugbyclaw status --json
+```
+
+Then:
+- If `mode` is `proxy`, stick to default leagues and keep calls minimal.
+- Prefer `scores --json`, `fixtures --json`, `results --json`, `team ... --json` for structured output.
 
 ## Examples
 

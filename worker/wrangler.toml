@@ -1,0 +1,19 @@
+name = "rugbyclaw-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Rate limit: requests per day per IP
+RATE_LIMIT_PER_DAY = "50"
+# Rate limit: requests per minute per IP (burst control)
+RATE_LIMIT_PER_MINUTE = "10"
+# Default leagues for unconfigured users
+DEFAULT_LEAGUES = "16,13,76,54,51"
+
+# API key is stored as a secret, not here
+# Run: wrangler secret put API_SPORTS_KEY
+
+# KV namespace for rate limiting
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "your-kv-namespace-id"

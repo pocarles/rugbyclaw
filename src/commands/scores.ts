@@ -1,4 +1,4 @@
-import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
+import { loadConfig, loadSecrets, getEffectiveLeagues, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderScores, matchToOutput, renderError } from '../render/terminal.js';
@@ -10,37 +10,22 @@ interface ScoresOptions {
 }
 
 export async function scoresCommand(options: ScoresOptions): Promise<void> {
-  // Check configuration
-  if (!(await isConfigured())) {
-    console.log(renderError('Not configured. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
   const config = await loadConfig();
+  // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
+  const provider = new ApiSportsProvider(secrets?.api_key);
 
-  if (!secrets) {
-    console.log(renderError('API key not found. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
-  // Get league IDs from favorites
-  const leagueIds = config.favorite_leagues
+  // Get effective leagues (user's favorites or defaults)
+  const favoriteLeagues = secrets?.api_key ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+  const leagueIds = favoriteLeagues
     .map((slug) => LEAGUES[slug]?.id)
     .filter(Boolean) as string[];
-
-  if (leagueIds.length === 0) {
-    console.log(renderError('No favorite leagues configured. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
-  const provider = new ApiSportsProvider(secrets.api_key);
 
   try {
     const matches = await provider.getToday(leagueIds);
 
     const output: ScoresOutput = {
-      matches: matches.map((m) => matchToOutput(m)),
+      matches: matches.map((m) => matchToOutput(m, { timeZone: config.timezone })),
       generated_at: new Date().toISOString(),
     };
 

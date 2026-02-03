@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { loadSecrets, isConfigured } from '../lib/config.js';
+import { loadSecrets } from '../lib/config.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { matchToICS } from '../lib/ics.js';
 import { renderError, renderSuccess } from '../render/terminal.js';
@@ -15,20 +15,9 @@ export async function calendarCommand(
   matchId: string,
   options: CalendarOptions
 ): Promise<void> {
-  // Check configuration
-  if (!(await isConfigured())) {
-    console.log(renderError('Not configured. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
+  // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
-
-  if (!secrets) {
-    console.log(renderError('API key not found. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
-  const provider = new ApiSportsProvider(secrets.api_key);
+  const provider = new ApiSportsProvider(secrets?.api_key);
 
   try {
     const match = await provider.getMatch(matchId);

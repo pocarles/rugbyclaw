@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { loadConfig, loadSecrets, isConfigured } from '../lib/config.js';
+import { loadConfig, loadSecrets, getEffectiveLeagues, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import {
@@ -25,21 +25,11 @@ export async function teamCommand(
   action: string,
   options: TeamOptions
 ): Promise<void> {
-  // Check configuration
-  if (!(await isConfigured())) {
-    console.log(renderError('Not configured. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
+  // Get API key if available (otherwise use proxy mode)
   const config = await loadConfig();
   const secrets = await loadSecrets();
-
-  if (!secrets) {
-    console.log(renderError('API key not found. Run "rugbyclaw config" first.'));
-    process.exit(1);
-  }
-
-  const provider = new ApiSportsProvider(secrets.api_key);
+  const hasApiKey = Boolean(secrets?.api_key);
+  const provider = new ApiSportsProvider(secrets?.api_key);
 
   try {
     switch (action.toLowerCase()) {
@@ -47,14 +37,14 @@ export async function teamCommand(
         await handleSearch(nameOrId, provider, options);
         break;
       case 'next':
-        await handleNext(nameOrId, provider, config, options);
+        await handleNext(nameOrId, provider, config, hasApiKey, options);
         break;
       case 'last':
-        await handleLast(nameOrId, provider, config, options);
+        await handleLast(nameOrId, provider, config, hasApiKey, options);
         break;
       default:
         // Default to 'next' if action looks like part of team name
-        await handleNext(`${nameOrId} ${action}`.trim(), provider, config, options);
+        await handleNext(`${nameOrId} ${action}`.trim(), provider, config, hasApiKey, options);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -92,6 +82,7 @@ async function handleNext(
   nameOrId: string,
   provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
+  hasApiKey: boolean,
   options: TeamOptions
 ): Promise<void> {
   // First try to find team in favorites
@@ -102,8 +93,9 @@ async function handleNext(
       t.slug.includes(nameOrId.toLowerCase())
   )?.id;
 
-  // Get league fixtures once
-  const leagueIds = config.favorite_leagues
+  // Get effective leagues (user's favorites or defaults)
+  const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+  const leagueIds = favoriteLeagues
     .map((slug) => LEAGUES[slug]?.id)
     .filter(Boolean) as string[];
 
@@ -180,12 +172,12 @@ async function handleNext(
     return;
   }
 
-  const output = matchToOutput(nextMatch, teamId);
+  const output = matchToOutput(nextMatch, { timeZone: config.timezone });
 
   if (options.json) {
     console.log(JSON.stringify(output, null, 2));
   } else if (!options.quiet) {
-    console.log(renderMatch(output, true)); // Show calendar hint
+    console.log(renderMatch(output, true, config.timezone)); // Show calendar hint
   }
 }
 
@@ -193,6 +185,7 @@ async function handleLast(
   nameOrId: string,
   provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
+  hasApiKey: boolean,
   options: TeamOptions
 ): Promise<void> {
   // First try to find team in favorites
@@ -203,8 +196,9 @@ async function handleLast(
       t.slug.includes(nameOrId.toLowerCase())
   )?.id;
 
-  // Get league results once
-  const leagueIds = config.favorite_leagues
+  // Get effective leagues (user's favorites or defaults)
+  const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+  const leagueIds = favoriteLeagues
     .map((slug) => LEAGUES[slug]?.id)
     .filter(Boolean) as string[];
 
@@ -270,12 +264,12 @@ async function handleLast(
     process.exit(0);
   }
 
-  const output: MatchOutput = matchToOutput(lastMatch, teamId);
+  const output: MatchOutput = matchToOutput(lastMatch, { timeZone: config.timezone });
   output.summary = generateSummary(lastMatch, teamId);
 
   if (options.json) {
     console.log(JSON.stringify(output, null, 2));
   } else if (!options.quiet) {
-    console.log(renderMatch(output));
+    console.log(renderMatch(output, false, config.timezone));
   }
 }

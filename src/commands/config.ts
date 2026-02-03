@@ -5,6 +5,7 @@ import {
   saveConfig,
   loadSecrets,
   saveSecrets,
+  DEFAULT_PROXY_LEAGUES,
 } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
@@ -21,47 +22,116 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   const existingConfig = await loadConfig();
   const existingSecrets = await loadSecrets();
 
-  // Step 1: API Key
-  console.log(chalk.cyan('Step 1: API Key'));
-  console.log(chalk.dim('Get your API key at https://api-sports.io'));
-  console.log(chalk.dim('Free tier: 100 requests/day\n'));
+  let provider: ApiSportsProvider;
+  let savedApiKey: string | null = null;
+  let mode: 'direct' | 'proxy' = 'proxy';
 
-  const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-    {
-      type: 'input',
-      name: 'apiKey',
-      message: 'API-Sports API key:',
-      default: existingSecrets?.api_key,
-      validate: (input: string) => input.length > 0 || 'API key is required',
-    },
-  ]);
+  // Step 1: Free mode by default (no API key required)
+  console.log(chalk.cyan('Step 1: Choose your mode'));
+  console.log(chalk.dim('Rugbyclaw works without an API key (free mode, limited requests).'));
+  console.log(chalk.dim('Add your own API key any time to unlock more leagues + higher limits.\n'));
 
-  // Test the API key
-  console.log(chalk.dim('\nTesting API key...'));
-  const provider = new ApiSportsProvider(apiKey);
+  if (existingSecrets?.api_key) {
+    const { useSavedKey } = await inquirer.prompt<{ useSavedKey: boolean }>([
+      {
+        type: 'confirm',
+        name: 'useSavedKey',
+        message: 'Use your saved API key for unlimited access?',
+        default: true,
+      },
+    ]);
 
-  try {
-    await provider.getLeagueFixtures(LEAGUES.top14.id);
-    console.log(chalk.green('✓ API key is valid\n'));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(chalk.red(`✗ API key test failed: ${message}`));
-    console.log(chalk.yellow('Continuing anyway...\n'));
+    if (useSavedKey) {
+      provider = new ApiSportsProvider(existingSecrets.api_key);
+      savedApiKey = existingSecrets.api_key;
+      mode = 'direct';
+    } else {
+      console.log(chalk.dim('\nUsing free mode (no API key).\n'));
+      provider = new ApiSportsProvider();
+      mode = 'proxy';
+    }
+  } else {
+    const { addKey } = await inquirer.prompt<{ addKey: boolean }>([
+      {
+        type: 'confirm',
+        name: 'addKey',
+        message: 'Add an API key now?',
+        default: false,
+      },
+    ]);
+
+    if (addKey) {
+      console.log(chalk.dim('Sign up: https://api-sports.io/rugby\n'));
+
+      const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
+        {
+          type: 'input',
+          name: 'apiKey',
+          message: 'API-Sports API key:',
+          default: '',
+        },
+      ]);
+
+      if (apiKey.trim().length === 0) {
+        console.log(chalk.yellow('\nNo API key entered. Using free mode.\n'));
+        provider = new ApiSportsProvider();
+        mode = 'proxy';
+      } else {
+        // Test the API key
+        console.log(chalk.dim('\nTesting API key...'));
+        const testProvider = new ApiSportsProvider(apiKey);
+
+        try {
+          await testProvider.getLeagueFixtures(LEAGUES.top14.id);
+          console.log(chalk.green('✓ API key is valid — unlimited access enabled\n'));
+
+          // Save secrets only after validation succeeds
+          const secrets: Secrets = { api_key: apiKey, api_tier: 'premium' };
+          await saveSecrets(secrets);
+          savedApiKey = apiKey;
+          provider = testProvider;
+          mode = 'direct';
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          console.log(chalk.red(`✗ API key test failed: ${message}`));
+          console.log(chalk.yellow('Continuing with free mode (no API key).\n'));
+
+          provider = new ApiSportsProvider();
+          mode = 'proxy';
+        }
+      }
+    } else {
+      console.log(chalk.dim('\nUsing free mode (no API key).\n'));
+      provider = new ApiSportsProvider();
+      mode = 'proxy';
+    }
   }
 
-  // Save secrets (api_tier not relevant for API-Sports, but keep structure)
-  const secrets: Secrets = { api_key: apiKey, api_tier: 'premium' };
-  await saveSecrets(secrets);
-
   // Step 2: Favorite leagues
-  console.log(chalk.cyan('\nStep 2: Favorite Leagues'));
+  console.log(chalk.cyan('Step 2: Favorite Leagues'));
   console.log(chalk.dim('Select the competitions you want to follow\n'));
 
-  const leagueChoices = Object.entries(LEAGUES).map(([slug, league]) => ({
-    name: `${league.name} (${league.country})`,
-    value: slug,
-    checked: existingConfig.favorite_leagues.includes(slug),
-  }));
+  // Pre-select defaults if no existing config
+  const availableLeagueSlugs = mode === 'direct'
+    ? Object.keys(LEAGUES)
+    : DEFAULT_PROXY_LEAGUES;
+
+  const defaultCheckedRaw = existingConfig.favorite_leagues.length > 0
+    ? existingConfig.favorite_leagues
+    : DEFAULT_PROXY_LEAGUES;
+  const defaultChecked = defaultCheckedRaw.filter((slug) => availableLeagueSlugs.includes(slug));
+
+  if (mode === 'proxy') {
+    console.log(chalk.dim('Free mode leagues are limited. Add your own API key to unlock more.\n'));
+  }
+
+  const leagueChoices = Object.entries(LEAGUES)
+    .filter(([slug]) => availableLeagueSlugs.includes(slug))
+    .map(([slug, league]) => ({
+      name: `${league.name} (${league.country})`,
+      value: slug,
+      checked: defaultChecked.includes(slug),
+    }));
 
   const { favoriteLeagues } = await inquirer.prompt<{ favoriteLeagues: string[] }>([
     {
@@ -75,13 +145,27 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   ]);
 
   // Step 3: Favorite teams (per league selection)
-  console.log(chalk.cyan('\nStep 3: Favorite Teams'));
-  console.log(chalk.dim('Select teams to follow from each league\n'));
+  console.log(chalk.cyan('\nStep 3: Favorite Teams (Optional)'));
+  console.log(chalk.dim('Select teams to follow for team-specific commands.\n'));
 
   const favoriteTeams: FavoriteTeam[] = [];
   const existingTeamIds = new Set(existingConfig.favorite_teams.map((t) => t.id));
 
+  const { pickTeams } = await inquirer.prompt<{ pickTeams: boolean }>([
+    {
+      type: 'confirm',
+      name: 'pickTeams',
+      message: 'Pick favorite teams now?',
+      default: false,
+    },
+  ]);
+
+  if (!pickTeams) {
+    console.log(chalk.dim('\nSkipping team selection. You can run "rugbyclaw config" again any time.\n'));
+  }
+
   for (const leagueSlug of favoriteLeagues) {
+    if (!pickTeams) break;
     const league = LEAGUES[leagueSlug];
     console.log(chalk.dim(`Loading ${league.name} teams...`));
 
@@ -106,7 +190,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
         {
           type: 'checkbox',
           name: 'selectedTeams',
-          message: `Select ${league.name} teams:`,
+          message: `Select ${league.name} teams (optional):`,
           choices: teamChoices,
           pageSize: 15,
         },
@@ -165,12 +249,24 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
 
   // Summary
   console.log(chalk.bold('\n✓ Configuration saved!\n'));
+  console.log(
+    chalk.dim('Mode:'),
+    mode === 'direct'
+      ? chalk.green('Unlimited (own API key)')
+      : chalk.yellow('Free tier (50 req/day)')
+  );
   console.log(chalk.dim('Leagues:'), favoriteLeagues.join(', '));
   console.log(chalk.dim('Teams:'), favoriteTeams.map((t) => t.name).join(', ') || 'None');
   console.log(chalk.dim('Timezone:'), timezone);
   console.log('');
 
   if (options.json) {
-    console.log(JSON.stringify({ config, secrets: { api_tier: secrets.api_tier } }, null, 2));
+    console.log(
+      JSON.stringify(
+        { config, mode, api_key_saved: Boolean(savedApiKey) },
+        null,
+        2
+      )
+    );
   }
 }

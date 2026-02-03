@@ -9,23 +9,38 @@ import type {
   Match,
 } from '../types/index.js';
 import { generateNeutralSummary } from '../lib/personality.js';
+import { formatDateYMD, formatTimeHM, getTodayYMD, getTomorrowYMD } from '../lib/datetime.js';
 
 /**
- * Format a date for display.
+ * Get the default local timezone.
  */
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+function getDefaultTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
 
-  const isToday = date.toDateString() === now.toDateString();
-  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+/**
+ * Format a YYYY-MM-DD date for display.
+ */
+function formatDate(dateYmd: string, timeZone: string): string {
+  const today = getTodayYMD(timeZone);
+  const tomorrow = getTomorrowYMD(timeZone);
 
-  if (isToday) return chalk.green('Today');
-  if (isTomorrow) return chalk.yellow('Tomorrow');
+  if (dateYmd === today) return chalk.green('Today');
+  if (dateYmd === tomorrow) return chalk.yellow('Tomorrow');
 
-  return date.toLocaleDateString('en-US', {
+  const [yearStr, monthStr, dayStr] = dateYmd.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return dateYmd;
+  }
+
+  // Use UTC for stable weekday/month/day formatting of a calendar date.
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+  return utcDate.toLocaleDateString('en-US', {
+    timeZone: 'UTC',
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -132,7 +147,11 @@ export function renderScores(output: ScoresOutput): string {
 /**
  * Render fixtures output.
  */
-export function renderFixtures(output: FixturesOutput, showIds = false): string {
+export function renderFixtures(
+  output: FixturesOutput,
+  showIds = false,
+  timeZone: string = getDefaultTimeZone()
+): string {
   if (output.matches.length === 0) {
     return chalk.dim('No upcoming fixtures found.');
   }
@@ -156,7 +175,7 @@ export function renderFixtures(output: FixturesOutput, showIds = false): string 
   }
 
   for (const [date, matches] of byDate) {
-    lines.push(chalk.yellow(formatDate(date)));
+    lines.push(chalk.yellow(formatDate(date, timeZone)));
     for (const match of matches) {
       lines.push(formatMatchLine(match, showIds));
     }
@@ -225,13 +244,17 @@ export function renderTeamSearch(output: TeamSearchOutput): string {
 /**
  * Render a single match (for team next/last).
  */
-export function renderMatch(match: MatchOutput, showCalendarHint = false): string {
+export function renderMatch(
+  match: MatchOutput,
+  showCalendarHint = false,
+  timeZone: string = getDefaultTimeZone()
+): string {
   const lines: string[] = [];
 
   const status = formatStatus(match.status);
   const dateTime = match.status === 'scheduled'
-    ? `${formatDate(match.date)} at ${formatTime(match.time)}`
-    : formatDate(match.date);
+    ? `${formatDate(match.date, timeZone)} at ${formatTime(match.time)}`
+    : formatDate(match.date, timeZone);
 
   lines.push(chalk.bold(`${match.home.name} vs ${match.away.name}`));
   lines.push(`${chalk.dim(match.league)} · ${dateTime} ${status}`);
@@ -281,7 +304,8 @@ export function renderNotify(output: NotifyOutput): string {
 /**
  * Convert a Match to MatchOutput for rendering.
  */
-export function matchToOutput(match: Match, _teamId?: string): MatchOutput {
+export function matchToOutput(match: Match, options?: { timeZone?: string }): MatchOutput {
+  const timeZone = options?.timeZone ?? getDefaultTimeZone();
   return {
     id: match.id,
     home: {
@@ -293,8 +317,8 @@ export function matchToOutput(match: Match, _teamId?: string): MatchOutput {
       score: match.score?.away,
     },
     league: match.league.name,
-    date: match.date.toISOString().split('T')[0],
-    time: match.date.toISOString().split('T')[1].slice(0, 5),
+    date: formatDateYMD(match.date, timeZone),
+    time: formatTimeHM(match.date, timeZone),
     venue: match.venue,
     status: match.status,
     summary: match.status === 'finished' ? generateNeutralSummary(match) : undefined,
@@ -320,4 +344,38 @@ export function renderSuccess(message: string): string {
  */
 export function renderWarning(message: string): string {
   return chalk.yellow(`⚠ ${message}`);
+}
+
+/**
+ * Render a "not configured" error with helpful instructions.
+ */
+export function renderNotConfigured(): string {
+  const lines = [
+    chalk.red('Not configured yet!'),
+    '',
+    chalk.white('Run the setup wizard to get started:'),
+    '',
+    `  ${chalk.cyan('rugbyclaw config')}`,
+    '',
+    chalk.dim('You\'ll need an API-Sports Rugby API key'),
+    chalk.dim('Sign up at https://api-sports.io/rugby ($10/mo recommended)'),
+  ];
+  return lines.join('\n');
+}
+
+/**
+ * Render an "API key missing" error with helpful instructions.
+ */
+export function renderApiKeyMissing(): string {
+  const lines = [
+    chalk.red('API key not found!'),
+    '',
+    chalk.white('Your config exists but the API key is missing.'),
+    chalk.white('Run the setup wizard again:'),
+    '',
+    `  ${chalk.cyan('rugbyclaw config')}`,
+    '',
+    chalk.dim('Your API key is stored securely in ~/.config/rugbyclaw/secrets.json'),
+  ];
+  return lines.join('\n');
 }
