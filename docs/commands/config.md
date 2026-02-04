@@ -35,6 +35,12 @@ rugbyclaw config [options]
 - `~/.config/rugbyclaw/config.json` — leagues/teams/timezone
 - `~/.config/rugbyclaw/secrets.json` — API key (mode 600) if provided
 
+You can override the default location with `--config`:
+
+```bash
+rugbyclaw --config ./my-rugbyclaw-config config
+```
+
 ## Tips
 
 - Free mode is limited to default leagues (Top 14, Premiership, URC, Champions Cup, Six Nations).
@@ -43,4 +49,3 @@ rugbyclaw config [options]
 ```bash
 rugbyclaw status --json
 ```
-

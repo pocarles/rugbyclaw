@@ -1,13 +1,65 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import type { Config, Secrets, State, FavoriteTeam } from '../types/index.js';
 
-const CONFIG_DIR = join(homedir(), '.config', 'rugbyclaw');
-const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
-const SECRETS_PATH = join(CONFIG_DIR, 'secrets.json');
-const STATE_PATH = join(CONFIG_DIR, 'state.json');
+const DEFAULT_CONFIG_DIR = join(homedir(), '.config', 'rugbyclaw');
+
+let configDir = DEFAULT_CONFIG_DIR;
+let configPath = join(configDir, 'config.json');
+let secretsPath = join(configDir, 'secrets.json');
+let statePath = join(configDir, 'state.json');
+
+export interface ConfigPaths {
+  configDir: string;
+  configPath: string;
+  secretsPath: string;
+  statePath: string;
+}
+
+function expandHome(path: string): string {
+  if (path === '~') return homedir();
+  if (path.startsWith('~/') || path.startsWith('~\\')) return join(homedir(), path.slice(2));
+  return path;
+}
+
+/**
+ * Override the default config directory and files.
+ *
+ * Accepts either:
+ * - a directory path (then files are {dir}/config.json, {dir}/secrets.json, {dir}/state.json)
+ * - a config file path ending with .json (then secrets/state are stored next to it)
+ */
+export function setConfigPathOverride(pathLike: string): ConfigPaths {
+  const trimmed = pathLike.trim();
+  if (trimmed.length === 0) return getConfigPaths();
+
+  const expanded = expandHome(trimmed);
+  const absolute = resolve(expanded);
+
+  if (absolute.toLowerCase().endsWith('.json')) {
+    configPath = absolute;
+    configDir = dirname(absolute);
+  } else {
+    configDir = absolute;
+    configPath = join(configDir, 'config.json');
+  }
+
+  secretsPath = join(configDir, 'secrets.json');
+  statePath = join(configDir, 'state.json');
+
+  return getConfigPaths();
+}
+
+export function getConfigPaths(): ConfigPaths {
+  return {
+    configDir,
+    configPath,
+    secretsPath,
+    statePath,
+  };
+}
 
 const CURRENT_SCHEMA_VERSION = 1;
 
@@ -35,8 +87,8 @@ const DEFAULT_STATE: State = {
  * Ensure config directory exists.
  */
 async function ensureConfigDir(): Promise<void> {
-  if (!existsSync(CONFIG_DIR)) {
-    await mkdir(CONFIG_DIR, { recursive: true });
+  if (!existsSync(configDir)) {
+    await mkdir(configDir, { recursive: true });
   }
 }
 
@@ -45,7 +97,7 @@ async function ensureConfigDir(): Promise<void> {
  */
 export async function loadConfig(): Promise<Config> {
   try {
-    const data = await readFile(CONFIG_PATH, 'utf-8');
+    const data = await readFile(configPath, 'utf-8');
     const config = JSON.parse(data) as Config;
 
     // Migrate if needed
@@ -66,7 +118,7 @@ export async function loadConfig(): Promise<Config> {
  */
 export async function saveConfig(config: Config): Promise<void> {
   await ensureConfigDir();
-  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
+  await writeFile(configPath, JSON.stringify(config, null, 2));
 }
 
 /**
@@ -86,7 +138,7 @@ function migrateConfig(config: Config): Config {
  */
 export async function loadSecrets(): Promise<Secrets | null> {
   try {
-    const data = await readFile(SECRETS_PATH, 'utf-8');
+    const data = await readFile(secretsPath, 'utf-8');
     return JSON.parse(data) as Secrets;
   } catch {
     return null;
@@ -98,7 +150,7 @@ export async function loadSecrets(): Promise<Secrets | null> {
  */
 export async function saveSecrets(secrets: Secrets): Promise<void> {
   await ensureConfigDir();
-  await writeFile(SECRETS_PATH, JSON.stringify(secrets, null, 2), { mode: 0o600 });
+  await writeFile(secretsPath, JSON.stringify(secrets, null, 2), { mode: 0o600 });
 }
 
 /**
@@ -113,7 +165,7 @@ export async function isConfigured(): Promise<boolean> {
  * Check if user has customized their leagues (ran config wizard).
  */
 export async function hasCustomConfig(): Promise<boolean> {
-  return existsSync(CONFIG_PATH);
+  return existsSync(configPath);
 }
 
 /**
@@ -136,7 +188,7 @@ export async function getEffectiveLeagues(): Promise<string[]> {
  */
 export async function loadState(): Promise<State> {
   try {
-    const data = await readFile(STATE_PATH, 'utf-8');
+    const data = await readFile(statePath, 'utf-8');
     return JSON.parse(data) as State;
   } catch {
     return { ...DEFAULT_STATE };
@@ -149,7 +201,7 @@ export async function loadState(): Promise<State> {
 export async function saveState(state: State): Promise<void> {
   await ensureConfigDir();
   state.last_updated = Date.now();
-  await writeFile(STATE_PATH, JSON.stringify(state, null, 2));
+  await writeFile(statePath, JSON.stringify(state, null, 2));
 }
 
 /**
@@ -201,5 +253,5 @@ export async function removeFavoriteLeague(leagueSlug: string): Promise<void> {
  * Get the config directory path.
  */
 export function getConfigDir(): string {
-  return CONFIG_DIR;
+  return configDir;
 }

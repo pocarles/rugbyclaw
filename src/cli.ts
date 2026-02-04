@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { createRequire } from 'node:module';
 import { configCommand } from './commands/config.js';
 import { scoresCommand } from './commands/scores.js';
 import { fixturesCommand } from './commands/fixtures.js';
@@ -13,6 +14,11 @@ import { teamCommand } from './commands/team.js';
 import { calendarCommand } from './commands/calendar.js';
 import { notifyCommand } from './commands/notify.js';
 import { statusCommand } from './commands/status.js';
+import { setConfigPathOverride } from './lib/config.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json') as { version?: string };
+const VERSION = pkg.version ?? '0.0.0';
 
 const CONFIG_PATH = join(homedir(), '.config', 'rugbyclaw', 'config.json');
 const SECRETS_PATH = join(homedir(), '.config', 'rugbyclaw', 'secrets.json');
@@ -50,16 +56,27 @@ const program = new Command();
 program
   .name('rugbyclaw')
   .description('Rugby scores, fixtures, and results CLI')
-  .version('0.1.0')
+  .version(VERSION)
   .option('--json', 'Output as JSON')
   .option('--quiet', 'Minimal output')
-  .option('--no-color', 'Disable color output');
+  .option('--no-color', 'Disable color output')
+  .option('--config <path>', 'Use a custom config directory or config.json path');
 
 // Show welcome on first run with no command
-program.hook('preAction', (thisCommand) => {
-  // Skip welcome for config command
-  if (thisCommand.name() === 'config') return;
+program.hook('preAction', () => {
+  const options = program.opts<{ config?: string }>();
+  if (options.config) {
+    setConfigPathOverride(options.config);
+  }
 });
+
+// Version command (alias for --version)
+program
+  .command('version')
+  .description('Print Rugbyclaw version')
+  .action(() => {
+    console.log(VERSION);
+  });
 
 // Config command
 program

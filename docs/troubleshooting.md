@@ -193,7 +193,7 @@ rugbyclaw scores
      - Command you ran
      - Error message
      - Your OS
-     - RugbyClaw version (`rugbyclaw --version`)
+     - RugbyClaw version (`rugbyclaw --version` or `rugbyclaw version`)
 
 3. **Check API-Sports status:**
    - https://api-sports.io
