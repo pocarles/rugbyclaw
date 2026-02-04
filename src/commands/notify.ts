@@ -3,6 +3,7 @@ import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { generateSummary } from '../lib/personality.js';
 import { renderNotify, matchToOutput, renderError } from '../render/terminal.js';
+import { getTodayYMD } from '../lib/datetime.js';
 import type {
   Match,
   MatchNotificationState,
@@ -203,7 +204,7 @@ async function handleLive(
   const now = Date.now();
   // Use the cheaper "today" query path (one request per league, cached) instead of
   // fetching full season fixtures + results on every poll.
-  const allMatches = await provider.getToday(leagueIds);
+  const allMatches = await provider.getToday(leagueIds, { dateYmd: getTodayYMD(timeZone) });
 
   for (const match of allMatches) {
     const isTracked =

@@ -306,6 +306,7 @@ export function renderNotify(output: NotifyOutput): string {
  */
 export function matchToOutput(match: Match, options?: { timeZone?: string }): MatchOutput {
   const timeZone = options?.timeZone ?? getDefaultTimeZone();
+  const kickoff = Number.isFinite(match.timestamp) ? new Date(match.timestamp) : match.date;
   return {
     id: match.id,
     home: {
@@ -317,8 +318,8 @@ export function matchToOutput(match: Match, options?: { timeZone?: string }): Ma
       score: match.score?.away,
     },
     league: match.league.name,
-    date: formatDateYMD(match.date, timeZone),
-    time: formatTimeHM(match.date, timeZone),
+    date: formatDateYMD(kickoff, timeZone),
+    time: formatTimeHM(kickoff, timeZone),
     venue: match.venue,
     status: match.status,
     summary: match.status === 'finished' ? generateNeutralSummary(match) : undefined,

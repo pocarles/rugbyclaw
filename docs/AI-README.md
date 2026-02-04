@@ -9,12 +9,14 @@ docs/
 ├── index.md              # Overview + navigation
 ├── getting-started.md    # Installation, setup, first commands
 ├── commands/            # Command reference (one file per command)
-│   ├── config.md
 │   ├── scores.md
 │   ├── fixtures.md
-│   ├── results.md
 │   ├── team.md
-│   └── calendar.md
+│   ├── config.md
+│   ├── status.md
+│   ├── results.md
+│   ├── calendar.md
+│   └── notify.md
 ├── guides/              # Task-oriented tutorials
 │   ├── following-teams.md
 │   ├── calendar-export.md
@@ -105,11 +107,21 @@ Use this to:
 ## Key Facts About RugbyClaw
 
 - **Data Source:** API-Sports Rugby API (sole provider)
-- **Free Tier:** 100 requests/day
+- **Free Mode:** limited requests via proxy (daily + per-minute burst limits; cached at the edge)
 - **Supported Competitions:** 8 leagues (Top 14, Premiership, URC, Champions Cup, Six Nations, Pro D2, Super Rugby, Challenge Cup)
 - **Focus:** Rugby Union only
 - **Config Location:** `~/.config/rugbyclaw/`
 - **Cache:** `~/.cache/rugbyclaw/` (SWR caching)
+
+## First step for agents
+
+Always start by checking:
+
+```bash
+rugbyclaw status --json
+```
+
+Use `mode` + `effective_leagues` to decide what to call next.
 
 ## Common User Intents
 

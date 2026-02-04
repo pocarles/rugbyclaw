@@ -46,16 +46,14 @@ npm install -g rugbyclaw
 
 ## Configuration Issues
 
-### "Not configured" error
+### Setup confusion (mode/timezone/leagues)
 
-**Problem:** Running commands before setup
+If you're not sure what RugbyClaw is using (free mode vs API key), run:
 
-**Solution:**
 ```bash
-rugbyclaw config
+rugbyclaw status
+rugbyclaw status --json
 ```
-
-Follow the wizard to configure API key and preferences.
 
 ### "Invalid API key" error
 
@@ -80,7 +78,7 @@ rugbyclaw config
 
 ### "Rate limit exceeded"
 
-**Problem:** Exceeded free tier limit (100 requests/day)
+**Problem:** Exceeded free mode proxy limits
 
 **Solutions:**
 - Wait until tomorrow (resets daily)
@@ -158,6 +156,15 @@ rugbyclaw scores --no-color
 rugbyclaw config
 # Select correct timezone in wizard
 ```
+
+## Developer / Proxy Issues
+
+### Free mode fails (proxy unavailable)
+
+If you're developing RugbyClaw and free mode calls fail, the proxy Worker may not be deployed.
+
+- Deploy instructions: `worker/README.md`
+- For local dev: set `RUGBYCLAW_PROXY_URL` to your `wrangler dev` URL
 
 ## Cache Issues
 

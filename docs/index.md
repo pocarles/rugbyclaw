@@ -2,7 +2,7 @@
 
 > Track rugby scores, fixtures, and results from your terminal
 
-**Works out of the box** — no setup required. Just `npm install -g rugbyclaw` and start using it.
+**Works out of the box** — no API key required. Just `npm install -g rugbyclaw` and start using it.
 
 ## Getting Started
 
@@ -10,12 +10,14 @@
 
 ## Commands
 
-- [config](./commands/config.md) - Configure API key and preferences
+- [config](./commands/config.md) - Setup wizard (free mode or API key)
+- [status](./commands/status.md) - Check mode/timezone/leagues
 - [scores](./commands/scores.md) - Today's matches across favorite leagues
 - [fixtures](./commands/fixtures.md) - Upcoming matches
 - [results](./commands/results.md) - Recent results with summaries
 - [team](./commands/team.md) - Team queries (search, next, last)
 - [calendar](./commands/calendar.md) - Export matches to calendar
+- [notify](./commands/notify.md) - Notifications for cron/OpenClaw
 
 ## Guides
 

@@ -39,7 +39,9 @@ rugbyclaw fixtures [options] [league]
 rugbyclaw fixtures
 ```
 
-Shows next 15 matches across all your favorite leagues.
+Shows next 15 matches across your effective leagues:
+- If you added an API key: your configured favorites
+- In free mode: default leagues only
 
 ### Specific league
 
@@ -87,6 +89,10 @@ Use these slugs as the `[league]` argument:
 - `six_nations` - Six Nations
 
 [See all leagues](../reference/leagues.md)
+
+## Free Mode Notes
+
+Without an API key, Rugbyclaw is limited to a default set of leagues (Top 14, Premiership, URC, Champions Cup, Six Nations).
 
 ## Tips
 

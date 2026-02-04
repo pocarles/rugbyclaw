@@ -108,6 +108,7 @@ rugbyclaw status --json
 Then:
 - If `mode` is `proxy`, stick to default leagues and keep calls minimal.
 - Prefer `scores --json`, `fixtures --json`, `results --json`, `team ... --json` for structured output.
+- Team search is scoped to Rugby Union teams in `effective_leagues` (to avoid irrelevant matches).
 
 ## Examples
 

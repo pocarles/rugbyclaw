@@ -13,6 +13,9 @@
     "start": "node dist/cli.js",
     "lint": "eslint src",
     "test": "vitest run",
+    "proxy:dev": "npm --prefix worker run dev",
+    "proxy:deploy": "npm --prefix worker run deploy",
+    "proxy:tail": "npm --prefix worker run tail",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -50,6 +53,6 @@
     "eslint": "^9.39.2",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.54.0",
-    "vitest": "^1.2.0"
+    "vitest": "^4.0.18"
   }
 }

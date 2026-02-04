@@ -39,7 +39,7 @@ export interface Provider {
    * Get today's matches across multiple leagues.
    * Useful for "scores" command.
    */
-  getToday(leagueIds: string[]): Promise<Match[]>;
+  getToday(leagueIds: string[], options?: { dateYmd?: string }): Promise<Match[]>;
 
   /**
    * Get live matches (if API supports it).

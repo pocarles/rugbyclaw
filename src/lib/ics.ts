@@ -57,15 +57,17 @@ export function matchToCalendarEvent(match: Match): CalendarEvent {
     .filter(Boolean)
     .join('\n');
 
+  const startDate = new Date(match.timestamp);
+
   // Rugby matches are typically 80 minutes + halftime
-  const endDate = new Date(match.date.getTime() + 100 * 60 * 1000);
+  const endDate = new Date(startDate.getTime() + 100 * 60 * 1000);
 
   return {
     uid: generateUID(match.id),
     summary,
     description,
     location: match.venue,
-    start: match.date,
+    start: startDate,
     end: endDate,
   };
 }

@@ -87,6 +87,9 @@ Racing never looked like competing.
 
 ## Tips
 
+- Team search is intentionally limited to Rugby Union teams in your effective leagues
+  - If you added an API key: your configured leagues
+  - In free mode: default leagues only
 - Use partial names: `toulouse` matches `Stade Toulousain`
 - Search first if unsure of exact name
 - Add `--ics` to next matches to sync to calendar

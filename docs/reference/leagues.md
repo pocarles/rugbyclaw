@@ -10,6 +10,18 @@ updated: 2026-02-02
 
 > 8 rugby competitions supported by RugbyClaw
 
+## Free Mode (No API Key)
+
+In free mode, Rugbyclaw is limited to a default set of leagues:
+
+- `top14`
+- `premiership`
+- `urc`
+- `champions_cup`
+- `six_nations`
+
+Add your own API key via `rugbyclaw config` to unlock the full list below.
+
 ## Club Competitions
 
 ### Top 14 (France)

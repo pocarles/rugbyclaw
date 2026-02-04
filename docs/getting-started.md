@@ -8,7 +8,7 @@ updated: 2026-02-02
 
 # Getting Started with RugbyClaw
 
-> Works out of the box — no setup required
+> Works out of the box — no API key required (free mode)
 
 ## Installation
 
@@ -61,29 +61,36 @@ Shows when Toulouse plays next.
 RugbyClaw works in two modes:
 
 ### Proxy Mode (Default)
-- **No configuration needed** — works immediately after install
-- Uses shared API access (50 requests/day)
+- **No API key needed** — works immediately after install
+- Uses shared API access (limited requests)
 - Perfect for casual users
 - Default leagues: Top 14, Premiership, URC, Champions Cup, Six Nations
 
 ### Direct Mode (Optional)
-- **Unlimited requests** with your own API key
-- Customize leagues and favorite teams
+- Higher limits with your own API key
+- Unlock more leagues
 - For power users who check scores daily
 
-## Optional: Configure (Direct Mode)
+## Recommended: Configure (Free or Direct)
 
-Want unlimited requests? Run:
+Run:
 
 ```bash
 rugbyclaw config
 ```
 
 You'll be asked to:
-1. Enter your API key (get one free at [api-sports.io](https://api-sports.io))
-2. Select favorite leagues
-3. Add favorite teams
+1. Choose free mode (default) or add an API key (optional)
+2. Select favorite leagues (free mode is limited to default leagues)
+3. (Optional) add favorite teams
 4. Set your timezone
+
+Verify your setup any time:
+
+```bash
+rugbyclaw status
+rugbyclaw status --json
+```
 
 ## What's Next?
 
@@ -97,7 +104,7 @@ You'll be asked to:
 → You've used your 50 daily requests. Run `rugbyclaw config` to add your own API key for unlimited access.
 
 **Want more leagues?**
-→ Run `rugbyclaw config` to customize your league selection
+→ Add your own API key via `rugbyclaw config`
 
 ---
 *Last updated: 2026-02-02*

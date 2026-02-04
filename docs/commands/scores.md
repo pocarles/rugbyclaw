@@ -55,7 +55,9 @@ Returns structured JSON for scripts/automation.
 ## How It Works
 
 - Shows matches happening today
-- Only displays leagues you selected in config
+- Displays your effective leagues:
+  - If you added an API key: your configured favorites
+  - In free mode: default leagues only
 - Times shown in your configured timezone
 - Updates when you run the command (not live-updating)
 

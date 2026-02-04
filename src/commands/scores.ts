@@ -3,6 +3,7 @@ import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderScores, matchToOutput, renderError } from '../render/terminal.js';
 import type { ScoresOutput } from '../types/index.js';
+import { getTodayYMD } from '../lib/datetime.js';
 
 interface ScoresOptions {
   json?: boolean;
@@ -22,7 +23,8 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
     .filter(Boolean) as string[];
 
   try {
-    const matches = await provider.getToday(leagueIds);
+    const dateYmd = getTodayYMD(config.timezone);
+    const matches = await provider.getToday(leagueIds, { dateYmd });
 
     const output: ScoresOutput = {
       matches: matches.map((m) => matchToOutput(m, { timeZone: config.timezone })),

@@ -5,7 +5,8 @@ import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 
 const BASE_URL = 'https://v1.rugby.api-sports.io';
-const PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
+const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
+const PROXY_URL = process.env.RUGBYCLAW_PROXY_URL || DEFAULT_PROXY_URL;
 
 export type ProviderMode = 'direct' | 'proxy';
 
@@ -188,7 +189,7 @@ export class ApiSportsProvider implements Provider {
     return this.mode === 'proxy';
   }
 
-  private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
+	  private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
     const searchParams = new URLSearchParams(params);
     const baseUrl = this.mode === 'proxy' ? PROXY_URL : BASE_URL;
     const url = `${baseUrl}/${endpoint}?${searchParams}`;
@@ -257,7 +258,7 @@ export class ApiSportsProvider implements Provider {
       await this.cache.set(key, data, cacheOptions);
 
       return data.response;
-    } catch (error) {
+	    } catch (error) {
       // If we have stale data, return it on network error
       if (cached) {
         return cached.data.response;
@@ -267,16 +268,20 @@ export class ApiSportsProvider implements Provider {
         throw error;
       }
 
-      throw new ProviderError(
-        'Failed to fetch data. Check your internet connection.',
-        'NETWORK_ERROR',
-        this.name,
-        error instanceof Error ? error : undefined
-      );
-    }
-  }
+	      const message = this.mode === 'proxy'
+	        ? 'Free mode is temporarily unavailable. Try again later, or run "rugbyclaw config" to add your own API key.'
+	        : 'Failed to fetch data. Check your internet connection.';
 
-  private parseGame(game: ApiGame): Match {
+	      throw new ProviderError(
+	        message,
+	        'NETWORK_ERROR',
+	        this.name,
+	        error instanceof Error ? error : undefined
+	      );
+	    }
+	  }
+
+	  private parseGame(game: ApiGame): Match {
     const league = getLeagueById(String(game.league.id)) || {
       id: String(game.league.id),
       slug: game.league.name.toLowerCase().replace(/\s+/g, '_'),
@@ -285,10 +290,11 @@ export class ApiSportsProvider implements Provider {
       sport: 'rugby' as const,
     };
 
-    const date = new Date(game.date);
-    const status = mapStatus(game.status);
+	    // Prefer the server-provided UNIX timestamp for accurate time + timezone handling.
+	    const date = new Date(game.timestamp * 1000);
+	    const status = mapStatus(game.status);
 
-    return {
+	    return {
       id: String(game.id),
       homeTeam: {
         id: String(game.teams.home.id),
@@ -307,9 +313,9 @@ export class ApiSportsProvider implements Provider {
         ? { home: game.scores.home, away: game.scores.away }
         : undefined,
       round: game.week || undefined,
-      timestamp: game.timestamp * 1000, // Convert to ms
-    };
-  }
+	      timestamp: game.timestamp * 1000, // Convert to ms
+	    };
+	  }
 
   async searchTeams(query: string): Promise<Team[]> {
     const teams = await this.fetch<ApiTeam[]>(
@@ -372,11 +378,10 @@ export class ApiSportsProvider implements Provider {
     return this.parseGame(games[0]);
   }
 
-  async getToday(leagueIds: string[]): Promise<Match[]> {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+	  async getToday(leagueIds: string[], options?: { dateYmd?: string }): Promise<Match[]> {
+	    const dateStr = options?.dateYmd || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-    const matchMap = new Map<string, Match>();
+	    const matchMap = new Map<string, Match>();
 
     // Fetch games for today across all favorite leagues
     // API-Sports allows filtering by date
