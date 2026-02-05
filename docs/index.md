@@ -32,6 +32,10 @@
 - [Configuration Files](./reference/configuration.md) - Config file reference
 - [API Limits](./reference/api-limits.md) - API-Sports rate limits
 
+## Contributing
+
+- [Releasing](./releasing.md) - Publish a new npm version
+
 ## Troubleshooting
 
 - [Common Issues](./troubleshooting.md) - Solutions to common problems
