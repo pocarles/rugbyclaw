@@ -17,6 +17,59 @@ interface ConfigOptions {
   quiet?: boolean;
 }
 
+function getAllTimeZones(): string[] {
+  if (typeof Intl.supportedValuesOf === 'function') {
+    try {
+      return Intl.supportedValuesOf('timeZone');
+    } catch {
+      // fall through
+    }
+  }
+  return [];
+}
+
+async function promptForTimeZone(
+  existing: string | undefined,
+  detected: string
+): Promise<string> {
+  const featured = [
+    { name: 'France — Europe/Paris', value: 'Europe/Paris' },
+    { name: 'England — Europe/London', value: 'Europe/London' },
+    { name: 'United States (Eastern) — America/New_York', value: 'America/New_York' },
+    { name: 'Australia — Australia/Sydney', value: 'Australia/Sydney' },
+    { name: 'New Zealand — Pacific/Auckland', value: 'Pacific/Auckland' },
+    { name: 'South Africa — Africa/Johannesburg', value: 'Africa/Johannesburg' },
+  ];
+
+  const featuredValues = new Set(featured.map((c) => c.value));
+  const all = getAllTimeZones();
+  const other = all.filter((tz) => !featuredValues.has(tz)).sort((a, b) => a.localeCompare(b));
+
+  const choices = [
+    ...featured,
+    new inquirer.Separator('────────'),
+    ...other.map((tz) => ({ name: tz, value: tz })),
+  ];
+
+  const preferred = existing && isValidTimeZone(existing) ? existing : detected;
+  const defaultValue = preferred && choices.some((c) => 'value' in c && c.value === preferred)
+    ? preferred
+    : featured[0].value;
+
+  const { timezone } = await inquirer.prompt<{ timezone: string }>([
+    {
+      type: 'list',
+      name: 'timezone',
+      message: `Timezone (detected: ${detected})`,
+      choices,
+      pageSize: 15,
+      default: defaultValue,
+    },
+  ]);
+
+  return timezone;
+}
+
 export async function configCommand(options: ConfigOptions): Promise<void> {
   console.log(chalk.bold('\n🏉 Rugbyclaw Setup\n'));
 
@@ -165,6 +218,8 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     console.log(chalk.dim('\nSkipping team selection. You can run "rugbyclaw config" again any time.\n'));
   }
 
+  let warnedTeamPickerUnavailable = false;
+
   for (const leagueSlug of favoriteLeagues) {
     if (!pickTeams) break;
     const league = LEAGUES[leagueSlug];
@@ -222,6 +277,19 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
+      if (
+        mode === 'proxy' &&
+        !warnedTeamPickerUnavailable &&
+        (message.startsWith('Free mode is temporarily unavailable') || message.startsWith('Daily limit reached'))
+      ) {
+        warnedTeamPickerUnavailable = true;
+        console.log(chalk.yellow('Team picker is unavailable in free mode right now.'));
+        console.log(chalk.dim('You can still:'));
+        console.log(chalk.dim('- Run "rugbyclaw team search <name>" later to find a team'));
+        console.log(chalk.dim('- Rerun "rugbyclaw config" and add your own API key for reliable team lists\n'));
+        break;
+      }
+
       console.log(chalk.yellow(`Could not load teams for ${league.name}: ${message}\n`));
     }
   }
@@ -229,16 +297,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   // Step 4: Timezone
   const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const { timezone } = await inquirer.prompt<{ timezone: string }>([
-    {
-      type: 'input',
-      name: 'timezone',
-      message: 'Timezone:',
-      default: existingConfig.timezone || detectedTimezone,
-      validate: (input: string) =>
-        isValidTimeZone(input) || 'Enter a valid IANA timezone (e.g. America/New_York)',
-    },
-  ]);
+  const timezone = await promptForTimeZone(existingConfig.timezone, detectedTimezone);
 
   // Save config
   const config: Config = {

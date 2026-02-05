@@ -28,7 +28,7 @@ rugbyclaw config [options]
 - Mode: free mode (no API key) or API key (optional)
 - Favorite leagues
 - (Optional) favorite teams
-- Timezone (used for displaying match times, must be an IANA timezone like `America/New_York`)
+- Timezone (used for displaying match times; selected from a menu)
 
 ## Files written
 
