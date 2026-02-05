@@ -4,6 +4,15 @@ All notable changes to **RugbyClaw** will be documented in this file.
 
 Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
+## [0.1.3] - 2026-02-05
+
+### Added
+- New `rugbyclaw doctor` command — checks proxy /health, proxy /status, and API-Sports direct connectivity.
+- Free mode now shows quota info in JSON and prints a quota line when proxy status is reachable.
+
+### Changed
+- Top 14 placeholder kickoff times now show **Coming Soon** instead of **TBD**.
+
 ## [0.1.2] - 2026-02-05
 
 ### Added
@@ -32,4 +41,5 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 - CLI commands: scores, fixtures, results, team, config, calendar.
 - Default proxy/free mode (no API key) + direct mode (API key).
 
+[0.1.3]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.3
 [0.1.2]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.2
