@@ -22,7 +22,7 @@ This repo includes a workflow that can deploy the proxy Worker on pushes to `mai
 
 Required GitHub secrets:
 
-- `CLOUDFLARE_API_TOKEN` — API token with Workers + KV permissions
+- `CLOUDFLARE_API_TOKEN` — API token with **Workers Scripts:Edit** and (optionally) **Workers KV Storage:Edit**
 - `CLOUDFLARE_ACCOUNT_ID` — your Cloudflare account id
 - `API_SPORTS_KEY` — your API-Sports Rugby API key (stored as a Worker secret)
 
@@ -30,8 +30,11 @@ Optional GitHub secrets:
 
 - `CF_KV_RATE_LIMITS_ID` — KV namespace id for the `RATE_LIMITS` binding
   - If omitted, the workflow will create (or reuse) a KV namespace titled `rugbyclaw-rate-limits`.
+  - If your API token does **not** have KV permissions, set this secret to skip KV namespace creation in CI.
 
 Once those are set, go to GitHub → Actions → **Deploy Proxy Worker**.
+
+If your deployed Worker URL does not resolve (e.g. `*.workers.dev` DNS errors), enable **Workers.dev** for your Cloudflare account (Workers & Pages → Overview), or bind the Worker to a custom domain.
 
 Create a KV namespace for rate limiting:
 

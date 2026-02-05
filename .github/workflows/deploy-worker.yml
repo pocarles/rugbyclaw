@@ -66,6 +66,48 @@ jobs:
         run: |
           set -euo pipefail
 
+          cf_api() {
+            local method="$1"
+            local url="$2"
+            local data="${3:-}"
+            local tmp
+            tmp="$(mktemp)"
+            local status
+
+            if [ -n "$data" ]; then
+              status="$(curl -sS -o "$tmp" -w "%{http_code}" -X "$method" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data "$data" \
+                "$url")"
+            else
+              status="$(curl -sS -o "$tmp" -w "%{http_code}" -X "$method" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                "$url")"
+            fi
+
+            if ! jq -e . "$tmp" >/dev/null 2>&1; then
+              echo "::group::Cloudflare non-JSON response ($method $url) [HTTP $status]"
+              cat "$tmp"
+              echo "::endgroup::"
+              echo "Cloudflare API did not return JSON (HTTP $status)."
+              return 1
+            fi
+
+            local success
+            success="$(jq -r '.success // empty' "$tmp" 2>/dev/null || true)"
+            if [ "$status" -lt 200 ] || [ "$status" -ge 300 ] || [ "$success" != "true" ]; then
+              echo "::group::Cloudflare API error ($method $url) [HTTP $status]"
+              cat "$tmp"
+              echo "::endgroup::"
+              echo "Cloudflare API request failed."
+              echo "Hint: ensure CLOUDFLARE_API_TOKEN has Workers + KV permissions (or set CF_KV_RATE_LIMITS_ID to skip KV creation)."
+              return 1
+            fi
+
+            cat "$tmp"
+          }
+
           if [ -n "${CF_KV_RATE_LIMITS_ID:-}" ]; then
             echo "kv_id=$CF_KV_RATE_LIMITS_ID" >> "$GITHUB_OUTPUT"
             exit 0
@@ -74,11 +116,11 @@ jobs:
           TITLE="rugbyclaw-rate-limits"
           API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces"
 
-          list="$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API?per_page=100")"
+          list="$(cf_api GET "$API?per_page=100")"
           kv_id="$(echo "$list" | jq -r --arg TITLE "$TITLE" '.result[] | select(.title == $TITLE) | .id' | head -n 1 || true)"
 
           if [ -z "${kv_id:-}" ] || [ "$kv_id" = "null" ]; then
-            created="$(curl -fsS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data "{\"title\":\"$TITLE\"}" "$API")"
+            created="$(cf_api POST "$API" "{\"title\":\"$TITLE\"}")"
             kv_id="$(echo "$created" | jq -r '.result.id')"
           fi
 
