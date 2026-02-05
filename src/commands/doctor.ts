@@ -76,6 +76,31 @@ function toCheckResult(res: Awaited<ReturnType<typeof fetchJsonWithTimeout>>): C
   return { ok: res.ok, ms: res.ms, status: res.status, details: res.json };
 }
 
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function validateProxyOkJson(res: Awaited<ReturnType<typeof fetchJsonWithTimeout>>): CheckResult {
+  const base = toCheckResult(res);
+  if (!base.ok) return base;
+  const obj = asObject(base.details);
+  if (!obj) return { ...base, ok: false, error: 'invalid JSON' };
+  if (obj.status !== 'ok') return { ...base, ok: false, error: 'unexpected response' };
+  return base;
+}
+
+function validateApiSportsEnvelope(res: Awaited<ReturnType<typeof fetchJsonWithTimeout>>): CheckResult {
+  const base = toCheckResult(res);
+  if (!base.ok) return base;
+  const obj = asObject(base.details);
+  if (!obj) return { ...base, ok: false, error: 'invalid JSON' };
+  if (typeof obj.results !== 'number' || !Array.isArray(obj.response)) {
+    return { ...base, ok: false, error: 'unexpected response' };
+  }
+  return base;
+}
+
 function pickApiSportsSampleSeason(): number {
   // Six Nations uses a calendar year season.
   return new Date().getFullYear();
@@ -96,18 +121,18 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
 
   // Proxy checks (always useful, even if user has an API key).
   const proxyHealthRes = await fetchJsonWithTimeout(`${PROXY_URL}/health`);
-  const proxyHealth = toCheckResult(proxyHealthRes);
+  const proxyHealth = validateProxyOkJson(proxyHealthRes);
   checks.proxy_health = proxyHealth;
 
   const proxyStatusRes = await fetchJsonWithTimeout(`${PROXY_URL}/status`);
-  const proxyStatus = toCheckResult(proxyStatusRes);
+  const proxyStatus = validateProxyOkJson(proxyStatusRes);
   checks.proxy_status = proxyStatus;
 
   const season = pickApiSportsSampleSeason();
   const proxyLeagueSampleRes = await fetchJsonWithTimeout(
     `${PROXY_URL}/leagues?id=51&season=${season}`
   );
-  const proxyLeagueSample = toCheckResult(proxyLeagueSampleRes);
+  const proxyLeagueSample = validateApiSportsEnvelope(proxyLeagueSampleRes);
   checks.proxy_sample = proxyLeagueSample;
 
   // Direct API check (only if API key present).
@@ -116,7 +141,7 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
       `${API_SPORTS_BASE_URL}/leagues?id=51&season=${season}`,
       { headers: { 'x-apisports-key': secrets.api_key } }
     );
-    checks.api_direct = toCheckResult(directRes);
+    checks.api_direct = validateApiSportsEnvelope(directRes);
   }
 
   const proxyCoreOk = checks.proxy_health.ok && checks.proxy_sample.ok;
