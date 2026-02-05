@@ -8,10 +8,15 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 ### Added
 - New `rugbyclaw doctor` command — checks proxy /health, proxy /status, and API-Sports direct connectivity.
-- Free mode now shows quota info in JSON and prints a quota line when proxy status is reachable.
+- Maintainer guide: releasing checklist (npm publish).
+
+### Fixed
+- Doctor validation and diagnostics output.
 
 ### Changed
+- Free mode now shows quota info in JSON and prints a quota line when proxy status is reachable.
 - Top 14 placeholder kickoff times now show **Coming Soon** instead of **TBD**.
+- Exported API-Sports base URL constant (internal refactor).
 
 ## [0.1.2] - 2026-02-05
 
