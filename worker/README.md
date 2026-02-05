@@ -16,6 +16,19 @@ From the repo root:
 npm --prefix worker install
 ```
 
+## GitHub Actions deploy (recommended)
+
+This repo includes a workflow that can deploy the proxy Worker on pushes to `main` (and via manual dispatch).
+
+Required GitHub secrets:
+
+- `CLOUDFLARE_API_TOKEN` — API token with Workers + KV permissions
+- `CLOUDFLARE_ACCOUNT_ID` — your Cloudflare account id
+- `CF_KV_RATE_LIMITS_ID` — KV namespace id for the `RATE_LIMITS` binding
+- `API_SPORTS_KEY` — your API-Sports Rugby API key (stored as a Worker secret)
+
+Once those are set, go to GitHub → Actions → **Deploy Proxy Worker**.
+
 Create a KV namespace for rate limiting:
 
 ```bash
@@ -61,4 +74,3 @@ Configured in `worker/wrangler.toml`:
 - `RATE_LIMIT_PER_DAY` (default: 50/day per IP)
 - `RATE_LIMIT_PER_MINUTE` (default: 10/min per IP)
 - `DEFAULT_LEAGUES` (default leagues allowed in free mode)
-
