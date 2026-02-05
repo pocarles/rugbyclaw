@@ -1,5 +1,11 @@
 import { writeFile } from 'node:fs/promises';
-import { loadConfig, loadSecrets, getEffectiveLeagues, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
+import {
+  loadConfig,
+  loadSecrets,
+  getEffectiveLeagues,
+  DEFAULT_PROXY_LEAGUES,
+  getEffectiveTimeZone,
+} from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { normalizeText, similarityScore } from '../lib/fuzzy.js';
@@ -28,6 +34,7 @@ export async function teamCommand(
 ): Promise<void> {
   // Get API key if available (otherwise use proxy mode)
   const config = await loadConfig();
+  const timeZone = getEffectiveTimeZone(config);
   const secrets = await loadSecrets();
   const hasApiKey = Boolean(secrets?.api_key);
   const provider = new ApiSportsProvider(secrets?.api_key);
@@ -44,14 +51,22 @@ export async function teamCommand(
         await handleSearch(nameOrId, provider, leagueIds, options);
         break;
       case 'next':
-        await handleNext(nameOrId, provider, config, hasApiKey, leagueIds, options);
+        await handleNext(nameOrId, provider, config, timeZone, hasApiKey, leagueIds, options);
         break;
       case 'last':
-        await handleLast(nameOrId, provider, config, hasApiKey, leagueIds, options);
+        await handleLast(nameOrId, provider, config, timeZone, hasApiKey, leagueIds, options);
         break;
       default:
         // Default to 'next' if action looks like part of team name
-        await handleNext(`${nameOrId} ${action}`.trim(), provider, config, hasApiKey, leagueIds, options);
+        await handleNext(
+          `${nameOrId} ${action}`.trim(),
+          provider,
+          config,
+          timeZone,
+          hasApiKey,
+          leagueIds,
+          options
+        );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -199,6 +214,7 @@ async function handleNext(
   nameOrId: string,
   provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
+  timeZone: string,
   hasApiKey: boolean,
   leagueIds: string[],
   options: TeamOptions
@@ -311,12 +327,12 @@ async function handleNext(
     return;
   }
 
-  const output = matchToOutput(nextMatch, { timeZone: config.timezone });
+  const output = matchToOutput(nextMatch, { timeZone });
 
   if (options.json) {
     console.log(JSON.stringify(output, null, 2));
   } else if (!options.quiet) {
-    console.log(renderMatch(output, true, config.timezone)); // Show calendar hint
+    console.log(renderMatch(output, true, timeZone)); // Show calendar hint
   }
 }
 
@@ -324,6 +340,7 @@ async function handleLast(
   nameOrId: string,
   provider: ApiSportsProvider,
   config: Awaited<ReturnType<typeof loadConfig>>,
+  timeZone: string,
   hasApiKey: boolean,
   leagueIds: string[],
   options: TeamOptions
@@ -425,12 +442,12 @@ async function handleLast(
     process.exit(0);
   }
 
-  const output: MatchOutput = matchToOutput(lastMatch, { timeZone: config.timezone });
+  const output: MatchOutput = matchToOutput(lastMatch, { timeZone });
   output.summary = generateSummary(lastMatch, teamId);
 
   if (options.json) {
     console.log(JSON.stringify(output, null, 2));
   } else if (!options.quiet) {
-    console.log(renderMatch(output, false, config.timezone));
+    console.log(renderMatch(output, false, timeZone));
   }
 }

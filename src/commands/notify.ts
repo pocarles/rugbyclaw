@@ -1,4 +1,11 @@
-import { loadConfig, loadSecrets, loadState, saveState, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
+import {
+  loadConfig,
+  loadSecrets,
+  loadState,
+  saveState,
+  DEFAULT_PROXY_LEAGUES,
+  getEffectiveTimeZone,
+} from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { generateSummary } from '../lib/personality.js';
@@ -322,7 +329,7 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
   const config = await loadConfig();
   const secrets = await loadSecrets();
   let state = await loadState();
-  const timeZone = config.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone = getEffectiveTimeZone(config);
 
   const hasApiKey = Boolean(secrets?.api_key);
   const leagueSlugs = hasApiKey

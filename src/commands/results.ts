@@ -1,4 +1,10 @@
-import { loadConfig, loadSecrets, getEffectiveLeagues, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
+import {
+  loadConfig,
+  loadSecrets,
+  getEffectiveLeagues,
+  DEFAULT_PROXY_LEAGUES,
+  getEffectiveTimeZone,
+} from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
@@ -16,6 +22,7 @@ export async function resultsCommand(
   options: ResultsOptions
 ): Promise<void> {
   const config = await loadConfig();
+  const timeZone = getEffectiveTimeZone(config);
   // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
   const provider = new ApiSportsProvider(secrets?.api_key);
@@ -64,7 +71,7 @@ export async function resultsCommand(
 
     // Add personality summaries
     const matchOutputs: MatchOutput[] = matches.map((m) => {
-      const output = matchToOutput(m, { timeZone: config.timezone });
+      const output = matchToOutput(m, { timeZone });
       output.summary = generateNeutralSummary(m);
       return output;
     });

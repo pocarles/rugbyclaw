@@ -3,7 +3,7 @@ title: Configuration Files
 description: Where Rugbyclaw stores preferences and state
 category: reference
 tags: [config, files, paths]
-updated: 2026-02-04
+updated: 2026-02-05
 ---
 
 # Configuration Files
@@ -24,6 +24,16 @@ rugbyclaw --config ./my-rugbyclaw-config status --json
 # Use a specific config.json path (secrets/state stored next to it)
 rugbyclaw --config ./examples/config.json fixtures top14
 ```
+
+## Custom timezone
+
+If your machine/server timezone is different from what you want (common for automation/agents), you can override the timezone at runtime:
+
+```bash
+rugbyclaw --tz America/New_York fixtures
+```
+
+Timezone values must be valid IANA names (examples: `America/New_York`, `Europe/Paris`).
 
 ## `config.json`
 

@@ -11,11 +11,22 @@ let configPath = join(configDir, 'config.json');
 let secretsPath = join(configDir, 'secrets.json');
 let statePath = join(configDir, 'state.json');
 
+let timeZoneOverride: string | null = null;
+
 export interface ConfigPaths {
   configDir: string;
   configPath: string;
   secretsPath: string;
   statePath: string;
+}
+
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function expandHome(path: string): string {
@@ -50,6 +61,45 @@ export function setConfigPathOverride(pathLike: string): ConfigPaths {
   statePath = join(configDir, 'state.json');
 
   return getConfigPaths();
+}
+
+export function setTimeZoneOverride(timeZone: string | null): void {
+  if (!timeZone) {
+    timeZoneOverride = null;
+    return;
+  }
+
+  const trimmed = timeZone.trim();
+  if (trimmed.length === 0) {
+    timeZoneOverride = null;
+    return;
+  }
+
+  if (!isValidTimeZone(trimmed)) {
+    throw new RangeError(
+      `Invalid timezone "${trimmed}". Use an IANA timezone like "America/New_York" or "Europe/Paris".`
+    );
+  }
+
+  timeZoneOverride = trimmed;
+}
+
+export function getTimeZoneOverride(): string | null {
+  return timeZoneOverride;
+}
+
+export function getEffectiveTimeZone(config?: Pick<Config, 'timezone'>): string {
+  const override = timeZoneOverride || process.env.RUGBYCLAW_TZ || process.env.RUGBYCLAW_TIMEZONE;
+  if (override) {
+    setTimeZoneOverride(override);
+    return override.trim();
+  }
+
+  if (config?.timezone && isValidTimeZone(config.timezone)) {
+    return config.timezone;
+  }
+
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 export function getConfigPaths(): ConfigPaths {
@@ -99,6 +149,10 @@ export async function loadConfig(): Promise<Config> {
   try {
     const data = await readFile(configPath, 'utf-8');
     const config = JSON.parse(data) as Config;
+
+    if (!isValidTimeZone(config.timezone)) {
+      config.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
 
     // Migrate if needed
     if (config.schema_version < CURRENT_SCHEMA_VERSION) {

@@ -149,12 +149,19 @@ rugbyclaw scores --no-color
 
 ### Times in wrong timezone
 
-**Problem:** Timezone not configured correctly
+**Problem:** Timezone not configured correctly (or you're running on a server/agent with a different timezone)
 
 **Solution:**
 ```bash
+# Check what timezone Rugbyclaw is using
+rugbyclaw status
+
+# Set your preferred timezone (saved)
 rugbyclaw config
 # Select correct timezone in wizard
+
+# Or override for one command (useful for automation/agents)
+rugbyclaw --tz America/New_York fixtures
 ```
 
 ## Developer / Proxy Issues
@@ -200,4 +207,4 @@ rugbyclaw scores
    - Their API might be having issues
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-05*

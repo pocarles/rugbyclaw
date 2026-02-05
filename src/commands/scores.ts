@@ -1,4 +1,10 @@
-import { loadConfig, loadSecrets, getEffectiveLeagues, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
+import {
+  loadConfig,
+  loadSecrets,
+  getEffectiveLeagues,
+  DEFAULT_PROXY_LEAGUES,
+  getEffectiveTimeZone,
+} from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderScores, matchToOutput, renderError } from '../render/terminal.js';
@@ -12,6 +18,7 @@ interface ScoresOptions {
 
 export async function scoresCommand(options: ScoresOptions): Promise<void> {
   const config = await loadConfig();
+  const timeZone = getEffectiveTimeZone(config);
   // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
   const provider = new ApiSportsProvider(secrets?.api_key);
@@ -23,11 +30,11 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
     .filter(Boolean) as string[];
 
   try {
-    const dateYmd = getTodayYMD(config.timezone);
+    const dateYmd = getTodayYMD(timeZone);
     const matches = await provider.getToday(leagueIds, { dateYmd });
 
     const output: ScoresOutput = {
-      matches: matches.map((m) => matchToOutput(m, { timeZone: config.timezone })),
+      matches: matches.map((m) => matchToOutput(m, { timeZone })),
       generated_at: new Date().toISOString(),
     };
 

@@ -3,7 +3,7 @@ title: rugbyclaw config
 description: Interactive setup wizard (free mode or API key)
 category: commands
 tags: [config, setup, preferences]
-updated: 2026-02-04
+updated: 2026-02-05
 ---
 
 # rugbyclaw config
@@ -28,7 +28,7 @@ rugbyclaw config [options]
 - Mode: free mode (no API key) or API key (optional)
 - Favorite leagues
 - (Optional) favorite teams
-- Timezone (used for displaying match times)
+- Timezone (used for displaying match times, must be an IANA timezone like `America/New_York`)
 
 ## Files written
 
@@ -39,6 +39,12 @@ You can override the default location with `--config`:
 
 ```bash
 rugbyclaw --config ./my-rugbyclaw-config config
+```
+
+You can also override the timezone at runtime with `--tz`:
+
+```bash
+rugbyclaw --tz America/New_York fixtures
 ```
 
 ## Tips

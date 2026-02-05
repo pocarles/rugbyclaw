@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "timezone": "Europe/Paris",
+  "timezone": "America/New_York",
   "favorite_leagues": ["top14", "premiership", "urc", "champions_cup", "six_nations"],
   "favorite_teams": []
 }

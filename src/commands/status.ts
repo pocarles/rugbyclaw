@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { loadConfig, loadSecrets, DEFAULT_PROXY_LEAGUES, getConfigDir } from '../lib/config.js';
+import { loadConfig, loadSecrets, DEFAULT_PROXY_LEAGUES, getConfigDir, getEffectiveTimeZone } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import type { Config } from '../types/index.js';
 
@@ -16,6 +16,7 @@ function getEffectiveLeagueSlugs(config: Config, hasApiKey: boolean): string[] {
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
   const config = await loadConfig();
+  const timeZone = getEffectiveTimeZone(config);
   const secrets = await loadSecrets();
   const hasApiKey = Boolean(secrets?.api_key);
   const mode = hasApiKey ? 'direct' : 'proxy';
@@ -27,7 +28,8 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     mode,
     has_api_key: hasApiKey,
     config_dir: getConfigDir(),
-    timezone: config.timezone,
+    timezone: timeZone,
+    stored_timezone: config.timezone,
     favorite_leagues: config.favorite_leagues,
     effective_leagues: leagueSlugs,
     effective_leagues_names: leagueNames,
@@ -48,7 +50,10 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   lines.push(chalk.bold('Rugbyclaw Status'));
   lines.push('');
   lines.push(`${chalk.dim('Mode:')} ${mode === 'proxy' ? chalk.yellow('Free (no API key)') : chalk.green('API key')}`);
-  lines.push(`${chalk.dim('Timezone:')} ${config.timezone}`);
+  lines.push(`${chalk.dim('Timezone:')} ${timeZone}`);
+  if (config.timezone && config.timezone !== timeZone) {
+    lines.push(chalk.dim(`Stored timezone: ${config.timezone}`));
+  }
   lines.push(`${chalk.dim('Leagues:')} ${leagueNames.join(', ')}`);
   if (config.favorite_teams.length > 0) {
     lines.push(`${chalk.dim('Favorite teams:')} ${config.favorite_teams.length}`);
@@ -59,4 +64,3 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
   console.log(lines.join('\n'));
 }
-

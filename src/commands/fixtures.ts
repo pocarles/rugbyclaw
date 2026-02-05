@@ -1,5 +1,11 @@
 import { writeFile } from 'node:fs/promises';
-import { loadConfig, loadSecrets, getEffectiveLeagues, DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
+import {
+  loadConfig,
+  loadSecrets,
+  getEffectiveLeagues,
+  DEFAULT_PROXY_LEAGUES,
+  getEffectiveTimeZone,
+} from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
@@ -19,6 +25,7 @@ export async function fixturesCommand(
   options: FixturesOptions
 ): Promise<void> {
   const config = await loadConfig();
+  const timeZone = getEffectiveTimeZone(config);
   // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
   const provider = new ApiSportsProvider(secrets?.api_key);
@@ -67,7 +74,7 @@ export async function fixturesCommand(
 
     const output: FixturesOutput = {
       league: leagueName,
-      matches: matches.map((m) => matchToOutput(m, { timeZone: config.timezone })),
+      matches: matches.map((m) => matchToOutput(m, { timeZone })),
       generated_at: new Date().toISOString(),
     };
 
@@ -91,7 +98,7 @@ export async function fixturesCommand(
     if (options.json) {
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
-      console.log(renderFixtures(output, options.showIds, config.timezone));
+      console.log(renderFixtures(output, options.showIds, timeZone));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

@@ -165,6 +165,12 @@ export function renderFixtures(
     '',
   ];
 
+  const defaultTz = getDefaultTimeZone();
+  if (timeZone !== defaultTz) {
+    lines.push(chalk.dim(`Times shown in ${timeZone}`));
+    lines.push('');
+  }
+
   // Group by date
   const byDate = new Map<string, MatchOutput[]>();
   for (const match of output.matches) {

@@ -52,7 +52,13 @@ Run `rugbyclaw config` to configure your preferences:
 - (Optional) add your API-Sports Rugby API key (get yours at [api-sports.io](https://api-sports.io))
 - Select favorite leagues (free mode is limited to default leagues)
 - (Optional) pick favorite teams
-- Set your timezone
+- Set your timezone (IANA name like `America/New_York`)
+
+Tip (automation/agents): override timezone per command:
+
+```bash
+rugbyclaw --tz America/New_York fixtures
+```
 
 API key is stored securely in `~/.config/rugbyclaw/secrets.json` (mode 600).
 

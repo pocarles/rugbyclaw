@@ -24,6 +24,12 @@ rugbyclaw config
 rugbyclaw status --json
 ```
 
+If you're running on a server/agent and need a specific timezone, override it at runtime:
+
+```bash
+rugbyclaw --tz America/New_York status --json
+```
+
 The config wizard can:
 1. Keep you on free mode (default) or let you add an API key (optional)
 2. Let you select favorite leagues (free mode is limited to default leagues)
@@ -107,6 +113,7 @@ rugbyclaw status --json
 
 Then:
 - If `mode` is `proxy`, stick to default leagues and keep calls minimal.
+- If the user's timezone is known, prefer passing `--tz <IANA>` (example: `--tz America/New_York`) for consistent dates/times.
 - Prefer `scores --json`, `fixtures --json`, `results --json`, `team ... --json` for structured output.
 - Team search is scoped to Rugby Union teams in `effective_leagues` (to avoid irrelevant matches).
 

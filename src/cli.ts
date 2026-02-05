@@ -14,7 +14,7 @@ import { teamCommand } from './commands/team.js';
 import { calendarCommand } from './commands/calendar.js';
 import { notifyCommand } from './commands/notify.js';
 import { statusCommand } from './commands/status.js';
-import { setConfigPathOverride } from './lib/config.js';
+import { setConfigPathOverride, setTimeZoneOverride } from './lib/config.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version?: string };
@@ -60,13 +60,17 @@ program
   .option('--json', 'Output as JSON')
   .option('--quiet', 'Minimal output')
   .option('--no-color', 'Disable color output')
-  .option('--config <path>', 'Use a custom config directory or config.json path');
+  .option('--config <path>', 'Use a custom config directory or config.json path')
+  .option('--tz <timezone>', 'Override timezone (IANA), e.g. America/New_York');
 
 // Show welcome on first run with no command
 program.hook('preAction', () => {
-  const options = program.opts<{ config?: string }>();
+  const options = program.opts<{ config?: string; tz?: string }>();
   if (options.config) {
     setConfigPathOverride(options.config);
+  }
+  if (options.tz) {
+    setTimeZoneOverride(options.tz);
   }
 });
 

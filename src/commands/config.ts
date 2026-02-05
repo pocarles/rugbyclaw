@@ -6,6 +6,7 @@ import {
   loadSecrets,
   saveSecrets,
   DEFAULT_PROXY_LEAGUES,
+  isValidTimeZone,
 } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
@@ -234,6 +235,8 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
       name: 'timezone',
       message: 'Timezone:',
       default: existingConfig.timezone || detectedTimezone,
+      validate: (input: string) =>
+        isValidTimeZone(input) || 'Enter a valid IANA timezone (e.g. America/New_York)',
     },
   ]);
 
