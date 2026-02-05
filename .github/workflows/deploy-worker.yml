@@ -65,6 +65,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "::error title=Missing dependency::jq is required on the runner but was not found."
+            exit 1
+          fi
 
           cf_api() {
             local method="$1"
@@ -73,30 +77,43 @@ jobs:
             local tmp
             tmp="$(mktemp)"
             local status
+            local msg
 
             if [ -n "$data" ]; then
               status="$(curl -sS -o "$tmp" -w "%{http_code}" -X "$method" \
                 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
                 -H "Content-Type: application/json" \
                 --data "$data" \
-                "$url")"
+                "$url")" || {
+                echo "::error title=Cloudflare API request failed::curl failed calling $url"
+                return 1
+              }
             else
               status="$(curl -sS -o "$tmp" -w "%{http_code}" -X "$method" \
                 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-                "$url")"
+                "$url")" || {
+                echo "::error title=Cloudflare API request failed::curl failed calling $url"
+                return 1
+              }
             fi
 
             if ! jq -e . "$tmp" >/dev/null 2>&1; then
               echo "::group::Cloudflare non-JSON response ($method $url) [HTTP $status]"
               cat "$tmp"
               echo "::endgroup::"
-              echo "Cloudflare API did not return JSON (HTTP $status)."
+              echo "::error title=Cloudflare API error::Cloudflare API did not return JSON (HTTP $status)."
               return 1
             fi
 
             local success
             success="$(jq -r '.success // empty' "$tmp" 2>/dev/null || true)"
             if [ "$status" -lt 200 ] || [ "$status" -ge 300 ] || [ "$success" != "true" ]; then
+              msg="$(jq -r '.errors[0].message // .errors[0] // .messages[0].message // .message // "Unknown Cloudflare error"' "$tmp" 2>/dev/null || true)"
+              if [ -n "${msg:-}" ]; then
+                echo "::error title=Cloudflare API error::$msg (HTTP $status)"
+              else
+                echo "::error title=Cloudflare API error::Cloudflare API request failed (HTTP $status)."
+              fi
               echo "::group::Cloudflare API error ($method $url) [HTTP $status]"
               cat "$tmp"
               echo "::endgroup::"
