@@ -80,7 +80,10 @@ function formatStatus(status: string): string {
  */
 function formatMatchLine(match: MatchOutput, showId = false): string {
   const status = formatStatus(match.status);
-  const time = match.status === 'scheduled' ? formatTime(match.time) : '';
+  const showTbd = match.status === 'scheduled' && match.time_tbd;
+  const time = match.status === 'scheduled' && !showTbd && match.time
+    ? formatTime(match.time)
+    : '';
 
   let scorePart: string;
   if (match.home.score !== undefined && match.away.score !== undefined) {
@@ -98,6 +101,8 @@ function formatMatchLine(match: MatchOutput, showId = false): string {
 
   if (status) {
     line += `  ${status}`;
+  } else if (showTbd) {
+    line += `  ${chalk.yellow('TBD')}`;
   } else if (time) {
     line += `  ${chalk.cyan(time)}`;
   }
@@ -164,6 +169,11 @@ export function renderFixtures(
     chalk.bold(title),
     '',
   ];
+
+  if (output.matches.some((m) => m.time_tbd)) {
+    lines.push(chalk.yellow('⚠ Kickoff times pending from API-Sports for some Top 14 fixtures (showing TBD).'));
+    lines.push('');
+  }
 
   const defaultTz = getDefaultTimeZone();
   if (timeZone !== defaultTz) {
@@ -325,7 +335,8 @@ export function matchToOutput(match: Match, options?: { timeZone?: string }): Ma
     },
     league: match.league.name,
     date: formatDateYMD(kickoff, timeZone),
-    time: formatTimeHM(kickoff, timeZone),
+    time: match.timeTbd ? '' : formatTimeHM(kickoff, timeZone),
+    time_tbd: match.timeTbd || undefined,
     venue: match.venue,
     status: match.status,
     summary: match.status === 'finished' ? generateNeutralSummary(match) : undefined,

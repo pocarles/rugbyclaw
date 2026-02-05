@@ -92,6 +92,17 @@ interface ApiTeam {
   };
 }
 
+const TOP14_LEAGUE_ID = '16';
+const TOP14_PLACEHOLDER_UTC_TIMES = new Set(['11:00', '13:00', '15:00', '17:00', '19:00', '21:00']);
+
+function isTop14PlaceholderTime(game: ApiGame): boolean {
+  if (String(game.league.id) !== TOP14_LEAGUE_ID) return false;
+  if (!game.time || !game.timezone) return false;
+  if (game.timezone.toUpperCase() !== 'UTC') return false;
+  if (!game.time.endsWith(':00')) return false;
+  return TOP14_PLACEHOLDER_UTC_TIMES.has(game.time);
+}
+
 /**
  * Map API-Sports status codes to RugbyClaw status
  */
@@ -293,6 +304,7 @@ export class ApiSportsProvider implements Provider {
 	    // Prefer the server-provided UNIX timestamp for accurate time + timezone handling.
 	    const date = new Date(game.timestamp * 1000);
 	    const status = mapStatus(game.status);
+	    const timeTbd = status === 'scheduled' && isTop14PlaceholderTime(game);
 
 	    return {
       id: String(game.id),
@@ -314,6 +326,7 @@ export class ApiSportsProvider implements Provider {
         : undefined,
       round: game.week || undefined,
 	      timestamp: game.timestamp * 1000, // Convert to ms
+	      timeTbd,
 	    };
 	  }
 

@@ -3,7 +3,7 @@ title: Troubleshooting
 description: Common problems and solutions
 category: troubleshooting
 tags: [errors, problems, help]
-updated: 2026-02-02
+updated: 2026-02-05
 ---
 
 # Troubleshooting
@@ -163,6 +163,14 @@ rugbyclaw config
 # Or override for one command (useful for automation/agents)
 rugbyclaw --tz America/New_York fixtures
 ```
+
+### Top 14 times show "TBD"
+
+**Problem:** API-Sports sometimes publishes placeholder kickoff times (UTC on the hour) for Top 14 fixtures until closer to match day.
+
+**Solution:**
+- Wait for API-Sports to update the official times
+- RugbyClaw will show `TBD` to avoid displaying incorrect kickoff times
 
 ## Developer / Proxy Issues
 

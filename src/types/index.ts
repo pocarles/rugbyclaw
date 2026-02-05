@@ -35,6 +35,7 @@ export interface Match {
   score?: Score;
   round?: string;
   timestamp: number; // Unix timestamp for easier comparison
+  timeTbd?: boolean;
 }
 
 // Config types
@@ -103,6 +104,7 @@ export interface MatchOutput {
   league: string;
   date: string;
   time: string;
+  time_tbd?: boolean;
   venue?: string;
   status: MatchStatus;
   summary?: string; // Personality-driven summary for results
