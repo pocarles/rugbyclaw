@@ -73,6 +73,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+
+          # If a KV namespace id is provided, skip auto-creation (and any KV API permissions).
+          if [ -n "${CF_KV_RATE_LIMITS_ID:-}" ]; then
+            echo "kv_id=$CF_KV_RATE_LIMITS_ID" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if ! command -v jq >/dev/null 2>&1; then
             echo "::error title=Missing dependency::jq is required on the runner but was not found."
             exit 1
@@ -132,11 +139,6 @@ jobs:
 
             cat "$tmp"
           }
-
-          if [ -n "${CF_KV_RATE_LIMITS_ID:-}" ]; then
-            echo "kv_id=$CF_KV_RATE_LIMITS_ID" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
 
           TITLE="rugbyclaw-rate-limits"
           API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces"
