@@ -104,7 +104,7 @@ function formatMatchLine(match: MatchOutput, showId = false): string {
   if (status) {
     line += `  ${status}`;
   } else if (showTbd) {
-    line += `  ${chalk.yellow('TBD')}`;
+    line += `  ${chalk.yellow('Coming Soon')}`;
   } else if (time) {
     line += `  ${chalk.cyan(time)}`;
   }
@@ -173,7 +173,7 @@ export function renderFixtures(
   ];
 
   if (output.matches.some((m) => m.time_tbd)) {
-    lines.push(chalk.yellow('⚠ Kickoff times pending from API-Sports for some Top 14 fixtures (showing TBD).'));
+    lines.push(chalk.yellow('⚠ Kickoff times pending from API-Sports for some Top 14 fixtures (showing Coming Soon).'));
     lines.push('');
   }
 
@@ -272,7 +272,7 @@ export function renderMatch(
   const status = formatStatus(match.status);
   const showTbd = match.status === 'scheduled' && match.time_tbd;
   const dateTime = match.status === 'scheduled'
-    ? `${formatDate(match.date, timeZone)} at ${showTbd ? chalk.yellow('TBD') : formatTime(match.time)}`
+    ? `${formatDate(match.date, timeZone)} at ${showTbd ? chalk.yellow('Coming Soon') : formatTime(match.time)}`
     : formatDate(match.date, timeZone);
 
   lines.push(chalk.bold(`${match.home.name} vs ${match.away.name}`));
