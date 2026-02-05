@@ -3,7 +3,7 @@ title: rugbyclaw status
 description: Show current mode, timezone, and effective leagues
 category: commands
 tags: [status, config, setup]
-updated: 2026-02-04
+updated: 2026-02-05
 ---
 
 # rugbyclaw status
@@ -33,5 +33,5 @@ rugbyclaw status --json
 ## Notes
 
 - In free mode (no API key), Rugbyclaw uses a proxy with limits and default leagues only.
+- The status output shows whether the free proxy is reachable and your remaining quota (if available).
 - This command is useful for OpenClaw/automation to understand the current setup.
-

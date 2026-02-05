@@ -7,6 +7,7 @@ import {
 } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
+import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
 import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
 import { generateNeutralSummary } from '../lib/personality.js';
 import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
@@ -25,6 +26,7 @@ export async function resultsCommand(
   const timeZone = getEffectiveTimeZone(config);
   // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
+  const hasApiKey = Boolean(secrets?.api_key);
   const provider = new ApiSportsProvider(secrets?.api_key);
   const limit = parseInt(options.limit || '15', 10);
 
@@ -42,7 +44,7 @@ export async function resultsCommand(
         process.exit(1);
       }
 
-      if (!secrets?.api_key && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
+      if (!hasApiKey && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
         console.log(renderError(`"${league.name}" is not available in free mode.`));
         console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
         process.exit(1);
@@ -52,7 +54,7 @@ export async function resultsCommand(
       matches = await provider.getLeagueResults(league.id);
     } else {
       // Get effective leagues (user's favorites or defaults)
-      const favoriteLeagues = secrets?.api_key ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+      const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
       const leagueIds = favoriteLeagues
         .map((slug) => LEAGUES[slug]?.id)
         .filter(Boolean) as string[];
@@ -76,16 +78,22 @@ export async function resultsCommand(
       return output;
     });
 
+    const wantProxyStatus = !hasApiKey && (options.json || !options.quiet);
+    const proxyStatus = await getProxyStatusIfFree(hasApiKey, wantProxyStatus);
+
     const output: ResultsOutput = {
       league: leagueName,
       matches: matchOutputs,
       generated_at: new Date().toISOString(),
+      rate_limit: getProxyRateLimit(proxyStatus),
     };
 
     if (options.json) {
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
       console.log(renderResults(output));
+      const quotaLine = getProxyQuotaLine(proxyStatus);
+      if (quotaLine) console.log(quotaLine);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

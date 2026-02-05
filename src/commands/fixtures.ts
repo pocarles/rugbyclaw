@@ -8,6 +8,7 @@ import {
 } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
+import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
 import { matchesToICS } from '../lib/ics.js';
 import type { FixturesOutput, Match } from '../types/index.js';
@@ -28,6 +29,7 @@ export async function fixturesCommand(
   const timeZone = getEffectiveTimeZone(config);
   // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
+  const hasApiKey = Boolean(secrets?.api_key);
   const provider = new ApiSportsProvider(secrets?.api_key);
   const limit = parseInt(options.limit || '15', 10);
 
@@ -45,7 +47,7 @@ export async function fixturesCommand(
         process.exit(1);
       }
 
-      if (!secrets?.api_key && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
+      if (!hasApiKey && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
         console.log(renderError(`"${league.name}" is not available in free mode.`));
         console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
         process.exit(1);
@@ -55,7 +57,7 @@ export async function fixturesCommand(
       matches = await provider.getLeagueFixtures(league.id);
     } else {
       // Get effective leagues (user's favorites or defaults)
-      const favoriteLeagues = secrets?.api_key ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+      const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
       const leagueIds = favoriteLeagues
         .map((slug) => LEAGUES[slug]?.id)
         .filter(Boolean) as string[];
@@ -71,12 +73,6 @@ export async function fixturesCommand(
 
     // Apply limit
     matches = matches.slice(0, limit);
-
-    const output: FixturesOutput = {
-      league: leagueName,
-      matches: matches.map((m) => matchToOutput(m, { timeZone })),
-      generated_at: new Date().toISOString(),
-    };
 
     // Export to ICS file
     if (options.ics) {
@@ -95,10 +91,22 @@ export async function fixturesCommand(
       return;
     }
 
+    const wantProxyStatus = !hasApiKey && (options.json || !options.quiet);
+    const proxyStatus = await getProxyStatusIfFree(hasApiKey, wantProxyStatus);
+
+    const output: FixturesOutput = {
+      league: leagueName,
+      matches: matches.map((m) => matchToOutput(m, { timeZone })),
+      generated_at: new Date().toISOString(),
+      rate_limit: getProxyRateLimit(proxyStatus),
+    };
+
     if (options.json) {
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
       console.log(renderFixtures(output, options.showIds, timeZone));
+      const quotaLine = getProxyQuotaLine(proxyStatus);
+      if (quotaLine) console.log(quotaLine);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

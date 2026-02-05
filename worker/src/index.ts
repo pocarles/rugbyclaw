@@ -111,6 +111,27 @@ function getMinuteRateLimitKey(ip: string, now: Date = new Date()): string {
   return `ratelimit:${ip}:${minute}`;
 }
 
+async function getRateLimitStatus(
+  kv: KVNamespace,
+  ip: string,
+  limitPerDay: number,
+  limitPerMinute: number
+): Promise<{ remainingDay: number; remainingMinute: number; limitDay: number; limitMinute: number }> {
+  const key = getRateLimitKey(ip);
+  const minuteKey = getMinuteRateLimitKey(ip);
+
+  const [currentDay, currentMinute] = await Promise.all([kv.get(key), kv.get(minuteKey)]);
+  const countDay = currentDay ? parseInt(currentDay, 10) : 0;
+  const countMinute = currentMinute ? parseInt(currentMinute, 10) : 0;
+
+  return {
+    remainingDay: Math.max(0, limitPerDay - countDay),
+    remainingMinute: Math.max(0, limitPerMinute - countMinute),
+    limitDay: limitPerDay,
+    limitMinute: limitPerMinute,
+  };
+}
+
 /**
  * Check and increment rate limit for an IP.
  * Returns { allowed: boolean, remaining: number, limit: number }
@@ -218,6 +239,39 @@ export default {
       return new Response(JSON.stringify({ status: 'ok' }), {
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    if (pathname === '/status') {
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const rateLimitDay = parseInt(env.RATE_LIMIT_PER_DAY || '50', 10);
+      const rateLimitMinute = parseInt(env.RATE_LIMIT_PER_MINUTE || '10', 10);
+      const rate = await getRateLimitStatus(env.RATE_LIMITS, ip, rateLimitDay, rateLimitMinute);
+
+      return new Response(
+        JSON.stringify({
+          status: 'ok',
+          mode: 'free',
+          now: new Date().toISOString(),
+          rate_limit: {
+            day: {
+              limit: rate.limitDay,
+              remaining: rate.remainingDay,
+              reset: 'midnight UTC',
+            },
+            minute: {
+              limit: rate.limitMinute,
+              remaining: rate.remainingMinute,
+            },
+          },
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-store',
+          },
+        }
+      );
     }
 
     // Validate endpoint

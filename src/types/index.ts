@@ -24,6 +24,11 @@ export interface Score {
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled';
 
+export interface RateLimitInfo {
+  day?: { limit: number; remaining: number; reset?: string };
+  minute?: { limit: number; remaining: number };
+}
+
 export interface Match {
   id: string;
   homeTeam: Team;
@@ -113,18 +118,21 @@ export interface MatchOutput {
 export interface ScoresOutput {
   matches: MatchOutput[];
   generated_at: string;
+  rate_limit?: RateLimitInfo;
 }
 
 export interface FixturesOutput {
   league?: string;
   matches: MatchOutput[];
   generated_at: string;
+  rate_limit?: RateLimitInfo;
 }
 
 export interface ResultsOutput {
   league?: string;
   matches: MatchOutput[];
   generated_at: string;
+  rate_limit?: RateLimitInfo;
 }
 
 export interface TeamSearchOutput {

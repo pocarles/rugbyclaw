@@ -1,12 +1,31 @@
 import type { Provider, CacheOptions } from './types.js';
 import { ProviderError, CACHE_PROFILES } from './types.js';
-import type { Match, Team, MatchStatus } from '../../types/index.js';
+import type { Match, Team, MatchStatus, RateLimitInfo } from '../../types/index.js';
 import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 
 const BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
-const PROXY_URL = process.env.RUGBYCLAW_PROXY_URL || DEFAULT_PROXY_URL;
+export const PROXY_URL = process.env.RUGBYCLAW_PROXY_URL || DEFAULT_PROXY_URL;
+
+export interface ProxyStatus {
+  status: string;
+  mode?: string;
+  now?: string;
+  rate_limit?: RateLimitInfo;
+}
+
+export async function fetchProxyStatus(): Promise<ProxyStatus | null> {
+  try {
+    const res = await fetch(`${PROXY_URL}/status`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ProxyStatus;
+  } catch {
+    return null;
+  }
+}
 
 export type ProviderMode = 'direct' | 'proxy';
 

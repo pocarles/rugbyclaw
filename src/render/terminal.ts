@@ -51,7 +51,9 @@ function formatDate(dateYmd: string, timeZone: string): string {
  * Format a time for display.
  */
 function formatTime(timeStr: string): string {
+  if (!timeStr) return '';
   const [hours, minutes] = timeStr.split(':');
+  if (!hours || !minutes) return timeStr;
   return `${hours}:${minutes}`;
 }
 
@@ -268,8 +270,9 @@ export function renderMatch(
   const lines: string[] = [];
 
   const status = formatStatus(match.status);
+  const showTbd = match.status === 'scheduled' && match.time_tbd;
   const dateTime = match.status === 'scheduled'
-    ? `${formatDate(match.date, timeZone)} at ${formatTime(match.time)}`
+    ? `${formatDate(match.date, timeZone)} at ${showTbd ? chalk.yellow('TBD') : formatTime(match.time)}`
     : formatDate(match.date, timeZone);
 
   lines.push(chalk.bold(`${match.home.name} vs ${match.away.name}`));
