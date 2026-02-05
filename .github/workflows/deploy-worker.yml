@@ -31,18 +31,80 @@ jobs:
         working-directory: worker
         run: npm ci
 
-      - name: Prepare Wrangler config
-        working-directory: worker
+      - name: Validate secrets
         env:
-          CF_KV_RATE_LIMITS_ID: ${{ secrets.CF_KV_RATE_LIMITS_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          API_SPORTS_KEY: ${{ secrets.API_SPORTS_KEY }}
         run: |
-          if [ -z "$CF_KV_RATE_LIMITS_ID" ]; then
-            echo "Missing secret: CF_KV_RATE_LIMITS_ID"
+          set -euo pipefail
+
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "Missing secret: CLOUDFLARE_API_TOKEN"
+            missing=1
+          fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "Missing secret: CLOUDFLARE_ACCOUNT_ID"
+            missing=1
+          fi
+          if [ -z "${API_SPORTS_KEY:-}" ]; then
+            echo "Missing secret: API_SPORTS_KEY"
+            missing=1
+          fi
+
+          if [ "$missing" -ne 0 ]; then
             exit 1
           fi
 
-          cp wrangler.toml wrangler.ci.toml
-          sed -i "s/id = \"your-kv-namespace-id\"/id = \"$CF_KV_RATE_LIMITS_ID\"/" wrangler.ci.toml
+      - name: Ensure KV namespace
+        id: kv
+        env:
+          CF_KV_RATE_LIMITS_ID: ${{ secrets.CF_KV_RATE_LIMITS_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${CF_KV_RATE_LIMITS_ID:-}" ]; then
+            echo "kv_id=$CF_KV_RATE_LIMITS_ID" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TITLE="rugbyclaw-rate-limits"
+          API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces"
+
+          list="$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API?per_page=100")"
+          kv_id="$(echo "$list" | jq -r --arg TITLE "$TITLE" '.result[] | select(.title == $TITLE) | .id' | head -n 1 || true)"
+
+          if [ -z "${kv_id:-}" ] || [ "$kv_id" = "null" ]; then
+            created="$(curl -fsS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data "{\"title\":\"$TITLE\"}" "$API")"
+            kv_id="$(echo "$created" | jq -r '.result.id')"
+          fi
+
+          if [ -z "${kv_id:-}" ] || [ "$kv_id" = "null" ]; then
+            echo "Failed to determine/create KV namespace id."
+            exit 1
+          fi
+
+          echo "kv_id=$kv_id" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Wrangler config
+        working-directory: worker
+        env:
+          KV_ID: ${{ steps.kv.outputs.kv_id }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+
+          # Insert account_id at the top-level (before any [tables]) for non-interactive deploys.
+          awk -v acct="$CLOUDFLARE_ACCOUNT_ID" '
+            /^compatibility_date[[:space:]]*=/ { print; print "account_id = \"" acct "\""; next }
+            { print }
+          ' wrangler.toml > wrangler.ci.toml
+
+          # Patch KV namespace id.
+          sed -i "s/id = \"your-kv-namespace-id\"/id = \"$KV_ID\"/" wrangler.ci.toml
 
       - name: Set API_SPORTS_KEY secret
         working-directory: worker
@@ -51,18 +113,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "Missing secret: CLOUDFLARE_API_TOKEN"
-            exit 1
-          fi
-          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "Missing secret: CLOUDFLARE_ACCOUNT_ID"
-            exit 1
-          fi
-          if [ -z "$API_SPORTS_KEY" ]; then
-            echo "Missing secret: API_SPORTS_KEY"
-            exit 1
-          fi
+          set -euo pipefail
 
           printf "%s" "$API_SPORTS_KEY" | npx wrangler secret put API_SPORTS_KEY --config wrangler.ci.toml --name rugbyclaw-proxy
 
@@ -73,3 +124,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.ci.toml
 
+      - name: Show deployment status
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deployments status --config wrangler.ci.toml --name rugbyclaw-proxy --json

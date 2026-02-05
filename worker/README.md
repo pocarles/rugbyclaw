@@ -24,8 +24,12 @@ Required GitHub secrets:
 
 - `CLOUDFLARE_API_TOKEN` — API token with Workers + KV permissions
 - `CLOUDFLARE_ACCOUNT_ID` — your Cloudflare account id
-- `CF_KV_RATE_LIMITS_ID` — KV namespace id for the `RATE_LIMITS` binding
 - `API_SPORTS_KEY` — your API-Sports Rugby API key (stored as a Worker secret)
+
+Optional GitHub secrets:
+
+- `CF_KV_RATE_LIMITS_ID` — KV namespace id for the `RATE_LIMITS` binding
+  - If omitted, the workflow will create (or reuse) a KV namespace titled `rugbyclaw-rate-limits`.
 
 Once those are set, go to GitHub → Actions → **Deploy Proxy Worker**.
 
