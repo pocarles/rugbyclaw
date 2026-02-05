@@ -10,7 +10,7 @@ import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { generateSummary } from '../lib/personality.js';
 import { renderNotify, matchToOutput, renderError } from '../render/terminal.js';
-import { getTodayYMD } from '../lib/datetime.js';
+import { formatDateYMD, getTodayYMD, getTomorrowYMD } from '../lib/datetime.js';
 import type {
   Match,
   MatchNotificationState,
@@ -117,6 +117,8 @@ async function handleDaily(
 ): Promise<{ notifications: Notification[]; state: State }> {
   const notifications: Notification[] = [];
   const now = Date.now();
+  const nowDate = new Date(now);
+  const tomorrowYmd = getTomorrowYMD(timeZone, nowDate);
 
   for (const leagueId of leagueIds) {
     const fixtures = await provider.getLeagueFixtures(leagueId);
@@ -143,12 +145,15 @@ async function handleDaily(
         },
       };
 
+      const matchYmd = formatDateYMD(new Date(match.timestamp), timeZone);
+
       // Day before reminder
       const timeTillMatch = match.timestamp - now;
       if (
         timeTillMatch > 0 &&
-        timeTillMatch <= DAY_MS &&
-        timeTillMatch > 23 * HOUR_MS &&
+        // Use calendar dates in the user's timezone instead of a narrow 23-24h window.
+        // This makes `notify --daily` useful no matter what time it runs.
+        matchYmd === tomorrowYmd &&
         !matchState.notified.day_before
       ) {
         // Write state first (idempotent)
