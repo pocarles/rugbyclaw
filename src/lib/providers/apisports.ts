@@ -4,7 +4,7 @@ import type { Match, Team, MatchStatus, RateLimitInfo } from '../../types/index.
 import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 
-const BASE_URL = 'https://v1.rugby.api-sports.io';
+export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
 export const PROXY_URL = process.env.RUGBYCLAW_PROXY_URL || DEFAULT_PROXY_URL;
 
@@ -221,7 +221,7 @@ export class ApiSportsProvider implements Provider {
 
 	  private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
     const searchParams = new URLSearchParams(params);
-    const baseUrl = this.mode === 'proxy' ? PROXY_URL : BASE_URL;
+    const baseUrl = this.mode === 'proxy' ? PROXY_URL : API_SPORTS_BASE_URL;
     const url = `${baseUrl}/${endpoint}?${searchParams}`;
     const key = cacheKey(endpoint, params);
 

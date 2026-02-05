@@ -53,6 +53,7 @@ If you're not sure what RugbyClaw is using (free mode vs API key), run:
 ```bash
 rugbyclaw status
 rugbyclaw status --json
+rugbyclaw doctor
 ```
 
 ### "Invalid API key" error

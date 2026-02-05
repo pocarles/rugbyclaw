@@ -14,6 +14,7 @@ import { teamCommand } from './commands/team.js';
 import { calendarCommand } from './commands/calendar.js';
 import { notifyCommand } from './commands/notify.js';
 import { statusCommand } from './commands/status.js';
+import { doctorCommand } from './commands/doctor.js';
 import { setConfigPathOverride, setTimeZoneOverride } from './lib/config.js';
 
 const require = createRequire(import.meta.url);
@@ -80,6 +81,19 @@ program
   .description('Print Rugbyclaw version')
   .action(() => {
     console.log(VERSION);
+  });
+
+// Doctor command
+program
+  .command('doctor')
+  .description('Diagnose proxy/API/config issues')
+  .addHelpText('after', `
+${chalk.cyan('Examples:')}
+  ${chalk.white('rugbyclaw doctor')}          Human-friendly checks
+  ${chalk.white('rugbyclaw doctor --json')}   JSON output for automation
+`)
+  .action(async () => {
+    await doctorCommand(program.opts());
   });
 
 // Config command

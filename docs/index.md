@@ -12,6 +12,7 @@
 
 - [config](./commands/config.md) - Setup wizard (free mode or API key)
 - [status](./commands/status.md) - Check mode/timezone/leagues
+- [doctor](./commands/doctor.md) - Diagnose proxy/API/config issues
 - [scores](./commands/scores.md) - Today's matches across favorite leagues
 - [fixtures](./commands/fixtures.md) - Upcoming matches
 - [results](./commands/results.md) - Recent results with summaries
