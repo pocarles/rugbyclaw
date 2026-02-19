@@ -38,4 +38,21 @@ describe('matchToOutput', () => {
     expect(output.time_tbd).toBe(true);
     expect(output.time_confidence).toBe('pending');
   });
+
+  it('includes time source when provided by provider pipeline', () => {
+    const match: Match = {
+      id: '3',
+      homeTeam: { id: 'h', name: 'Home' },
+      awayTeam: { id: 'a', name: 'Away' },
+      league: { id: '16', slug: 'top14', name: 'Top 14', country: 'France', sport: 'rugby' },
+      date: new Date('2026-02-14T20:05:00Z'),
+      status: 'scheduled',
+      timestamp: Date.parse('2026-02-14T20:05:00Z'),
+      timeSource: 'secondary',
+    };
+
+    const output = matchToOutput(match, { timeZone: 'Europe/Paris' });
+    expect(output.time_source).toBe('secondary');
+    expect(output.time_confidence).toBe('exact');
+  });
 });

@@ -3,7 +3,7 @@ title: Configuration Files
 description: Where Rugbyclaw stores preferences and state
 category: reference
 tags: [config, files, paths]
-updated: 2026-02-05
+updated: 2026-02-19
 ---
 
 # Configuration Files
@@ -23,6 +23,9 @@ rugbyclaw --config ./my-rugbyclaw-config status --json
 
 # Use a specific config.json path (secrets/state stored next to it)
 rugbyclaw --config ./examples/config.json fixtures top14
+
+# Kickoff overrides are read from this same config directory
+# (for example: ./my-rugbyclaw-config/kickoff-overrides.json)
 ```
 
 ## Custom timezone
@@ -46,3 +49,23 @@ API key (if provided). Written with file mode `600`.
 ## `state.json`
 
 Notification state used by `rugbyclaw notify` to dedupe messages.
+
+## `kickoff-overrides.json` (optional)
+
+Secondary kickoff verification source for known fixtures.
+
+Example:
+
+```json
+{
+  "12345": {
+    "kickoff": "2026-02-15T20:05:00+01:00",
+    "source": "manual-rugbyrama"
+  }
+}
+```
+
+Where:
+- key = match ID
+- `kickoff` = verified ISO datetime
+- `source` = optional label shown in diagnostics

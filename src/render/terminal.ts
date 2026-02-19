@@ -354,6 +354,7 @@ export function matchToOutput(match: Match, options?: { timeZone?: string }): Ma
     time: match.timeTbd ? '' : formatTimeHM(kickoff, timeZone),
     time_tbd: match.timeTbd || undefined,
     time_confidence: match.timeTbd ? 'pending' : 'exact',
+    time_source: match.timeSource,
     venue: match.venue,
     status: match.status,
     summary: match.status === 'finished' ? generateNeutralSummary(match) : undefined,

@@ -3,6 +3,7 @@ import { ProviderError, CACHE_PROFILES } from './types.js';
 import type { Match, Team, MatchStatus, RateLimitInfo } from '../../types/index.js';
 import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
+import { loadKickoffOverrides } from '../kickoff-overrides.js';
 
 export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
@@ -114,12 +115,23 @@ interface ApiTeam {
 const TOP14_LEAGUE_ID = '16';
 const TOP14_PLACEHOLDER_UTC_TIMES = new Set(['11:00', '13:00', '15:00', '17:00', '19:00', '21:00']);
 
-function isTop14PlaceholderTime(game: ApiGame): boolean {
+export function isLikelyTop14PlaceholderKickoff(game: ApiGame, nowMs = Date.now()): boolean {
   if (String(game.league.id) !== TOP14_LEAGUE_ID) return false;
   if (!game.time || !game.timezone) return false;
   if (game.timezone.toUpperCase() !== 'UTC') return false;
-  if (!game.time.endsWith(':00')) return false;
-  return TOP14_PLACEHOLDER_UTC_TIMES.has(game.time);
+  if (!/^\d{2}:\d{2}$/.test(game.time)) return false;
+  const [hoursStr, minutesStr] = game.time.split(':');
+  const hours = Number(hoursStr);
+  if (!Number.isFinite(hours)) return false;
+  if (minutesStr !== '00') return false;
+
+  if (TOP14_PLACEHOLDER_UTC_TIMES.has(game.time)) return true;
+
+  const kickoffMs = game.timestamp * 1000;
+  const hoursAhead = (kickoffMs - nowMs) / (60 * 60 * 1000);
+  if (hoursAhead > 24) return true;
+
+  return false;
 }
 
 /**
@@ -206,6 +218,7 @@ export class ApiSportsProvider implements Provider {
   private apiKey: string | null;
   private mode: ProviderMode;
   private cache = getCache();
+  private kickoffOverrides = loadKickoffOverrides();
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || null;
@@ -320,10 +333,12 @@ export class ApiSportsProvider implements Provider {
       sport: 'rugby' as const,
     };
 
-	    // Prefer the server-provided UNIX timestamp for accurate time + timezone handling.
-	    const date = new Date(game.timestamp * 1000);
 	    const status = mapStatus(game.status);
-	    const timeTbd = status === 'scheduled' && isTop14PlaceholderTime(game);
+	    const override = this.kickoffOverrides.get(String(game.id));
+	    const timestamp = override ? override.kickoffMs : game.timestamp * 1000;
+	    // Prefer UNIX timestamp source (provider or verified override) for timezone-safe rendering.
+	    const date = new Date(timestamp);
+	    const timeTbd = !override && status === 'scheduled' && isLikelyTop14PlaceholderKickoff(game);
 
 	    return {
       id: String(game.id),
@@ -340,12 +355,13 @@ export class ApiSportsProvider implements Provider {
       league,
       date,
       status,
-      score: game.scores.home !== null && game.scores.away !== null
-        ? { home: game.scores.home, away: game.scores.away }
-        : undefined,
-      round: game.week || undefined,
-	      timestamp: game.timestamp * 1000, // Convert to ms
+	      score: game.scores.home !== null && game.scores.away !== null
+	        ? { home: game.scores.home, away: game.scores.away }
+	        : undefined,
+	      round: game.week || undefined,
+	      timestamp, // ms
 	      timeTbd,
+	      timeSource: override ? 'secondary' : 'provider',
 	    };
 	  }
 

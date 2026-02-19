@@ -19,5 +19,6 @@ rugbyclaw notify --live --json
 For fixture data, check kickoff reliability with:
 - `time_confidence: "exact"` when kickoff is reliable
 - `time_confidence: "pending"` (and `time_tbd: true`) when the provider still has placeholder kickoff data
+- `time_source: "secondary"` when a kickoff override was applied
 
 Treat `time_confidence: "pending"` as unfinalized kickoff info (date/time may shift).

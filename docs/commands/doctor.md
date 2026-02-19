@@ -39,3 +39,4 @@ rugbyclaw doctor --json
   - date queried for `scores`
   - leagues queried
   - per-league API result counts
+- `doctor` shows how many kickoff overrides are loaded and which override file path is in use.

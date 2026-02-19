@@ -186,6 +186,7 @@ rugbyclaw doctor
 - Wait for API-Sports to update the official kickoff details
 - RugbyClaw shows `Coming Soon` to avoid displaying incorrect kickoff date/time
 - In JSON output, look for `time_confidence: "pending"` (`time_tbd: true`)
+- If you have trusted times, add a manual override in `~/.config/rugbyclaw/kickoff-overrides.json`
 
 ## Developer / Proxy Issues
 

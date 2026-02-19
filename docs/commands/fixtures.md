@@ -106,9 +106,13 @@ Without an API key, Rugbyclaw is limited to a default set of leagues (Top 14, Pr
 If a kickoff time is known to be a provider placeholder, JSON output includes:
 - `time_tbd: true`
 - `time_confidence: "pending"` (otherwise `"exact"`)
+- `time_source: "provider"` (or `"secondary"` if verified by kickoff overrides)
 
 When `time_confidence` is `"pending"`, kickoff date/time can still change upstream.  
 CLI output groups these matches under **Coming Soon** to avoid showing misleading kickoff details.
+
+To apply trusted corrections, add optional overrides in:
+- `~/.config/rugbyclaw/kickoff-overrides.json`
 
 ## Tips
 

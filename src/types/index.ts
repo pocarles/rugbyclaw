@@ -41,6 +41,7 @@ export interface Match {
   round?: string;
   timestamp: number; // Unix timestamp for easier comparison
   timeTbd?: boolean;
+  timeSource?: 'provider' | 'secondary';
 }
 
 // Config types
@@ -111,6 +112,7 @@ export interface MatchOutput {
   time: string;
   time_tbd?: boolean;
   time_confidence?: 'exact' | 'pending';
+  time_source?: 'provider' | 'secondary';
   venue?: string;
   status: MatchStatus;
   summary?: string; // Personality-driven summary for results

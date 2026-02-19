@@ -12,6 +12,7 @@ import {
 import { API_SPORTS_BASE_URL, PROXY_URL } from '../lib/providers/apisports.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { getTodayYMD } from '../lib/datetime.js';
+import { getKickoffOverridePaths, loadKickoffOverrides } from '../lib/kickoff-overrides.js';
 
 interface DoctorOptions {
   json?: boolean;
@@ -210,6 +211,8 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
   const mode: 'direct' | 'proxy' = hasApiKey ? 'direct' : 'proxy';
   const timeZone = getEffectiveTimeZone(config);
   const effectiveLeagueSlugs = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+  const kickoffOverrides = loadKickoffOverrides();
+  const kickoffOverridePaths = getKickoffOverridePaths();
 
   const checks: Record<string, CheckResult> = {};
 
@@ -266,6 +269,11 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
     proxy_url_override: process.env.RUGBYCLAW_PROXY_URL || null,
     checks,
     scores_probe: scoresProbe,
+    kickoff_overrides: {
+      count: kickoffOverrides.size,
+      bundled_path: kickoffOverridePaths.bundled,
+      user_path: kickoffOverridePaths.user,
+    },
     generated_at: new Date().toISOString(),
   };
 
@@ -289,6 +297,7 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
   lines.push(`${chalk.dim('Timezone:')} ${timeZone}${output.timezone_valid ? '' : chalk.yellow(' (invalid)')}`);
   lines.push(`${chalk.dim('Config dir:')} ${getConfigDir()}`);
   lines.push(`${chalk.dim('Proxy URL:')} ${PROXY_URL}`);
+  lines.push(`${chalk.dim('Kickoff overrides:')} ${kickoffOverrides.size}`);
   if (process.env.RUGBYCLAW_PROXY_URL) {
     lines.push(chalk.dim(`Proxy override set via RUGBYCLAW_PROXY_URL`));
   }
@@ -309,6 +318,7 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
   lines.push(`${chalk.dim('Date queried:')} ${scoresProbe.date_queried}`);
   lines.push(`${chalk.dim('Leagues queried:')} ${scoresProbe.leagues.length > 0 ? scoresProbe.leagues.map((league) => `${league.slug}(${league.id})`).join(', ') : 'none'}`);
   lines.push(`${chalk.dim('Total API results:')} ${scoresProbe.total_results}`);
+  lines.push(`${chalk.dim('Overrides file:')} ${kickoffOverridePaths.user}`);
   for (const league of scoresProbe.leagues) {
     const statusPart = league.ok ? chalk.green('ok') : chalk.red('fail');
     const details = league.ok
