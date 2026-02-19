@@ -7,15 +7,22 @@ import {
 } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
-import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
+import {
+  getProxyQuotaLine,
+  getProxyRateLimit,
+  getProxyStatusIfFree,
+  getStaleFallbackLine,
+} from '../lib/free-mode.js';
 import { getScoresNoMatchesExplanation } from '../lib/explain.js';
 import { renderScores, matchToOutput } from '../render/terminal.js';
 import type { ScoresOutput } from '../types/index.js';
 import { getTodayYMD } from '../lib/datetime.js';
 import { emitCommandError } from '../lib/command-error.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 
 interface ScoresOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   explain?: boolean;
 }
@@ -41,19 +48,26 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
     const dateYmd = getTodayYMD(timeZone);
     const matches = await provider.getToday(leagueIds, { dateYmd });
 
-    const wantProxyStatus = !hasApiKey && (options.json || !options.quiet);
+    const wantProxyStatus = !hasApiKey && (wantsStructuredOutput(options) || !options.quiet);
     const proxyStatus = await getProxyStatusIfFree(hasApiKey, wantProxyStatus);
+    const runtime = provider.consumeRuntimeMeta();
 
     const output: ScoresOutput = {
       matches: matches.map((m) => matchToOutput(m, { timeZone })),
       generated_at: new Date().toISOString(),
       rate_limit: getProxyRateLimit(proxyStatus),
+      trace_id: runtime.traceId || undefined,
+      stale: runtime.staleFallback || undefined,
+      cached_at: runtime.cachedAt || undefined,
     };
 
-    if (options.json) {
-      console.log(JSON.stringify(output, null, 2));
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess(output, options, { traceId: runtime.traceId });
     } else if (!options.quiet) {
       console.log(renderScores(output));
+      if (runtime.staleFallback) {
+        console.log(getStaleFallbackLine(runtime.cachedAt));
+      }
       if (options.explain) {
         const explanation = getScoresNoMatchesExplanation({
           mode: hasApiKey ? 'direct' : 'proxy',
@@ -72,6 +86,7 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    emitCommandError(message, options);
+    const runtime = provider.consumeRuntimeMeta();
+    emitCommandError(message, options, undefined, { traceId: runtime.traceId });
   }
 }

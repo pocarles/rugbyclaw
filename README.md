@@ -84,7 +84,7 @@ rugbyclaw start --guided
 # non-interactive (for agents/OpenClaw)
 rugbyclaw start --yes --tz America/New_York --mode proxy
 # machine-safe JSON for agents
-rugbyclaw start --yes --tz America/New_York --mode proxy --json
+rugbyclaw start --yes --tz America/New_York --mode proxy --agent
 ```
 
 ### `rugbyclaw config`
@@ -159,6 +159,17 @@ Show current mode (free vs API key), timezone, and effective leagues.
 ```bash
 rugbyclaw status
 rugbyclaw status --json
+rugbyclaw status --agent
+```
+
+### `rugbyclaw openclaw init`
+
+Emit copy/paste-safe bootstrap instructions for OpenClaw agents.
+
+```bash
+rugbyclaw openclaw init
+rugbyclaw openclaw init --json
+rugbyclaw openclaw init --agent
 ```
 
 ## Supported Leagues
@@ -191,13 +202,26 @@ Rugbyclaw includes an [OpenClaw](https://openclaw.ai) skill for AI-powered natur
 
 See [skill/SKILL.md](skill/SKILL.md) for integration details.
 
-## JSON Output
+## JSON / Agent Output
 
 All commands support `--json` for machine-readable output:
 
 ```bash
 rugbyclaw scores --json | jq '.matches[0]'
 ```
+
+For strict automation/OpenClaw, use `--agent`:
+
+```bash
+rugbyclaw scores --agent
+```
+
+Agent mode always returns one-line envelopes:
+- `ok`
+- `exit_code`
+- `error_type`
+- `data`
+- `trace_id`
 
 ## Configuration Files
 

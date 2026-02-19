@@ -36,3 +36,16 @@ export function getProxyQuotaLine(status: ProxyStatus | null, hasApiKey = false)
   }
   return chalk.dim(line);
 }
+
+export function getStaleFallbackLine(cachedAt: string | null): string {
+  if (!cachedAt) {
+    return chalk.yellow('Live data unavailable, showing last update.');
+  }
+
+  const ts = new Date(cachedAt);
+  if (Number.isNaN(ts.getTime())) {
+    return chalk.yellow('Live data unavailable, showing last update.');
+  }
+
+  return chalk.yellow(`Live data unavailable, showing last update from ${ts.toLocaleString()}.`);
+}

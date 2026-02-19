@@ -15,8 +15,10 @@ import { calendarCommand } from './commands/calendar.js';
 import { notifyCommand } from './commands/notify.js';
 import { statusCommand } from './commands/status.js';
 import { doctorCommand } from './commands/doctor.js';
+import { openclawInitCommand } from './commands/openclaw.js';
 import { setConfigPathOverride, setTimeZoneOverride } from './lib/config.js';
 import { exitLabel, inferExitCodeFromMessage } from './lib/exit-codes.js';
+import { emitCommandSuccess, wantsStructuredOutput } from './lib/output.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version?: string };
@@ -57,14 +59,24 @@ function showWelcome(): void {
   console.log('');
 }
 
-async function runSafe(action: () => Promise<void>, options?: { json?: boolean }): Promise<void> {
+async function runSafe(action: () => Promise<void>, options?: { json?: boolean; agent?: boolean }): Promise<void> {
   try {
     await action();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     const exitCode = inferExitCodeFromMessage(message);
     const errorType = exitLabel(exitCode);
-    if (options?.json) {
+    if (options?.agent) {
+      console.log(
+        JSON.stringify({
+          ok: false,
+          exit_code: exitCode,
+          error_type: errorType,
+          data: { message },
+          trace_id: null,
+        })
+      );
+    } else if (options?.json) {
       console.log(JSON.stringify({ ok: false, error: message, exit_code: exitCode, error_type: errorType }, null, 2));
     } else {
       console.error(chalk.red(`Error: ${message}`));
@@ -80,6 +92,7 @@ program
   .description('Rugby scores, fixtures, and results CLI')
   .version(VERSION)
   .option('--json', 'Output as JSON')
+  .option('--agent', 'Strict one-line JSON envelope for automation/OpenClaw')
   .option('--quiet', 'Minimal output')
   .option('--no-color', 'Disable color output')
   .option('--config <path>', 'Use a custom config directory or config.json path')
@@ -101,6 +114,11 @@ program
   .command('version')
   .description('Print Rugbyclaw version')
   .action(() => {
+    const options = program.opts<{ json?: boolean; agent?: boolean }>();
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess({ version: VERSION }, options);
+      return;
+    }
     console.log(VERSION);
   });
 
@@ -113,10 +131,23 @@ program
 ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw doctor')}          Human-friendly checks
   ${chalk.white('rugbyclaw doctor --json')}   JSON output for automation
+  ${chalk.white('rugbyclaw doctor --agent')}  Strict one-line envelope output
   ${chalk.white('rugbyclaw doctor --json --strict')} Fail-fast health gate
 `)
   .action(async (options) => {
     await doctorCommand({ ...program.opts(), ...options });
+  });
+
+// OpenClaw bootstrap command
+const openclawCmd = program
+  .command('openclaw')
+  .description('OpenClaw bootstrap helpers');
+
+openclawCmd
+  .command('init')
+  .description('Emit OpenClaw-ready setup, checks, and command map')
+  .action(async () => {
+    await openclawInitCommand(program.opts());
   });
 
 // Start command (beginner-first onboarding)
@@ -128,6 +159,7 @@ ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw start')}             Quick setup (recommended)
   ${chalk.white('rugbyclaw start --guided')}    Full guided setup
   ${chalk.white('rugbyclaw start --yes --tz America/New_York')}  Non-interactive setup
+  ${chalk.white('rugbyclaw start --yes --mode proxy --agent')}  Non-interactive strict envelope
   ${chalk.white('rugbyclaw start --yes --mode direct --api-key-env API_SPORTS_KEY')}  Direct mode from env key
 `)
   .option('--guided', 'Use full guided setup instead of quick mode')
@@ -135,7 +167,7 @@ ${chalk.cyan('Examples:')}
   .option('--mode <mode>', 'Set mode in non-interactive mode: proxy|direct')
   .option('--api-key-env <name>', 'Env var name for API key in non-interactive direct mode', 'API_SPORTS_KEY')
   .action(async (options) => {
-    const base = program.opts<{ tz?: string; json?: boolean; quiet?: boolean }>();
+    const base = program.opts<{ tz?: string; json?: boolean; agent?: boolean; quiet?: boolean }>();
     await runSafe(async () => {
       await configCommand({
         ...base,
@@ -144,7 +176,7 @@ ${chalk.cyan('Examples:')}
         guided: Boolean(options.guided),
         timezone: base.tz,
       });
-    }, { json: Boolean(base.json) });
+    }, { json: Boolean(base.json), agent: Boolean(base.agent) });
   });
 
 // Config command
@@ -156,6 +188,7 @@ ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw config --quick')}     Fast setup with fewer prompts
   ${chalk.white('rugbyclaw config --guided')}    Full setup (mode/leagues/teams/timezone)
   ${chalk.white('rugbyclaw config --yes --mode proxy')}  Non-interactive free mode
+  ${chalk.white('rugbyclaw config --yes --mode proxy --agent')}  Strict envelope output
   ${chalk.white('rugbyclaw config --yes --mode direct --api-key-env API_SPORTS_KEY')}  Non-interactive direct mode
 `)
   .option('--quick', 'Force quick setup (fewer prompts)')
@@ -164,10 +197,10 @@ ${chalk.cyan('Examples:')}
   .option('--mode <mode>', 'Set mode in non-interactive mode: proxy|direct')
   .option('--api-key-env <name>', 'Env var name for API key in non-interactive direct mode', 'API_SPORTS_KEY')
   .action(async (options) => {
-    const base = program.opts<{ tz?: string; json?: boolean; quiet?: boolean }>();
+    const base = program.opts<{ tz?: string; json?: boolean; agent?: boolean; quiet?: boolean }>();
     await runSafe(async () => {
       await configCommand({ ...base, ...options, timezone: base.tz });
-    }, { json: Boolean(base.json) });
+    }, { json: Boolean(base.json), agent: Boolean(base.agent) });
   });
 
 // Scores command

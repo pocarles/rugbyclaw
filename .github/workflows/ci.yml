@@ -34,3 +34,6 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Contract change gate
+        run: bash scripts/check-contract-note.sh

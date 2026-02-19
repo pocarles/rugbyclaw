@@ -7,15 +7,22 @@ import {
 } from '../lib/config.js';
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
-import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
+import {
+  getProxyQuotaLine,
+  getProxyRateLimit,
+  getProxyStatusIfFree,
+  getStaleFallbackLine,
+} from '../lib/free-mode.js';
 import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
 import { generateNeutralSummary } from '../lib/personality.js';
 import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
 import { emitCommandError } from '../lib/command-error.js';
 import { EXIT_CODES } from '../lib/exit-codes.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 
 interface ResultsOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   limit?: string;
 }
@@ -41,7 +48,7 @@ export async function resultsCommand(
       const league = resolveLeague(leagueInput);
 
       if (!league) {
-        if (!options.json && !options.quiet) {
+        if (!wantsStructuredOutput(options) && !options.quiet) {
           console.log(renderError(`Unknown league: "${leagueInput}"`));
           console.log('Available: ' + Object.keys(LEAGUES).join(', '));
         }
@@ -49,7 +56,7 @@ export async function resultsCommand(
       }
 
       if (!hasApiKey && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
-        if (!options.json && !options.quiet) {
+        if (!wantsStructuredOutput(options) && !options.quiet) {
           console.log(renderError(`"${league.name}" is not available in free mode.`));
           console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
         }
@@ -84,25 +91,33 @@ export async function resultsCommand(
       return output;
     });
 
-    const wantProxyStatus = !hasApiKey && (options.json || !options.quiet);
+    const wantProxyStatus = !hasApiKey && (wantsStructuredOutput(options) || !options.quiet);
     const proxyStatus = await getProxyStatusIfFree(hasApiKey, wantProxyStatus);
+    const runtime = provider.consumeRuntimeMeta();
 
     const output: ResultsOutput = {
       league: leagueName,
       matches: matchOutputs,
       generated_at: new Date().toISOString(),
       rate_limit: getProxyRateLimit(proxyStatus),
+      trace_id: runtime.traceId || undefined,
+      stale: runtime.staleFallback || undefined,
+      cached_at: runtime.cachedAt || undefined,
     };
 
-    if (options.json) {
-      console.log(JSON.stringify(output, null, 2));
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess(output, options, { traceId: runtime.traceId });
     } else if (!options.quiet) {
       console.log(renderResults(output));
+      if (runtime.staleFallback) {
+        console.log(getStaleFallbackLine(runtime.cachedAt));
+      }
       const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    emitCommandError(message, options);
+    const runtime = provider.consumeRuntimeMeta();
+    emitCommandError(message, options, undefined, { traceId: runtime.traceId });
   }
 }

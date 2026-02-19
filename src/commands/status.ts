@@ -3,9 +3,11 @@ import { loadConfig, loadSecrets, DEFAULT_PROXY_LEAGUES, getConfigDir, getEffect
 import { LEAGUES } from '../lib/leagues.js';
 import { fetchProxyStatus } from '../lib/providers/apisports.js';
 import type { Config } from '../types/index.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 
 interface StatusOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
 }
 
@@ -37,14 +39,15 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     effective_leagues_names: leagueNames,
     favorite_teams_count: config.favorite_teams.length,
     proxy_status: mode === 'proxy' ? (proxyStatus?.status ?? 'unavailable') : undefined,
+    trace_id: proxyStatus?.trace_id,
     rate_limit: proxyStatus?.rate_limit,
     notes: mode === 'proxy'
       ? ['Free mode: limited requests, default leagues only.']
       : [],
   };
 
-  if (options.json) {
-    console.log(JSON.stringify(output, null, 2));
+  if (wantsStructuredOutput(options)) {
+    emitCommandSuccess(output, options, { traceId: proxyStatus?.trace_id });
     return;
   }
 
@@ -73,7 +76,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   }
   lines.push('');
   lines.push(chalk.dim('Tip: run "rugbyclaw config" to change leagues/teams/timezone.'));
-  lines.push(chalk.dim('Tip: use "rugbyclaw scores --json" for OpenClaw integration.'));
+  lines.push(chalk.dim('Tip: use "rugbyclaw scores --agent" for OpenClaw integration.'));
 
   console.log(lines.join('\n'));
 }

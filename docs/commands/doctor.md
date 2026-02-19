@@ -21,6 +21,7 @@ rugbyclaw doctor [options]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--json` | Output as JSON | false |
+| `--agent` | Strict one-line JSON envelope (OpenClaw-safe) | false |
 | `--quiet` | Minimal output | false |
 | `--strict` | Exit non-zero when checks fail | false |
 
@@ -29,7 +30,9 @@ rugbyclaw doctor [options]
 ```bash
 rugbyclaw doctor
 rugbyclaw doctor --json
+rugbyclaw doctor --agent
 rugbyclaw doctor --json --strict
+rugbyclaw doctor --agent --strict
 ```
 
 ## Notes

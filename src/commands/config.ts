@@ -12,9 +12,11 @@ import {
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import type { Config, Secrets, FavoriteTeam, Team } from '../types/index.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 
 interface ConfigOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   quick?: boolean;
   guided?: boolean;
@@ -554,11 +556,11 @@ async function promptForFinalTimeZone(existingTimezone: string, setupStyle: Setu
 }
 
 export async function configCommand(options: ConfigOptions): Promise<void> {
-  if (options.json && !options.yes) {
-    throw new Error('Use "--yes" with "--json" for machine-safe non-interactive setup output.');
+  if (wantsStructuredOutput(options) && !options.yes) {
+    throw new Error('Use "--yes" with "--json" or "--agent" for machine-safe non-interactive setup output.');
   }
 
-  const suppressHumanOutput = Boolean(options.json);
+  const suppressHumanOutput = wantsStructuredOutput(options);
   const originalLog = console.log;
   let payload: {
     config: Config;
@@ -642,7 +644,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
       console.log(`  ${chalk.white('5) rugbyclaw doctor')}                Full health check`);
       console.log('');
       console.log(chalk.dim('Need extra help? Run "rugbyclaw config --guided" for full setup.'));
-      console.log(chalk.dim('Need automation/OpenClaw? Add --json to commands for machine-readable output.'));
+      console.log(chalk.dim('Need automation/OpenClaw? Use --agent for strict machine output (or --json).'));
       console.log('');
     }
   } finally {
@@ -651,7 +653,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     }
   }
 
-  if (payload && options.json) {
-    console.log(JSON.stringify(payload, null, 2));
+  if (payload && wantsStructuredOutput(options)) {
+    emitCommandSuccess(payload, options);
   }
 }

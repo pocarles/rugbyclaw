@@ -5,9 +5,11 @@ import { matchToICS } from '../lib/ics.js';
 import { renderSuccess } from '../render/terminal.js';
 import { emitCommandError } from '../lib/command-error.js';
 import { EXIT_CODES } from '../lib/exit-codes.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 
 interface CalendarOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   stdout?: boolean;
   out?: string;
@@ -18,16 +20,12 @@ function exitWithError(message: string, options: CalendarOptions): never {
   emitCommandError(message, options, EXIT_CODES.INVALID_INPUT);
 }
 
-function exitWithRuntimeError(message: string, options: CalendarOptions): never {
-  emitCommandError(message, options);
-}
-
 export async function calendarCommand(
   matchId: string,
   options: CalendarOptions
 ): Promise<void> {
-  if (options.json && options.stdout) {
-    exitWithError('Cannot use --json with --stdout (would mix ICS and JSON output).', options);
+  if (wantsStructuredOutput(options) && options.stdout) {
+    exitWithError('Cannot use --json/--agent with --stdout (would mix ICS and JSON output).', options);
   }
 
   const outPath = options.out || `match-${matchId}.ics`;
@@ -55,6 +53,7 @@ export async function calendarCommand(
 
   try {
     const match = await provider.getMatch(matchId);
+    const runtime = provider.consumeRuntimeMeta();
 
     if (!match) {
       exitWithError(`Match not found: ${matchId}`, options);
@@ -74,20 +73,21 @@ export async function calendarCommand(
       console.log(renderSuccess(`Calendar saved to ${outPath}`));
     }
 
-    if (options.json) {
-      console.log(
-        JSON.stringify(
-          {
-            match_id: matchId,
-            out: outPath,
-            home: match.homeTeam.name,
-            away: match.awayTeam.name,
-            date: match.date.toISOString(),
-            venue: match.venue,
-          },
-          null,
-          2
-        )
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess(
+        {
+          match_id: matchId,
+          out: outPath,
+          home: match.homeTeam.name,
+          away: match.awayTeam.name,
+          date: match.date.toISOString(),
+          venue: match.venue,
+          trace_id: runtime.traceId || undefined,
+          stale: runtime.staleFallback || undefined,
+          cached_at: runtime.cachedAt || undefined,
+        },
+        options,
+        { traceId: runtime.traceId }
       );
     }
   } catch (error) {
@@ -97,6 +97,7 @@ export async function calendarCommand(
     }
 
     const message = error instanceof Error ? error.message : 'Unknown error';
-    exitWithRuntimeError(message, options);
+    const runtime = provider.consumeRuntimeMeta();
+    emitCommandError(message, options, undefined, { traceId: runtime.traceId });
   }
 }

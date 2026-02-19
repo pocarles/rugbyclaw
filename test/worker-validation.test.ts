@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateQuery, validateRequestSize } from '../worker/src/index';
+import { validateQuery, validateRequestSize, validateUserAgent } from '../worker/src/index';
 import { getAllowedEndpoint, isAllowedEndpoint } from '../worker/src/allowlist';
 
 describe('worker request validation', () => {
@@ -72,5 +72,22 @@ describe('worker request validation', () => {
     expect(isAllowedEndpoint('/gamesXYZ')).toBe(false);
     expect(isAllowedEndpoint('/team')).toBe(false);
     expect(getAllowedEndpoint('/leaguesx')).toBeNull();
+  });
+
+  it('accepts normal user-agent and blocks scanners', () => {
+    expect(validateUserAgent('rugbyclaw/0.1.6')).toEqual({ ok: true });
+    expect(validateUserAgent('sqlmap/1.7')).toEqual({
+      ok: false,
+      message: 'Client not allowed',
+      status: 403,
+    });
+  });
+
+  it('requires a non-empty user-agent', () => {
+    expect(validateUserAgent(null)).toEqual({
+      ok: false,
+      message: 'User-Agent header is required',
+      status: 400,
+    });
   });
 });

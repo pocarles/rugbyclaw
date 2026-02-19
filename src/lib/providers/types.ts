@@ -53,7 +53,8 @@ export class ProviderError extends Error {
     message: string,
     public readonly code: ProviderErrorCode,
     public readonly provider: string,
-    public readonly cause?: Error
+    public readonly cause?: Error,
+    public readonly traceId?: string
   ) {
     super(message);
     this.name = 'ProviderError';

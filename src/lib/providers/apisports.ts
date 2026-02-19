@@ -4,6 +4,7 @@ import type { Match, Team, MatchStatus, RateLimitInfo } from '../../types/index.
 import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 import { loadKickoffOverrides } from '../kickoff-overrides.js';
+import { randomUUID } from 'node:crypto';
 
 export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
@@ -13,7 +14,16 @@ export interface ProxyStatus {
   status: string;
   mode?: string;
   now?: string;
+  trace_id?: string;
   rate_limit?: RateLimitInfo;
+}
+
+export interface ProviderRuntimeMeta {
+  traceId: string | null;
+  traceIds: string[];
+  staleFallback: boolean;
+  cachedAt: string | null;
+  staleFallbackCount: number;
 }
 
 export async function fetchProxyStatus(): Promise<ProxyStatus | null> {
@@ -219,6 +229,8 @@ export class ApiSportsProvider implements Provider {
   private mode: ProviderMode;
   private cache = getCache();
   private kickoffOverrides = loadKickoffOverrides();
+  private traceIds: string[] = [];
+  private staleFallbackTimestamps: number[] = [];
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || null;
@@ -232,11 +244,50 @@ export class ApiSportsProvider implements Provider {
     return this.mode === 'proxy';
   }
 
-	  private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
+  private recordTrace(traceId: string | null | undefined): void {
+    if (!traceId) return;
+    if (!this.traceIds.includes(traceId)) {
+      this.traceIds.push(traceId);
+    }
+  }
+
+  private markStaleFallback(cachedAt: number): void {
+    this.staleFallbackTimestamps.push(cachedAt);
+  }
+
+  private resolveResponseTraceId(response: Response, fallbackTraceId: string): string {
+    return response.headers.get('x-request-id')
+      || response.headers.get('x-rugbyclaw-trace-id')
+      || response.headers.get('cf-ray')
+      || fallbackTraceId;
+  }
+
+  consumeRuntimeMeta(): ProviderRuntimeMeta {
+    const traceIds = [...this.traceIds];
+    const latestTraceId = traceIds.length > 0 ? traceIds[traceIds.length - 1] : null;
+    const staleFallbackCount = this.staleFallbackTimestamps.length;
+    const cachedAtMs = this.staleFallbackTimestamps.length > 0
+      ? Math.max(...this.staleFallbackTimestamps)
+      : null;
+
+    this.traceIds = [];
+    this.staleFallbackTimestamps = [];
+
+    return {
+      traceId: latestTraceId,
+      traceIds,
+      staleFallback: cachedAtMs !== null,
+      cachedAt: cachedAtMs !== null ? new Date(cachedAtMs).toISOString() : null,
+      staleFallbackCount,
+    };
+  }
+
+  private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
     const searchParams = new URLSearchParams(params);
     const baseUrl = this.mode === 'proxy' ? PROXY_URL : API_SPORTS_BASE_URL;
     const url = `${baseUrl}/${endpoint}?${searchParams}`;
     const key = cacheKey(endpoint, params);
+    const clientTraceId = randomUUID();
 
     // Check cache first
     const cached = await this.cache.get<ApiResponse<T>>(key);
@@ -247,15 +298,19 @@ export class ApiSportsProvider implements Provider {
     // Fetch fresh data
     try {
       const headers: Record<string, string> = {};
+      headers['x-rugbyclaw-trace-id'] = clientTraceId;
       if (this.mode === 'direct' && this.apiKey) {
         headers['x-apisports-key'] = this.apiKey;
       }
 
       const response = await fetch(url, { headers });
+      const traceId = this.resolveResponseTraceId(response, clientTraceId);
+      this.recordTrace(traceId);
 
       if (response.status === 429) {
         // Return stale data if available on rate limit
         if (cached) {
+          this.markStaleFallback(cached.cachedAt);
           return cached.data.response;
         }
 
@@ -264,14 +319,16 @@ export class ApiSportsProvider implements Provider {
           ? 'Daily limit reached. Run "rugbyclaw config" to add your own API key for unlimited access.'
           : 'Rate limit exceeded. Try again later.';
 
-        throw new ProviderError(message, 'RATE_LIMITED', this.name);
+        throw new ProviderError(message, 'RATE_LIMITED', this.name, undefined, traceId);
       }
 
       if (response.status === 401 || response.status === 403) {
         throw new ProviderError(
           'Invalid API key. Check your configuration.',
           'UNAUTHORIZED',
-          this.name
+          this.name,
+          undefined,
+          traceId
         );
       }
 
@@ -279,7 +336,9 @@ export class ApiSportsProvider implements Provider {
         throw new ProviderError(
           `API returned ${response.status}`,
           'UNKNOWN',
-          this.name
+          this.name,
+          undefined,
+          traceId
         );
       }
 
@@ -293,7 +352,9 @@ export class ApiSportsProvider implements Provider {
         throw new ProviderError(
           `API error: ${errorMsg}`,
           'UNKNOWN',
-          this.name
+          this.name,
+          undefined,
+          traceId
         );
       }
 
@@ -301,9 +362,11 @@ export class ApiSportsProvider implements Provider {
       await this.cache.set(key, data, cacheOptions);
 
       return data.response;
-	    } catch (error) {
+    } catch (error) {
+      this.recordTrace(clientTraceId);
       // If we have stale data, return it on network error
       if (cached) {
+        this.markStaleFallback(cached.cachedAt);
         return cached.data.response;
       }
 
@@ -311,20 +374,21 @@ export class ApiSportsProvider implements Provider {
         throw error;
       }
 
-	      const message = this.mode === 'proxy'
-	        ? 'Free mode is temporarily unavailable. Try again later, or run "rugbyclaw config" to add your own API key.'
-	        : 'Failed to fetch data. Check your internet connection.';
+      const message = this.mode === 'proxy'
+        ? 'Free mode is temporarily unavailable. Try again later, or run "rugbyclaw config" to add your own API key.'
+        : 'Failed to fetch data. Check your internet connection.';
 
-	      throw new ProviderError(
-	        message,
-	        'NETWORK_ERROR',
-	        this.name,
-	        error instanceof Error ? error : undefined
-	      );
-	    }
-	  }
+      throw new ProviderError(
+        message,
+        'NETWORK_ERROR',
+        this.name,
+        error instanceof Error ? error : undefined,
+        clientTraceId
+      );
+    }
+  }
 
-	  private parseGame(game: ApiGame): Match {
+  private parseGame(game: ApiGame): Match {
     const league = getLeagueById(String(game.league.id)) || {
       id: String(game.league.id),
       slug: game.league.name.toLowerCase().replace(/\s+/g, '_'),
@@ -333,14 +397,14 @@ export class ApiSportsProvider implements Provider {
       sport: 'rugby' as const,
     };
 
-	    const status = mapStatus(game.status);
-	    const override = this.kickoffOverrides.get(String(game.id));
-	    const timestamp = override ? override.kickoffMs : game.timestamp * 1000;
-	    // Prefer UNIX timestamp source (provider or verified override) for timezone-safe rendering.
-	    const date = new Date(timestamp);
-	    const timeTbd = !override && status === 'scheduled' && isLikelyTop14PlaceholderKickoff(game);
+    const status = mapStatus(game.status);
+    const override = this.kickoffOverrides.get(String(game.id));
+    const timestamp = override ? override.kickoffMs : game.timestamp * 1000;
+    // Prefer UNIX timestamp source (provider or verified override) for timezone-safe rendering.
+    const date = new Date(timestamp);
+    const timeTbd = !override && status === 'scheduled' && isLikelyTop14PlaceholderKickoff(game);
 
-	    return {
+    return {
       id: String(game.id),
       homeTeam: {
         id: String(game.teams.home.id),
@@ -355,15 +419,15 @@ export class ApiSportsProvider implements Provider {
       league,
       date,
       status,
-	      score: game.scores.home !== null && game.scores.away !== null
-	        ? { home: game.scores.home, away: game.scores.away }
-	        : undefined,
-	      round: game.week || undefined,
-	      timestamp, // ms
-	      timeTbd,
-	      timeSource: override ? 'secondary' : 'provider',
-	    };
-	  }
+      score: game.scores.home !== null && game.scores.away !== null
+        ? { home: game.scores.home, away: game.scores.away }
+        : undefined,
+      round: game.week || undefined,
+      timestamp, // ms
+      timeTbd,
+      timeSource: override ? 'secondary' : 'provider',
+    };
+  }
 
   async searchTeams(query: string): Promise<Team[]> {
     const teams = await this.fetch<ApiTeam[]>(
@@ -426,10 +490,10 @@ export class ApiSportsProvider implements Provider {
     return this.parseGame(games[0]);
   }
 
-	  async getToday(leagueIds: string[], options?: { dateYmd?: string }): Promise<Match[]> {
-	    const dateStr = options?.dateYmd || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  async getToday(leagueIds: string[], options?: { dateYmd?: string }): Promise<Match[]> {
+    const dateStr = options?.dateYmd || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-	    const matchMap = new Map<string, Match>();
+    const matchMap = new Map<string, Match>();
 
     // Fetch games for today across all favorite leagues
     // API-Sports allows filtering by date

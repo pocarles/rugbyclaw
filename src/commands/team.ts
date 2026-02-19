@@ -21,9 +21,12 @@ import { generateSummary } from '../lib/personality.js';
 import { matchToICS } from '../lib/ics.js';
 import type { Match, TeamSearchOutput, MatchOutput, Team } from '../types/index.js';
 import { emitCommandError } from '../lib/command-error.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
+import { getStaleFallbackLine } from '../lib/free-mode.js';
 
 interface TeamOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   ics?: boolean;
 }
@@ -71,7 +74,8 @@ export async function teamCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    emitCommandError(message, options);
+    const runtime = provider.consumeRuntimeMeta();
+    emitCommandError(message, options, undefined, { traceId: runtime.traceId });
   }
 }
 
@@ -213,15 +217,22 @@ async function handleSearch(
     process.exit(0);
   }
 
+  const runtime = provider.consumeRuntimeMeta();
   const output: TeamSearchOutput = {
     query,
     teams: ranked.map(toOutputTeam),
+    trace_id: runtime.traceId || undefined,
+    stale: runtime.staleFallback || undefined,
+    cached_at: runtime.cachedAt || undefined,
   };
 
-  if (options.json) {
-    console.log(JSON.stringify(output, null, 2));
+  if (wantsStructuredOutput(options)) {
+    emitCommandSuccess(output, options, { traceId: runtime.traceId });
   } else if (!options.quiet) {
     console.log(renderTeamSearch(output));
+    if (runtime.staleFallback) {
+      console.log(getStaleFallbackLine(runtime.cachedAt));
+    }
   }
 }
 
@@ -347,11 +358,15 @@ async function handleNext(
   }
 
   const output = matchToOutput(nextMatch, { timeZone });
+  const runtime = provider.consumeRuntimeMeta();
 
-  if (options.json) {
-    console.log(JSON.stringify(output, null, 2));
+  if (wantsStructuredOutput(options)) {
+    emitCommandSuccess(output, options, { traceId: runtime.traceId });
   } else if (!options.quiet) {
     console.log(renderMatch(output, true, timeZone)); // Show calendar hint
+    if (runtime.staleFallback) {
+      console.log(getStaleFallbackLine(runtime.cachedAt));
+    }
   }
 }
 
@@ -467,10 +482,14 @@ async function handleLast(
 
   const output: MatchOutput = matchToOutput(lastMatch, { timeZone });
   output.summary = generateSummary(lastMatch, teamId);
+  const runtime = provider.consumeRuntimeMeta();
 
-  if (options.json) {
-    console.log(JSON.stringify(output, null, 2));
+  if (wantsStructuredOutput(options)) {
+    emitCommandSuccess(output, options, { traceId: runtime.traceId });
   } else if (!options.quiet) {
     console.log(renderMatch(output, false, timeZone));
+    if (runtime.staleFallback) {
+      console.log(getStaleFallbackLine(runtime.cachedAt));
+    }
   }
 }

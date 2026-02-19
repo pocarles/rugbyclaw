@@ -4,6 +4,25 @@ All notable changes to **RugbyClaw** will be documented in this file.
 
 Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
+## [Unreleased]
+
+### Added
+- Global `--agent` mode for strict one-line automation envelopes (`ok`, `exit_code`, `error_type`, `data`, `trace_id`).
+- New `rugbyclaw openclaw init` command to emit copy/paste-safe OpenClaw bootstrap + health-check commands.
+- New scheduled GitHub workflow: `Monitor Proxy Health` (checks `/health`, `/status`, `/games`, flags latency spikes, opens/updates alert issue).
+- New CI guard script (`scripts/check-contract-note.sh`) to require a changelog/version note when JSON-contract-facing files change.
+
+### Changed
+- Worker now returns request tracing headers (`X-Request-Id`) and exposes trace IDs in status JSON.
+- CLI JSON outputs now surface `trace_id`, plus `stale` / `cached_at` when stale cache fallback is used.
+- Free-mode fallback UX now prints: “Live data unavailable, showing last update …” when stale cache is served.
+
+### Security
+- Worker request hardening:
+  - strict endpoint/query validation and size limits,
+  - user-agent sanity checks + scanner denylist,
+  - per-endpoint burst rate limits in addition to global per-minute/day limits.
+
 ## [0.1.3] - 2026-02-05
 
 ### Added

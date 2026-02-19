@@ -122,6 +122,9 @@ export interface ScoresOutput {
   matches: MatchOutput[];
   generated_at: string;
   rate_limit?: RateLimitInfo;
+  trace_id?: string;
+  stale?: boolean;
+  cached_at?: string;
 }
 
 export interface FixturesOutput {
@@ -129,6 +132,9 @@ export interface FixturesOutput {
   matches: MatchOutput[];
   generated_at: string;
   rate_limit?: RateLimitInfo;
+  trace_id?: string;
+  stale?: boolean;
+  cached_at?: string;
 }
 
 export interface ResultsOutput {
@@ -136,6 +142,9 @@ export interface ResultsOutput {
   matches: MatchOutput[];
   generated_at: string;
   rate_limit?: RateLimitInfo;
+  trace_id?: string;
+  stale?: boolean;
+  cached_at?: string;
 }
 
 export interface TeamSearchOutput {
@@ -147,12 +156,18 @@ export interface TeamSearchOutput {
     country?: string;
     leagues: string[];
   }>;
+  trace_id?: string;
+  stale?: boolean;
+  cached_at?: string;
 }
 
 export interface NotifyOutput {
   type: 'weekly' | 'daily' | 'live';
   notifications: Notification[];
   generated_at: string;
+  trace_id?: string;
+  stale?: boolean;
+  cached_at?: string;
 }
 
 export interface Notification {

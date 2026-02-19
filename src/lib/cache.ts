@@ -59,7 +59,7 @@ export class Cache {
    * Get cached data with SWR semantics.
    * Returns { data, stale } where stale indicates if background refresh is needed.
    */
-  async get<T>(key: string): Promise<{ data: T; stale: boolean } | null> {
+  async get<T>(key: string): Promise<{ data: T; stale: boolean; cachedAt: number } | null> {
     const index = await this.loadIndex();
     const entry = index.entries[key];
 
@@ -86,6 +86,7 @@ export class Cache {
       return {
         data: cached.data,
         stale: now > cached.stale_at,
+        cachedAt: cached.timestamp,
       };
     } catch {
       await this.delete(key);

@@ -14,9 +14,11 @@ import { LEAGUES } from '../lib/leagues.js';
 import { getTodayYMD } from '../lib/datetime.js';
 import { getKickoffOverridePaths, loadKickoffOverrides } from '../lib/kickoff-overrides.js';
 import { EXIT_CODES, type ExitCode } from '../lib/exit-codes.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 
 interface DoctorOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   strict?: boolean;
 }
@@ -245,6 +247,9 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
   const proxyHealthRes = await fetchJsonWithTimeout(`${PROXY_URL}/health`);
   const proxyHealth = validateProxyOkJson(proxyHealthRes);
   checks.proxy_health = proxyHealth;
+  const traceId = !('error' in proxyHealthRes)
+    ? (proxyHealthRes.headers?.['x-request-id'] || null)
+    : null;
 
   const proxyStatusRes = await fetchJsonWithTimeout(`${PROXY_URL}/status`);
   const proxyStatus = validateProxyOkJson(proxyStatusRes);
@@ -301,13 +306,14 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
       user_path: kickoffOverridePaths.user,
     },
     generated_at: new Date().toISOString(),
+    trace_id: traceId,
   };
 
   const shouldFail = Boolean(options.strict) && !output.ok;
   const failureExitCode = shouldFail ? inferDoctorFailureCode(checks, mode) : EXIT_CODES.OK;
 
-  if (options.json) {
-    console.log(JSON.stringify(output, null, 2));
+  if (wantsStructuredOutput(options)) {
+    emitCommandSuccess(output, options, { traceId });
     if (shouldFail) process.exitCode = failureExitCode;
     return;
   }

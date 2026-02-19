@@ -32,9 +32,11 @@ export function inferExitCodeFromMessage(message: string, fallback: ExitCode = E
     msg.includes('invalid mode') ||
     msg.includes('invalid timezone') ||
     msg.includes('cannot use --json with --stdout') ||
+    msg.includes('cannot use --json/--agent with --stdout') ||
     msg.includes('refusing to overwrite') ||
     msg.includes('non-regular file') ||
-    msg.includes('use "--yes" with "--json"')
+    msg.includes('use "--yes" with "--json"') ||
+    msg.includes('use "--yes" with "--json" or "--agent"')
   ) {
     return EXIT_CODES.INVALID_INPUT;
   }
@@ -68,4 +70,3 @@ export function inferExitCodeFromMessage(message: string, fallback: ExitCode = E
 export function exitLabel(code: ExitCode): string {
   return EXIT_CODE_LABELS[code];
 }
-

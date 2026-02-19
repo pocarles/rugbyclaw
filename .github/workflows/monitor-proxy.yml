@@ -1,0 +1,146 @@
+name: Monitor Proxy Health
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Probe proxy endpoints
+        id: probe
+        run: |
+          set -euo pipefail
+
+          PROXY_URL="${RUGBYCLAW_PROXY_URL:-https://rugbyclaw-proxy.pocarles.workers.dev}"
+          SEASON="$(date -u +%Y)"
+
+          MAX_HEALTH_MS=1500
+          MAX_STATUS_MS=2000
+          MAX_GAMES_MS=3000
+
+          errors=()
+          metrics=()
+
+          probe() {
+            local name="$1"
+            local url="$2"
+            local jq_expr="$3"
+            local max_ms="$4"
+
+            local tmp
+            tmp="$(mktemp)"
+            local status_time
+            if ! status_time="$(curl -sS -o "$tmp" -w "%{http_code} %{time_total}" "$url")"; then
+              errors+=("$name request_failed")
+              rm -f "$tmp"
+              return
+            fi
+
+            local status
+            local time_s
+            status="$(echo "$status_time" | awk '{print $1}')"
+            time_s="$(echo "$status_time" | awk '{print $2}')"
+            local time_ms
+            time_ms="$(awk -v s="$time_s" 'BEGIN { printf "%.0f", s * 1000 }')"
+
+            metrics+=("$name status=${status} latency=${time_ms}ms")
+
+            if [ "$status" -ne 200 ]; then
+              errors+=("$name http_${status}")
+              rm -f "$tmp"
+              return
+            fi
+
+            if ! jq -e "$jq_expr" "$tmp" >/dev/null 2>&1; then
+              errors+=("$name invalid_json")
+            fi
+
+            if [ "$time_ms" -gt "$max_ms" ]; then
+              errors+=("$name latency_spike_${time_ms}ms>${max_ms}ms")
+            fi
+
+            rm -f "$tmp"
+          }
+
+          probe "health" "${PROXY_URL}/health" '.status == "ok"' "$MAX_HEALTH_MS"
+          probe "status" "${PROXY_URL}/status" '.status == "ok" and (.rate_limit.day.limit | type == "number") and (.rate_limit.minute.limit | type == "number")' "$MAX_STATUS_MS"
+          probe "games" "${PROXY_URL}/games?league=51&season=${SEASON}" 'has("results") and has("response") and (.response | type == "array")' "$MAX_GAMES_MS"
+
+          summary="Proxy URL: ${PROXY_URL}
+Metrics:
+- $(printf '%s; ' "${metrics[@]}")"
+
+          if [ "${#errors[@]}" -gt 0 ]; then
+            summary="${summary}
+Errors:
+- $(printf '%s; ' "${errors[@]}")"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo "summary<<EOF"
+            echo "$summary"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Fail on unhealthy probe
+        if: steps.probe.outputs.ok != 'true'
+        run: |
+          echo "Proxy health check failed."
+          echo "${{ steps.probe.outputs.summary }}"
+          exit 1
+
+      - name: Open/update alert issue
+        if: steps.probe.outputs.ok != 'true'
+        uses: actions/github-script@v7
+        env:
+          PROBE_SUMMARY: ${{ steps.probe.outputs.summary }}
+        with:
+          script: |
+            const title = "Proxy health monitor alert";
+            const summary = process.env.PROBE_SUMMARY || "(no summary)";
+            const body = [
+              "Automated proxy monitoring detected a failure or latency spike.",
+              "",
+              `Time (UTC): ${new Date().toISOString()}`,
+              "",
+              "```",
+              summary,
+              "```",
+              "",
+              `Workflow run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join("\n");
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+
+            const existing = issues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+            }

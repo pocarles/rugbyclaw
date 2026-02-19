@@ -91,6 +91,7 @@ describe('agent flow json contracts', () => {
       'strict',
       'timezone',
       'timezone_valid',
+      'trace_id',
       'version',
     ]);
     expect(normalPayload.strict).toBe(false);

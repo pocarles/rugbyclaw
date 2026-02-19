@@ -136,6 +136,14 @@ For JSON command failures, expect:
 - `exit_code`: numeric category
 - `error_type`: stable string category
 
+For strict OpenClaw automation, prefer `--agent` over `--json`.
+Agent envelope is always one line and always includes:
+- `ok`
+- `exit_code`
+- `error_type`
+- `data`
+- `trace_id`
+
 ## Common User Intents
 
 | User Says | Check |

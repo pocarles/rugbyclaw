@@ -33,7 +33,7 @@ rugbyclaw status --json
 For non-interactive agent setup, prefer:
 
 ```bash
-rugbyclaw start --yes --tz America/New_York --mode proxy --json
+rugbyclaw start --yes --tz America/New_York --mode proxy --agent
 ```
 
 If direct mode is required, pass key from env:
@@ -99,6 +99,14 @@ rugbyclaw notify --live --json
 ```
 
 Each returns a JSON array of notifications to send to the user.
+
+For strict automation, use `--agent` (one-line envelope with `ok`, `exit_code`, `error_type`, `data`, `trace_id`).
+
+Bootstrap quickly for OpenClaw:
+
+```bash
+rugbyclaw openclaw init --agent
+```
 
 ## Calendar Export
 

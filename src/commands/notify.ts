@@ -19,9 +19,12 @@ import type {
   Notification,
 } from '../types/index.js';
 import { emitCommandError } from '../lib/command-error.js';
+import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
+import { getStaleFallbackLine } from '../lib/free-mode.js';
 
 interface NotifyOptions {
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   weekly?: boolean;
   daily?: boolean;
@@ -373,14 +376,18 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
       await saveState(state);
     }
 
+    const runtime = provider.consumeRuntimeMeta();
     const output: NotifyOutput = {
       type: options.weekly ? 'weekly' : options.daily ? 'daily' : 'live',
       notifications,
       generated_at: new Date().toISOString(),
+      trace_id: runtime.traceId || undefined,
+      stale: runtime.staleFallback || undefined,
+      cached_at: runtime.cachedAt || undefined,
     };
 
-    if (options.json) {
-      console.log(JSON.stringify(output, null, 2));
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess(output, options, { traceId: runtime.traceId });
     } else if (!options.quiet) {
       if (notifications.length > 0) {
         console.log(renderNotify(output));
@@ -388,9 +395,13 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
         const mode = options.weekly ? 'weekly' : options.daily ? 'daily' : 'live';
         console.log(`No ${mode} notifications at this time.`);
       }
+      if (runtime.staleFallback) {
+        console.log(getStaleFallbackLine(runtime.cachedAt));
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    emitCommandError(message, options);
+    const runtime = provider.consumeRuntimeMeta();
+    emitCommandError(message, options, undefined, { traceId: runtime.traceId });
   }
 }

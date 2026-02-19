@@ -21,6 +21,23 @@ const MAX_QUERY_LENGTH = 1024;
 const MAX_QUERY_PARAMS = 8;
 const MAX_ID_LENGTH = 12;
 const MIN_SEASON = 2000;
+const USER_AGENT_MAX_LENGTH = 256;
+const ENDPOINT_BURST_LIMITS: Record<AllowedEndpoint, number> = {
+  '/games': 8,
+  '/teams': 6,
+  '/leagues': 12,
+};
+const BLOCKED_USER_AGENT_PATTERNS = [
+  /sqlmap/i,
+  /nikto/i,
+  /acunetix/i,
+  /nessus/i,
+  /nmap/i,
+  /masscan/i,
+  /zgrab/i,
+  /dirbuster/i,
+  /wpscan/i,
+];
 
 function isPositiveInteger(value: string): boolean {
   return /^\d+$/.test(value);
@@ -46,6 +63,50 @@ function isValidDateYmd(value: string): boolean {
 
 function isValidSearchQuery(value: string): boolean {
   return /^[\p{L}\p{N}\s.'-]+$/u.test(value);
+}
+
+function isSafeRequestId(value: string): boolean {
+  return /^[a-zA-Z0-9._:-]{8,128}$/.test(value);
+}
+
+function getRequestId(request: Request): string {
+  const incoming = request.headers.get('x-rugbyclaw-trace-id')?.trim();
+  if (incoming && isSafeRequestId(incoming)) return incoming;
+
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+function jsonHeaders(requestId: string, headers: Record<string, string> = {}): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'X-Request-Id': requestId,
+    ...headers,
+  };
+}
+
+export function validateUserAgent(userAgent: string | null): { ok: true } | { ok: false; message: string; status: number } {
+  if (!userAgent || userAgent.trim().length < 4) {
+    return { ok: false, message: 'User-Agent header is required', status: 400 };
+  }
+
+  if (userAgent.length > USER_AGENT_MAX_LENGTH) {
+    return { ok: false, message: 'User-Agent header too long', status: 400 };
+  }
+
+  if (/[\x00-\x1F\x7F]/.test(userAgent)) {
+    return { ok: false, message: 'Invalid User-Agent header', status: 400 };
+  }
+
+  if (BLOCKED_USER_AGENT_PATTERNS.some((pattern) => pattern.test(userAgent))) {
+    return { ok: false, message: 'Client not allowed', status: 403 };
+  }
+
+  return { ok: true };
 }
 
 export function validateRequestSize(url: URL): { ok: true } | { ok: false; message: string; status: number } {
@@ -222,6 +283,15 @@ function getMinuteRateLimitKey(ip: string, now: Date = new Date()): string {
   return `ratelimit:${ip}:${minute}`;
 }
 
+function getEndpointMinuteRateLimitKey(
+  ip: string,
+  endpoint: AllowedEndpoint,
+  now: Date = new Date()
+): string {
+  const minute = now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+  return `ratelimit:${endpoint}:${ip}:${minute}`;
+}
+
 async function getRateLimitStatus(
   kv: KVNamespace,
   ip: string,
@@ -250,32 +320,63 @@ async function getRateLimitStatus(
 async function checkRateLimit(
   kv: KVNamespace,
   ip: string,
+  endpoint: AllowedEndpoint,
   limitPerDay: number,
-  limitPerMinute: number
+  limitPerMinute: number,
+  limitPerEndpointPerMinute: number
 ): Promise<
-  | { allowed: true; remainingDay: number; remainingMinute: number; limitDay: number; limitMinute: number }
-  | { allowed: false; remainingDay: number; remainingMinute: number; limitDay: number; limitMinute: number }
+  | {
+    allowed: true;
+    remainingDay: number;
+    remainingMinute: number;
+    remainingEndpointMinute: number;
+    limitDay: number;
+    limitMinute: number;
+    limitEndpointMinute: number;
+  }
+  | {
+    allowed: false;
+    remainingDay: number;
+    remainingMinute: number;
+    remainingEndpointMinute: number;
+    limitDay: number;
+    limitMinute: number;
+    limitEndpointMinute: number;
+  }
 > {
   const key = getRateLimitKey(ip);
   const minuteKey = getMinuteRateLimitKey(ip);
+  const endpointMinuteKey = getEndpointMinuteRateLimitKey(ip, endpoint);
 
   // Get current count
-  const [currentDay, currentMinute] = await Promise.all([kv.get(key), kv.get(minuteKey)]);
+  const [currentDay, currentMinute, currentEndpointMinute] = await Promise.all([
+    kv.get(key),
+    kv.get(minuteKey),
+    kv.get(endpointMinuteKey),
+  ]);
   const countDay = currentDay ? parseInt(currentDay, 10) : 0;
   const countMinute = currentMinute ? parseInt(currentMinute, 10) : 0;
+  const countEndpointMinute = currentEndpointMinute ? parseInt(currentEndpointMinute, 10) : 0;
 
-  if (countDay >= limitPerDay || countMinute >= limitPerMinute) {
+  if (
+    countDay >= limitPerDay
+    || countMinute >= limitPerMinute
+    || countEndpointMinute >= limitPerEndpointPerMinute
+  ) {
     return {
       allowed: false,
       remainingDay: Math.max(0, limitPerDay - countDay),
       remainingMinute: Math.max(0, limitPerMinute - countMinute),
+      remainingEndpointMinute: Math.max(0, limitPerEndpointPerMinute - countEndpointMinute),
       limitDay: limitPerDay,
       limitMinute: limitPerMinute,
+      limitEndpointMinute: limitPerEndpointPerMinute,
     };
   }
 
   const newCountDay = countDay + 1;
   const newCountMinute = countMinute + 1;
+  const newCountEndpointMinute = countEndpointMinute + 1;
 
   // Increment count (expires at midnight UTC + buffer)
   await kv.put(key, newCountDay.toString(), {
@@ -286,13 +387,18 @@ async function checkRateLimit(
   await kv.put(minuteKey, newCountMinute.toString(), {
     expirationTtl: 120,
   });
+  await kv.put(endpointMinuteKey, newCountEndpointMinute.toString(), {
+    expirationTtl: 120,
+  });
 
   return {
     allowed: true,
     remainingDay: limitPerDay - newCountDay,
     remainingMinute: limitPerMinute - newCountMinute,
+    remainingEndpointMinute: limitPerEndpointPerMinute - newCountEndpointMinute,
     limitDay: limitPerDay,
     limitMinute: limitPerMinute,
+    limitEndpointMinute: limitPerEndpointPerMinute,
   };
 }
 
@@ -304,11 +410,7 @@ function errorResponse(message: string, status: number, headers: Record<string, 
     JSON.stringify({ error: message }),
     {
       status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        ...headers,
-      },
+      headers,
     }
   );
 }
@@ -316,40 +418,43 @@ function errorResponse(message: string, status: number, headers: Record<string, 
 /**
  * Handle CORS preflight requests.
  */
-function handleCors(): Response {
+function handleCors(requestId: string): Response {
   return new Response(null, {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Rugbyclaw-Trace-Id',
       'Access-Control-Max-Age': '86400',
+      'X-Request-Id': requestId,
     },
   });
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const requestId = getRequestId(request);
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
-      return handleCors();
+      return handleCors(requestId);
     }
 
     // Only allow GET requests
     if (request.method !== 'GET') {
-      return errorResponse('Method not allowed', 405);
+      return errorResponse('Method not allowed', 405, jsonHeaders(requestId));
     }
 
     const url = new URL(request.url);
     const sizeValidation = validateRequestSize(url);
     if (!sizeValidation.ok) {
-      return errorResponse(sizeValidation.message, sizeValidation.status);
+      return errorResponse(sizeValidation.message, sizeValidation.status, jsonHeaders(requestId));
     }
     const pathname = url.pathname;
 
     // Health check endpoint
     if (pathname === '/health') {
       return new Response(JSON.stringify({ status: 'ok' }), {
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(requestId),
       });
     }
 
@@ -364,6 +469,7 @@ export default {
           status: 'ok',
           mode: 'free',
           now: new Date().toISOString(),
+          trace_id: requestId,
           rate_limit: {
             day: {
               limit: rate.limitDay,
@@ -374,32 +480,40 @@ export default {
               limit: rate.limitMinute,
               remaining: rate.remainingMinute,
             },
+            endpoint_minute_limits: ENDPOINT_BURST_LIMITS,
           },
         }),
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+          headers: jsonHeaders(requestId, {
             'Cache-Control': 'no-store',
-          },
+          }),
         }
       );
     }
 
     // Validate endpoint
     if (!isAllowedEndpoint(pathname)) {
-      return errorResponse('Endpoint not allowed', 403);
+      return errorResponse('Endpoint not allowed', 403, jsonHeaders(requestId));
     }
 
     const endpoint = getAllowedEndpoint(pathname);
     if (!endpoint) {
-      return errorResponse('Endpoint not allowed', 403);
+      return errorResponse('Endpoint not allowed', 403, jsonHeaders(requestId));
+    }
+
+    const userAgentValidation = validateUserAgent(request.headers.get('User-Agent'));
+    if (!userAgentValidation.ok) {
+      return errorResponse(
+        userAgentValidation.message,
+        userAgentValidation.status,
+        jsonHeaders(requestId)
+      );
     }
 
     const allowedLeagues = parseAllowedLeagues(env);
     const validation = validateQuery(endpoint, url.searchParams, allowedLeagues);
     if (!validation.ok) {
-      return errorResponse(validation.message, validation.status);
+      return errorResponse(validation.message, validation.status, jsonHeaders(requestId));
     }
 
     // Get client IP
@@ -414,25 +528,36 @@ export default {
       headers.set('X-Cache', 'HIT');
       headers.set('X-Proxy', 'rugbyclaw');
       headers.set('Access-Control-Allow-Origin', '*');
+      headers.set('X-Request-Id', requestId);
       return new Response(cached.body, { status: cached.status, headers });
     }
 
     // Check rate limit (cache miss only)
     const rateLimitDay = parseInt(env.RATE_LIMIT_PER_DAY || '50', 10);
     const rateLimitMinute = parseInt(env.RATE_LIMIT_PER_MINUTE || '10', 10);
-    const rate = await checkRateLimit(env.RATE_LIMITS, ip, rateLimitDay, rateLimitMinute);
+    const endpointBurstLimit = ENDPOINT_BURST_LIMITS[endpoint] ?? rateLimitMinute;
+    const rate = await checkRateLimit(
+      env.RATE_LIMITS,
+      ip,
+      endpoint,
+      rateLimitDay,
+      rateLimitMinute,
+      endpointBurstLimit
+    );
 
     if (!rate.allowed) {
       return errorResponse(
         'Rate limit exceeded. Run "rugbyclaw config" to add your own API key for unlimited access.',
         429,
-        {
+        jsonHeaders(requestId, {
           'X-RateLimit-Limit-Day': rate.limitDay.toString(),
           'X-RateLimit-Remaining-Day': rate.remainingDay.toString(),
           'X-RateLimit-Limit-Minute': rate.limitMinute.toString(),
           'X-RateLimit-Remaining-Minute': rate.remainingMinute.toString(),
+          'X-RateLimit-Limit-Endpoint-Minute': rate.limitEndpointMinute.toString(),
+          'X-RateLimit-Remaining-Endpoint-Minute': rate.remainingEndpointMinute.toString(),
           'X-RateLimit-Reset': 'midnight UTC',
-        }
+        })
       );
     }
 
@@ -458,17 +583,18 @@ export default {
       // Return proxied response with rate limit headers
       const response = new Response(body, {
         status: apiResponse.status,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+        headers: jsonHeaders(requestId, {
           'Cache-Control': `public, max-age=${validation.cacheTtlSeconds}`,
           'X-RateLimit-Limit-Day': rate.limitDay.toString(),
           'X-RateLimit-Remaining-Day': rate.remainingDay.toString(),
           'X-RateLimit-Limit-Minute': rate.limitMinute.toString(),
           'X-RateLimit-Remaining-Minute': rate.remainingMinute.toString(),
+          'X-RateLimit-Limit-Endpoint-Minute': rate.limitEndpointMinute.toString(),
+          'X-RateLimit-Remaining-Endpoint-Minute': rate.remainingEndpointMinute.toString(),
           'X-Proxy': 'rugbyclaw',
           'X-Cache': 'MISS',
-        },
+          'X-Upstream-Request-Id': apiResponse.headers.get('x-request-id') || '',
+        }),
       });
 
       // Cache successful responses.
@@ -479,7 +605,7 @@ export default {
       return response;
     } catch (error) {
       console.error('API-Sports request failed:', error);
-      return errorResponse('Upstream API error', 502);
+      return errorResponse('Upstream API error', 502, jsonHeaders(requestId));
     }
   },
 };
