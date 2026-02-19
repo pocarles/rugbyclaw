@@ -48,7 +48,7 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
       console.log(renderScores(output));
-      const quotaLine = getProxyQuotaLine(proxyStatus);
+      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
     }
   } catch (error) {

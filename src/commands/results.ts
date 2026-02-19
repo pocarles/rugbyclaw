@@ -92,7 +92,7 @@ export async function resultsCommand(
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
       console.log(renderResults(output));
-      const quotaLine = getProxyQuotaLine(proxyStatus);
+      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
     }
   } catch (error) {

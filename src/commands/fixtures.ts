@@ -105,7 +105,7 @@ export async function fixturesCommand(
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
       console.log(renderFixtures(output, options.showIds, timeZone));
-      const quotaLine = getProxyQuotaLine(proxyStatus);
+      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
     }
   } catch (error) {

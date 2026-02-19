@@ -14,7 +14,11 @@ export function getProxyRateLimit(status: ProxyStatus | null): ProxyStatus['rate
   return status?.rate_limit;
 }
 
-export function getProxyQuotaLine(status: ProxyStatus | null): string | null {
+export function getProxyQuotaLine(status: ProxyStatus | null, hasApiKey = false): string | null {
+  if (hasApiKey) {
+    return null;
+  }
+
   if (!status) {
     return chalk.yellow('Free mode: proxy unavailable right now.');
   }
