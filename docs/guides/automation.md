@@ -3,7 +3,7 @@ title: Automation
 description: Using Rugbyclaw with cron/OpenClaw
 category: guides
 tags: [automation, cron, openclaw]
-updated: 2026-02-04
+updated: 2026-02-19
 ---
 
 # Automation
@@ -16,3 +16,6 @@ rugbyclaw notify --daily --json
 rugbyclaw notify --live --json
 ```
 
+For fixture data, check kickoff reliability with:
+- `time_confidence: "exact"` when kickoff is reliable
+- `time_confidence: "pending"` (and `time_tbd: true`) when the provider still has placeholder kickoff data

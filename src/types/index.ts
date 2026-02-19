@@ -110,6 +110,7 @@ export interface MatchOutput {
   date: string;
   time: string;
   time_tbd?: boolean;
+  time_confidence?: 'exact' | 'pending';
   venue?: string;
   status: MatchStatus;
   summary?: string; // Personality-driven summary for results

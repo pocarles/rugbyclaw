@@ -340,6 +340,7 @@ export function matchToOutput(match: Match, options?: { timeZone?: string }): Ma
     date: formatDateYMD(kickoff, timeZone),
     time: match.timeTbd ? '' : formatTimeHM(kickoff, timeZone),
     time_tbd: match.timeTbd || undefined,
+    time_confidence: match.timeTbd ? 'pending' : 'exact',
     venue: match.venue,
     status: match.status,
     summary: match.status === 'finished' ? generateNeutralSummary(match) : undefined,

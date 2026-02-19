@@ -3,7 +3,7 @@ title: rugbyclaw fixtures
 description: View upcoming matches
 category: commands
 tags: [fixtures, upcoming, schedule]
-updated: 2026-02-02
+updated: 2026-02-19
 ---
 
 # rugbyclaw fixtures
@@ -94,6 +94,10 @@ Use these slugs as the `[league]` argument:
 
 Without an API key, Rugbyclaw is limited to a default set of leagues (Top 14, Premiership, URC, Champions Cup, Six Nations).
 
+If a kickoff time is known to be a provider placeholder, JSON output includes:
+- `time_tbd: true`
+- `time_confidence: "pending"` (otherwise `"exact"`)
+
 ## Tips
 
 - Use `--ics` to sync entire schedule to your calendar
@@ -107,4 +111,4 @@ Without an API key, Rugbyclaw is limited to a default set of leagues (Top 14, Pr
 - [results](./results.md) - Past results
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-19*
