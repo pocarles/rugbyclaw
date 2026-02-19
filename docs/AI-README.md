@@ -118,13 +118,14 @@ Use this to:
 If setup might be missing, bootstrap non-interactively first:
 
 ```bash
-rugbyclaw start --yes --mode proxy
+rugbyclaw start --yes --mode proxy --json
 ```
 
 Always start by checking:
 
 ```bash
 rugbyclaw status --json
+rugbyclaw doctor --json --strict
 ```
 
 Use `mode` + `effective_leagues` to decide what to call next.

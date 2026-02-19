@@ -33,7 +33,7 @@ rugbyclaw status --json
 For non-interactive agent setup, prefer:
 
 ```bash
-rugbyclaw start --yes --tz America/New_York --mode proxy
+rugbyclaw start --yes --tz America/New_York --mode proxy --json
 ```
 
 If direct mode is required, pass key from env:
@@ -130,6 +130,7 @@ Then:
 - Prefer `scores --json`, `fixtures --json`, `results --json`, `team ... --json` for structured output.
 - Team search is scoped to Rugby Union teams in `effective_leagues` (to avoid irrelevant matches).
 - Run `rugbyclaw doctor --json` once before long workflows; if proxy/API checks fail, stop and surface the fix.
+- For fail-fast automation, use `rugbyclaw doctor --json --strict`.
 - Treat `time_confidence: "pending"` as unconfirmed kickoff data and say so clearly.
 
 ## Examples

@@ -44,6 +44,7 @@ rugbyclaw config [options]
   - Timezone confirmation
 - Guided mode (`rugbyclaw config --guided`) lets you choose every detail.
 - Non-interactive mode (`rugbyclaw config --yes`) applies defaults with no prompts.
+- For machine-safe automation output, use `--json --yes` together.
 
 Example:
 

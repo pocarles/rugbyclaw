@@ -56,12 +56,16 @@ function showWelcome(): void {
   console.log('');
 }
 
-async function runSafe(action: () => Promise<void>): Promise<void> {
+async function runSafe(action: () => Promise<void>, options?: { json?: boolean }): Promise<void> {
   try {
     await action();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error(chalk.red(`Error: ${message}`));
+    if (options?.json) {
+      console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+    } else {
+      console.error(chalk.red(`Error: ${message}`));
+    }
     process.exitCode = 1;
   }
 }
@@ -101,13 +105,15 @@ program
 program
   .command('doctor')
   .description('Diagnose proxy/API/config issues')
+  .option('--strict', 'Exit non-zero when checks fail')
   .addHelpText('after', `
 ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw doctor')}          Human-friendly checks
   ${chalk.white('rugbyclaw doctor --json')}   JSON output for automation
+  ${chalk.white('rugbyclaw doctor --json --strict')} Fail-fast health gate
 `)
-  .action(async () => {
-    await doctorCommand(program.opts());
+  .action(async (options) => {
+    await doctorCommand({ ...program.opts(), ...options });
   });
 
 // Start command (beginner-first onboarding)
@@ -135,7 +141,7 @@ ${chalk.cyan('Examples:')}
         guided: Boolean(options.guided),
         timezone: base.tz,
       });
-    });
+    }, { json: Boolean(base.json) });
   });
 
 // Config command
@@ -158,7 +164,7 @@ ${chalk.cyan('Examples:')}
     const base = program.opts<{ tz?: string; json?: boolean; quiet?: boolean }>();
     await runSafe(async () => {
       await configCommand({ ...base, ...options, timezone: base.tz });
-    });
+    }, { json: Boolean(base.json) });
   });
 
 // Scores command

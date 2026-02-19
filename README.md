@@ -83,6 +83,8 @@ rugbyclaw start
 rugbyclaw start --guided
 # non-interactive (for agents/OpenClaw)
 rugbyclaw start --yes --tz America/New_York --mode proxy
+# machine-safe JSON for agents
+rugbyclaw start --yes --tz America/New_York --mode proxy --json
 ```
 
 ### `rugbyclaw config`

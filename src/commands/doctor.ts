@@ -17,6 +17,7 @@ import { getKickoffOverridePaths, loadKickoffOverrides } from '../lib/kickoff-ov
 interface DoctorOptions {
   json?: boolean;
   quiet?: boolean;
+  strict?: boolean;
 }
 
 type CheckResult = {
@@ -259,6 +260,7 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
 
   const output = {
     ok,
+    strict: Boolean(options.strict),
     version,
     node: process.version,
     mode,
@@ -277,14 +279,16 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
     generated_at: new Date().toISOString(),
   };
 
+  const shouldFail = Boolean(options.strict) && !output.ok;
+
   if (options.json) {
     console.log(JSON.stringify(output, null, 2));
-    if (!output.ok) process.exit(1);
+    if (shouldFail) process.exitCode = 1;
     return;
   }
 
   if (options.quiet) {
-    if (!output.ok) process.exit(1);
+    if (shouldFail) process.exitCode = 1;
     return;
   }
 
@@ -335,5 +339,5 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
 
   console.log(lines.join('\n'));
 
-  if (!output.ok) process.exit(1);
+  if (shouldFail) process.exitCode = 1;
 }

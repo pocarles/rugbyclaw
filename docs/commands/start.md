@@ -45,3 +45,5 @@ rugbyclaw start --yes --tz America/New_York --mode proxy
 export API_SPORTS_KEY="..."
 rugbyclaw start --yes --mode direct --api-key-env API_SPORTS_KEY
 ```
+
+When using `--json`, also use `--yes` so output stays machine-safe (pure JSON, no onboarding text).

@@ -554,85 +554,104 @@ async function promptForFinalTimeZone(existingTimezone: string, setupStyle: Setu
 }
 
 export async function configCommand(options: ConfigOptions): Promise<void> {
-  renderSetupIntro();
-
-  const existingConfig = await loadConfig();
-  const existingSecrets = await loadSecrets();
-  const isFirstSetup = detectInitialSetup(existingConfig, Boolean(existingSecrets?.api_key));
-  const setupStyle = options.yes
-    ? (options.guided ? 'guided' : 'quick')
-    : await promptForSetupStyle(options, isFirstSetup);
-
-  const access = options.yes
-    ? await resolveAccessModeNonInteractive(existingSecrets, setupStyle, options)
-    : await resolveAccessMode(existingSecrets, setupStyle);
-  const favoriteLeagues = options.yes
-    ? getNonInteractiveFavoriteLeagues(access.mode, existingConfig)
-    : await promptForFavoriteLeagues(access.mode, existingConfig, setupStyle);
-  const favoriteTeams = options.yes
-    ? getNonInteractiveFavoriteTeams(setupStyle, existingConfig)
-    : await promptForFavoriteTeams(
-      access.provider,
-      access.mode,
-      favoriteLeagues,
-      existingConfig,
-      setupStyle
-    );
-  const timezone = options.yes
-    ? getNonInteractiveTimezone(existingConfig.timezone, options.timezone)
-    : await promptForFinalTimeZone(existingConfig.timezone, setupStyle);
-
-  const config: Config = {
-    schema_version: 1,
-    timezone,
-    favorite_leagues: favoriteLeagues,
-    favorite_teams: favoriteTeams,
-  };
-
-  await saveConfig(config);
-
-  console.log(chalk.bold.green('\n✓ Configuration saved!\n'));
-  console.log(chalk.dim('Setup style:'), setupStyle === 'quick' ? chalk.green('Quick') : chalk.cyan('Guided'));
-  console.log(
-    chalk.dim('Mode:'),
-    access.mode === 'direct'
-      ? chalk.green('Unlimited (own API key)')
-      : chalk.yellow('Free tier (50 req/day)')
-  );
-  console.log(chalk.dim('Leagues:'), chalk.cyan(favoriteLeagues.join(', ')));
-  console.log(chalk.dim('Teams:'), favoriteTeams.length > 0 ? chalk.cyan(favoriteTeams.map((team) => team.name).join(', ')) : chalk.dim('None'));
-  console.log(chalk.dim('Timezone:'), chalk.cyan(timezone));
-  console.log('');
-
-  if (!options.quiet) {
-    if (options.yes) {
-      renderDone('Non-interactive setup completed.');
-      console.log('');
-    }
-    console.log(chalk.bold.cyan('Try these commands next (in order):'));
-    console.log(`  ${chalk.white('1) rugbyclaw status')}                Confirm your setup`);
-    console.log(`  ${chalk.white('2) rugbyclaw scores --explain')}      Today + why empty if needed`);
-    console.log(`  ${chalk.white('3) rugbyclaw fixtures')}              Upcoming matches`);
-    console.log(`  ${chalk.white('4) rugbyclaw team search toulouse')}  Find a team`);
-    console.log(`  ${chalk.white('5) rugbyclaw doctor')}                Full health check`);
-    console.log('');
-    console.log(chalk.dim('Need extra help? Run "rugbyclaw config --guided" for full setup.'));
-    console.log(chalk.dim('Need automation/OpenClaw? Add --json to commands for machine-readable output.'));
-    console.log('');
+  if (options.json && !options.yes) {
+    throw new Error('Use "--yes" with "--json" for machine-safe non-interactive setup output.');
   }
 
-  if (options.json) {
+  const suppressHumanOutput = Boolean(options.json);
+  const originalLog = console.log;
+  let payload: {
+    config: Config;
+    mode: AccessMode;
+    api_key_saved: boolean;
+    setup_style: SetupStyle;
+  } | null = null;
+
+  if (suppressHumanOutput) {
+    console.log = () => undefined;
+  }
+
+  try {
+    renderSetupIntro();
+
+    const existingConfig = await loadConfig();
+    const existingSecrets = await loadSecrets();
+    const isFirstSetup = detectInitialSetup(existingConfig, Boolean(existingSecrets?.api_key));
+    const setupStyle = options.yes
+      ? (options.guided ? 'guided' : 'quick')
+      : await promptForSetupStyle(options, isFirstSetup);
+
+    const access = options.yes
+      ? await resolveAccessModeNonInteractive(existingSecrets, setupStyle, options)
+      : await resolveAccessMode(existingSecrets, setupStyle);
+    const favoriteLeagues = options.yes
+      ? getNonInteractiveFavoriteLeagues(access.mode, existingConfig)
+      : await promptForFavoriteLeagues(access.mode, existingConfig, setupStyle);
+    const favoriteTeams = options.yes
+      ? getNonInteractiveFavoriteTeams(setupStyle, existingConfig)
+      : await promptForFavoriteTeams(
+        access.provider,
+        access.mode,
+        favoriteLeagues,
+        existingConfig,
+        setupStyle
+      );
+    const timezone = options.yes
+      ? getNonInteractiveTimezone(existingConfig.timezone, options.timezone)
+      : await promptForFinalTimeZone(existingConfig.timezone, setupStyle);
+
+    const config: Config = {
+      schema_version: 1,
+      timezone,
+      favorite_leagues: favoriteLeagues,
+      favorite_teams: favoriteTeams,
+    };
+
+    await saveConfig(config);
+
+    payload = {
+      config,
+      mode: access.mode,
+      api_key_saved: Boolean(access.savedApiKey),
+      setup_style: setupStyle,
+    };
+
+    console.log(chalk.bold.green('\n✓ Configuration saved!\n'));
+    console.log(chalk.dim('Setup style:'), setupStyle === 'quick' ? chalk.green('Quick') : chalk.cyan('Guided'));
     console.log(
-      JSON.stringify(
-        {
-          config,
-          mode: access.mode,
-          api_key_saved: Boolean(access.savedApiKey),
-          setup_style: setupStyle,
-        },
-        null,
-        2
-      )
+      chalk.dim('Mode:'),
+      access.mode === 'direct'
+        ? chalk.green('Unlimited (own API key)')
+        : chalk.yellow('Free tier (50 req/day)')
     );
+    console.log(chalk.dim('Leagues:'), chalk.cyan(favoriteLeagues.join(', ')));
+    console.log(chalk.dim('Teams:'), favoriteTeams.length > 0 ? chalk.cyan(favoriteTeams.map((team) => team.name).join(', ')) : chalk.dim('None'));
+    console.log(chalk.dim('Timezone:'), chalk.cyan(timezone));
+    console.log('');
+
+    if (!options.quiet) {
+      if (options.yes) {
+        renderDone('Non-interactive setup completed.');
+        console.log('');
+      }
+      console.log(chalk.bold.cyan('Try these commands next (in order):'));
+      console.log(`  ${chalk.white('1) rugbyclaw status')}                Confirm your setup`);
+      console.log(`  ${chalk.white('2) rugbyclaw scores --explain')}      Today + why empty if needed`);
+      console.log(`  ${chalk.white('3) rugbyclaw fixtures')}              Upcoming matches`);
+      console.log(`  ${chalk.white('4) rugbyclaw team search toulouse')}  Find a team`);
+      console.log(`  ${chalk.white('5) rugbyclaw doctor')}                Full health check`);
+      console.log('');
+      console.log(chalk.dim('Need extra help? Run "rugbyclaw config --guided" for full setup.'));
+      console.log(chalk.dim('Need automation/OpenClaw? Add --json to commands for machine-readable output.'));
+      console.log('');
+    }
+  } finally {
+    if (suppressHumanOutput) {
+      console.log = originalLog;
+    }
+  }
+
+  if (payload && options.json) {
+    console.log(JSON.stringify(payload, null, 2));
   }
 }

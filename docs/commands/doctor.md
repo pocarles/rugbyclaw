@@ -22,12 +22,14 @@ rugbyclaw doctor [options]
 |--------|-------------|---------|
 | `--json` | Output as JSON | false |
 | `--quiet` | Minimal output | false |
+| `--strict` | Exit non-zero when checks fail | false |
 
 ## Examples
 
 ```bash
 rugbyclaw doctor
 rugbyclaw doctor --json
+rugbyclaw doctor --json --strict
 ```
 
 ## Notes
