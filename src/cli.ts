@@ -56,6 +56,16 @@ function showWelcome(): void {
   console.log('');
 }
 
+async function runSafe(action: () => Promise<void>): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(chalk.red(`Error: ${message}`));
+    process.exitCode = 1;
+  }
+}
+
 const program = new Command();
 
 program
@@ -108,11 +118,24 @@ program
 ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw start')}             Quick setup (recommended)
   ${chalk.white('rugbyclaw start --guided')}    Full guided setup
+  ${chalk.white('rugbyclaw start --yes --tz America/New_York')}  Non-interactive setup
+  ${chalk.white('rugbyclaw start --yes --mode direct --api-key-env API_SPORTS_KEY')}  Direct mode from env key
 `)
   .option('--guided', 'Use full guided setup instead of quick mode')
+  .option('--yes', 'Non-interactive mode (accept defaults)')
+  .option('--mode <mode>', 'Set mode in non-interactive mode: proxy|direct')
+  .option('--api-key-env <name>', 'Env var name for API key in non-interactive direct mode', 'API_SPORTS_KEY')
   .action(async (options) => {
-    const base = program.opts();
-    await configCommand({ ...base, ...options, quick: !options.guided, guided: Boolean(options.guided) });
+    const base = program.opts<{ tz?: string; json?: boolean; quiet?: boolean }>();
+    await runSafe(async () => {
+      await configCommand({
+        ...base,
+        ...options,
+        quick: !options.guided,
+        guided: Boolean(options.guided),
+        timezone: base.tz,
+      });
+    });
   });
 
 // Config command
@@ -123,11 +146,19 @@ program
 ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw config --quick')}     Fast setup with fewer prompts
   ${chalk.white('rugbyclaw config --guided')}    Full setup (mode/leagues/teams/timezone)
+  ${chalk.white('rugbyclaw config --yes --mode proxy')}  Non-interactive free mode
+  ${chalk.white('rugbyclaw config --yes --mode direct --api-key-env API_SPORTS_KEY')}  Non-interactive direct mode
 `)
   .option('--quick', 'Force quick setup (fewer prompts)')
   .option('--guided', 'Force full guided setup')
+  .option('--yes', 'Non-interactive mode (accept defaults)')
+  .option('--mode <mode>', 'Set mode in non-interactive mode: proxy|direct')
+  .option('--api-key-env <name>', 'Env var name for API key in non-interactive direct mode', 'API_SPORTS_KEY')
   .action(async (options) => {
-    await configCommand({ ...program.opts(), ...options });
+    const base = program.opts<{ tz?: string; json?: boolean; quiet?: boolean }>();
+    await runSafe(async () => {
+      await configCommand({ ...base, ...options, timezone: base.tz });
+    });
   });
 
 // Scores command

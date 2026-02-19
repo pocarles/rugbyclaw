@@ -7,6 +7,7 @@ import {
   saveSecrets,
   DEFAULT_PROXY_LEAGUES,
   isValidTimeZone,
+  getTimeZoneOverride,
 } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
@@ -17,6 +18,10 @@ interface ConfigOptions {
   quiet?: boolean;
   quick?: boolean;
   guided?: boolean;
+  yes?: boolean;
+  mode?: string;
+  apiKeyEnv?: string;
+  timezone?: string;
 }
 
 type SetupStyle = 'quick' | 'guided';
@@ -45,6 +50,48 @@ function renderTip(message: string): void {
 
 function renderDone(message: string): void {
   console.log(chalk.green(`✓ ${message}`));
+}
+
+function parseMode(input: string | undefined): AccessMode | null {
+  if (!input) return null;
+  const normalized = input.trim().toLowerCase();
+  if (normalized === 'proxy' || normalized === 'direct') {
+    return normalized;
+  }
+  throw new Error(`Invalid mode "${input}". Use "proxy" or "direct".`);
+}
+
+function getNonInteractiveTimezone(existingTimezone: string, explicitTimezone?: string): string {
+  const fromOption = explicitTimezone?.trim();
+  const fromOverride = getTimeZoneOverride();
+  const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const candidate = fromOption || fromOverride || existingTimezone || detectedTimezone;
+
+  if (!isValidTimeZone(candidate)) {
+    throw new Error(
+      `Invalid timezone "${candidate}". Use an IANA timezone like "America/New_York" or "Europe/Paris".`
+    );
+  }
+
+  return candidate;
+}
+
+function getNonInteractiveFavoriteLeagues(mode: AccessMode, existingConfig: Config): string[] {
+  const availableLeagueSlugs = mode === 'direct'
+    ? Object.keys(LEAGUES)
+    : DEFAULT_PROXY_LEAGUES;
+  const base = existingConfig.favorite_leagues.length > 0
+    ? existingConfig.favorite_leagues
+    : DEFAULT_PROXY_LEAGUES;
+
+  return base.filter((slug) => availableLeagueSlugs.includes(slug));
+}
+
+function getNonInteractiveFavoriteTeams(setupStyle: SetupStyle, existingConfig: Config): FavoriteTeam[] {
+  if (setupStyle === 'quick') {
+    return existingConfig.favorite_teams.length > 0 ? existingConfig.favorite_teams : [];
+  }
+  return existingConfig.favorite_teams;
 }
 
 function getAllTimeZones(): string[] {
@@ -145,9 +192,12 @@ async function promptForTimeZone(
   return timezone;
 }
 
-async function validateAndPersistApiKey(apiKeyInput: string): Promise<AccessModeResult> {
+async function validateAndPersistApiKey(apiKeyInput: string, strict = false): Promise<AccessModeResult> {
   const apiKey = apiKeyInput.trim();
   if (apiKey.length === 0) {
+    if (strict) {
+      throw new Error('API key is required for direct mode but was empty.');
+    }
     console.log(chalk.yellow('\nNo API key entered. Staying in free mode.\n'));
     return {
       provider: new ApiSportsProvider(),
@@ -171,6 +221,9 @@ async function validateAndPersistApiKey(apiKeyInput: string): Promise<AccessMode
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    if (strict) {
+      throw new Error(`API key test failed: ${message}`);
+    }
     console.log(chalk.red(`✗ API key test failed: ${message}`));
     console.log(chalk.yellow('Continuing with free mode (no API key).\n'));
     return {
@@ -179,6 +232,48 @@ async function validateAndPersistApiKey(apiKeyInput: string): Promise<AccessMode
       savedApiKey: null,
     };
   }
+}
+
+async function resolveAccessModeNonInteractive(
+  existingSecrets: Secrets | null,
+  setupStyle: SetupStyle,
+  options: ConfigOptions
+): Promise<AccessModeResult> {
+  const forcedMode = parseMode(options.mode);
+  const mode: AccessMode = forcedMode ?? (existingSecrets?.api_key ? 'direct' : 'proxy');
+
+  if (mode === 'proxy') {
+    renderTip('Non-interactive setup uses free mode (proxy).');
+    return {
+      provider: new ApiSportsProvider(),
+      mode: 'proxy',
+      savedApiKey: null,
+    };
+  }
+
+  const envName = (options.apiKeyEnv || 'API_SPORTS_KEY').trim();
+  const envApiKey = process.env[envName]?.trim();
+
+  if (envApiKey) {
+    renderTip(`Non-interactive setup uses API key from $${envName}.`);
+    return validateAndPersistApiKey(envApiKey, true);
+  }
+
+  if (existingSecrets?.api_key) {
+    renderTip('Non-interactive setup uses your saved API key.');
+    return {
+      provider: new ApiSportsProvider(existingSecrets.api_key),
+      mode: 'direct',
+      savedApiKey: existingSecrets.api_key,
+    };
+  }
+
+  const styleHint = setupStyle === 'guided'
+    ? 'Run "rugbyclaw config --guided" to add it interactively.'
+    : 'Or use free mode with "--mode proxy".';
+  throw new Error(
+    `Direct mode needs an API key in $${envName} (or an existing saved key). ${styleHint}`
+  );
 }
 
 async function resolveAccessMode(existingSecrets: Secrets | null, setupStyle: SetupStyle): Promise<AccessModeResult> {
@@ -464,18 +559,28 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   const existingConfig = await loadConfig();
   const existingSecrets = await loadSecrets();
   const isFirstSetup = detectInitialSetup(existingConfig, Boolean(existingSecrets?.api_key));
-  const setupStyle = await promptForSetupStyle(options, isFirstSetup);
+  const setupStyle = options.yes
+    ? (options.guided ? 'guided' : 'quick')
+    : await promptForSetupStyle(options, isFirstSetup);
 
-  const access = await resolveAccessMode(existingSecrets, setupStyle);
-  const favoriteLeagues = await promptForFavoriteLeagues(access.mode, existingConfig, setupStyle);
-  const favoriteTeams = await promptForFavoriteTeams(
-    access.provider,
-    access.mode,
-    favoriteLeagues,
-    existingConfig,
-    setupStyle
-  );
-  const timezone = await promptForFinalTimeZone(existingConfig.timezone, setupStyle);
+  const access = options.yes
+    ? await resolveAccessModeNonInteractive(existingSecrets, setupStyle, options)
+    : await resolveAccessMode(existingSecrets, setupStyle);
+  const favoriteLeagues = options.yes
+    ? getNonInteractiveFavoriteLeagues(access.mode, existingConfig)
+    : await promptForFavoriteLeagues(access.mode, existingConfig, setupStyle);
+  const favoriteTeams = options.yes
+    ? getNonInteractiveFavoriteTeams(setupStyle, existingConfig)
+    : await promptForFavoriteTeams(
+      access.provider,
+      access.mode,
+      favoriteLeagues,
+      existingConfig,
+      setupStyle
+    );
+  const timezone = options.yes
+    ? getNonInteractiveTimezone(existingConfig.timezone, options.timezone)
+    : await promptForFinalTimeZone(existingConfig.timezone, setupStyle);
 
   const config: Config = {
     schema_version: 1,
@@ -500,6 +605,10 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   console.log('');
 
   if (!options.quiet) {
+    if (options.yes) {
+      renderDone('Non-interactive setup completed.');
+      console.log('');
+    }
     console.log(chalk.bold.cyan('Try these commands next (in order):'));
     console.log(`  ${chalk.white('1) rugbyclaw status')}                Confirm your setup`);
     console.log(`  ${chalk.white('2) rugbyclaw scores --explain')}      Today + why empty if needed`);

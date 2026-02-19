@@ -115,6 +115,12 @@ Use this to:
 
 ## First step for agents
 
+If setup might be missing, bootstrap non-interactively first:
+
+```bash
+rugbyclaw start --yes --mode proxy
+```
+
 Always start by checking:
 
 ```bash
@@ -145,4 +151,4 @@ If you identify missing or outdated information:
 
 ---
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-19

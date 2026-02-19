@@ -24,6 +24,9 @@ rugbyclaw config [options]
 | `--quiet` | Minimal output | false |
 | `--quick` | Force quick setup (few prompts) | false |
 | `--guided` | Force full guided setup | false |
+| `--yes` | Non-interactive mode (accept defaults) | false |
+| `--mode <proxy\|direct>` | Set mode in non-interactive mode | auto |
+| `--api-key-env <name>` | Env var name for API key in direct mode | API_SPORTS_KEY |
 
 ## What it configures
 
@@ -40,6 +43,13 @@ rugbyclaw config [options]
   - Team selection skipped
   - Timezone confirmation
 - Guided mode (`rugbyclaw config --guided`) lets you choose every detail.
+- Non-interactive mode (`rugbyclaw config --yes`) applies defaults with no prompts.
+
+Example:
+
+```bash
+rugbyclaw config --yes --mode proxy --tz America/New_York
+```
 
 ## Files written
 

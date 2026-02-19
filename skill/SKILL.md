@@ -15,22 +15,34 @@ Install the rugbyclaw CLI:
 npm install -g rugbyclaw
 ```
 
-No API key is required (free mode uses a proxy with limits).
-
-Optional but recommended setup:
+If global install is unavailable, use:
 
 ```bash
-rugbyclaw config
+npx -y rugbyclaw@latest --version
+```
+
+No API key is required (free mode uses a proxy with limits).
+
+Recommended setup:
+
+```bash
+rugbyclaw start
 rugbyclaw status --json
 ```
 
-If you're running on a server/agent and need a specific timezone, override it at runtime:
+For non-interactive agent setup, prefer:
 
 ```bash
-rugbyclaw --tz America/New_York status --json
+rugbyclaw start --yes --tz America/New_York --mode proxy
 ```
 
-The config wizard can:
+If direct mode is required, pass key from env:
+
+```bash
+rugbyclaw start --yes --mode direct --api-key-env API_SPORTS_KEY
+```
+
+The setup flow can:
 1. Keep you on free mode (default) or let you add an API key (optional)
 2. Let you select favorite leagues (free mode is limited to default leagues)
 3. Optionally pick favorite teams
@@ -45,8 +57,8 @@ Use these CLI commands with `--json` for structured output:
 | "Rugby scores" / "What's happening in rugby?" | `rugbyclaw scores --json` |
 | "Top 14 fixtures" / "Upcoming matches" | `rugbyclaw fixtures [league] --json` |
 | "Recent results" / "Who won?" | `rugbyclaw results [league] --json` |
-| "Toulouse next match" / "When do they play?" | `rugbyclaw team <name> next --json` |
-| "How did Toulouse do?" / "Last result" | `rugbyclaw team <name> last --json` |
+| "Toulouse next match" / "When do they play?" | `rugbyclaw team next <name> --json` |
+| "How did Toulouse do?" / "Last result" | `rugbyclaw team last <name> --json` |
 | "Find team Racing" | `rugbyclaw team search <query> --json` |
 
 ### League Slugs
@@ -55,9 +67,10 @@ Use these CLI commands with `--json` for structured output:
 - `premiership` — English Premiership
 - `urc` — United Rugby Championship
 - `champions_cup` — Champions Cup
+- `challenge_cup` — Challenge Cup
 - `six_nations` — Six Nations
 - `super_rugby` — Super Rugby Pacific
-- `rugby_championship` — The Rugby Championship
+- `pro_d2` — Pro D2
 
 ## Response Style
 
@@ -116,6 +129,8 @@ Then:
 - If the user's timezone is known, prefer passing `--tz <IANA>` (example: `--tz America/New_York`) for consistent dates/times.
 - Prefer `scores --json`, `fixtures --json`, `results --json`, `team ... --json` for structured output.
 - Team search is scoped to Rugby Union teams in `effective_leagues` (to avoid irrelevant matches).
+- Run `rugbyclaw doctor --json` once before long workflows; if proxy/API checks fail, stop and surface the fix.
+- Treat `time_confidence: "pending"` as unconfirmed kickoff data and say so clearly.
 
 ## Examples
 
@@ -123,7 +138,7 @@ Then:
 **Agent:** Runs `rugbyclaw scores --json`, presents today's matches
 
 **User:** "When does Toulouse play next?"
-**Agent:** Runs `rugbyclaw team toulouse next --json`, presents next fixture
+**Agent:** Runs `rugbyclaw team next toulouse --json`, presents next fixture
 
 **User:** "How did Racing do?"
-**Agent:** Runs `rugbyclaw team racing last --json`, presents result with personality summary
+**Agent:** Runs `rugbyclaw team last racing --json`, presents result with personality summary
