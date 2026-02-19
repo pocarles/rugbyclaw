@@ -10,6 +10,7 @@
 
 ## Commands
 
+- [start](./commands/start.md) - Beginner setup (quick mode)
 - [config](./commands/config.md) - Setup wizard (free mode or API key)
 - [status](./commands/status.md) - Check mode/timezone/leagues
 - [doctor](./commands/doctor.md) - Diagnose proxy/API/config issues

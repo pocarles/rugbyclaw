@@ -15,6 +15,36 @@ import type { Config, Secrets, FavoriteTeam, Team } from '../types/index.js';
 interface ConfigOptions {
   json?: boolean;
   quiet?: boolean;
+  quick?: boolean;
+  guided?: boolean;
+}
+
+type SetupStyle = 'quick' | 'guided';
+type AccessMode = 'direct' | 'proxy';
+
+interface AccessModeResult {
+  provider: ApiSportsProvider;
+  mode: AccessMode;
+  savedApiKey: string | null;
+}
+
+function renderSetupIntro(): void {
+  console.log(chalk.bold('\n🏉  Rugbyclaw Setup'));
+  console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+  console.log(chalk.dim('No stress — quick setup first, guided setup when you need it.\n'));
+}
+
+function renderStep(step: string, subtitle: string): void {
+  console.log(chalk.bold.cyan(`◈ ${step}`));
+  console.log(chalk.dim(`${subtitle}\n`));
+}
+
+function renderTip(message: string): void {
+  console.log(chalk.magenta(`💡 ${message}`));
+}
+
+function renderDone(message: string): void {
+  console.log(chalk.green(`✓ ${message}`));
 }
 
 function getAllTimeZones(): string[] {
@@ -26,6 +56,51 @@ function getAllTimeZones(): string[] {
     }
   }
   return [];
+}
+
+function leagueLabel(slug: string): string {
+  const league = LEAGUES[slug];
+  return league ? `${league.name} (${league.country})` : slug;
+}
+
+function detectInitialSetup(config: Config, hasApiKey: boolean): boolean {
+  return !hasApiKey && config.favorite_leagues.length === 0 && config.favorite_teams.length === 0;
+}
+
+async function promptForSetupStyle(options: ConfigOptions, isFirstSetup: boolean): Promise<SetupStyle> {
+  if (options.quick && options.guided) {
+    return 'quick';
+  }
+  if (options.quick) return 'quick';
+  if (options.guided) return 'guided';
+
+  if (isFirstSetup) {
+    renderStep('Step 0: Setup style', 'First run detected — starting Quick setup automatically.');
+    return 'quick';
+  }
+
+  renderStep('Step 0: Setup style', 'Quick setup is best for most people. We can always tune things later.');
+
+  const { style } = await inquirer.prompt<{ style: SetupStyle }>([
+    {
+      type: 'list',
+      name: 'style',
+      message: 'How do you want to set up Rugbyclaw?',
+      default: isFirstSetup ? 'quick' : 'guided',
+      choices: [
+        {
+          name: 'Quick setup (recommended) — 30 seconds, free mode, default leagues',
+          value: 'quick',
+        },
+        {
+          name: 'Guided setup — choose mode, leagues, teams, timezone',
+          value: 'guided',
+        },
+      ],
+    },
+  ]);
+
+  return style;
 }
 
 async function promptForTimeZone(
@@ -41,7 +116,7 @@ async function promptForTimeZone(
     { name: 'South Africa — Africa/Johannesburg', value: 'Africa/Johannesburg' },
   ];
 
-  const featuredValues = new Set(featured.map((c) => c.value));
+  const featuredValues = new Set(featured.map((choice) => choice.value));
   const all = getAllTimeZones();
   const other = all.filter((tz) => !featuredValues.has(tz)).sort((a, b) => a.localeCompare(b));
 
@@ -52,7 +127,7 @@ async function promptForTimeZone(
   ];
 
   const preferred = existing && isValidTimeZone(existing) ? existing : detected;
-  const defaultValue = preferred && choices.some((c) => 'value' in c && c.value === preferred)
+  const defaultValue = preferred && choices.some((choice) => 'value' in choice && choice.value === preferred)
     ? preferred
     : featured[0].value;
 
@@ -70,102 +145,121 @@ async function promptForTimeZone(
   return timezone;
 }
 
-export async function configCommand(options: ConfigOptions): Promise<void> {
-  console.log(chalk.bold('\n🏉 Rugbyclaw Setup\n'));
+async function validateAndPersistApiKey(apiKeyInput: string): Promise<AccessModeResult> {
+  const apiKey = apiKeyInput.trim();
+  if (apiKey.length === 0) {
+    console.log(chalk.yellow('\nNo API key entered. Staying in free mode.\n'));
+    return {
+      provider: new ApiSportsProvider(),
+      mode: 'proxy',
+      savedApiKey: null,
+    };
+  }
 
-  const existingConfig = await loadConfig();
-  const existingSecrets = await loadSecrets();
+  console.log(chalk.dim('\nTesting API key...'));
+  const candidateProvider = new ApiSportsProvider(apiKey);
 
-  let provider: ApiSportsProvider;
-  let savedApiKey: string | null = null;
-  let mode: 'direct' | 'proxy' = 'proxy';
+  try {
+    await candidateProvider.getLeagueFixtures(LEAGUES.top14.id);
+    const secrets: Secrets = { api_key: apiKey, api_tier: 'premium' };
+    await saveSecrets(secrets);
+    console.log(chalk.green('✓ API key is valid — unlimited access enabled\n'));
+    return {
+      provider: candidateProvider,
+      mode: 'direct',
+      savedApiKey: apiKey,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.log(chalk.red(`✗ API key test failed: ${message}`));
+    console.log(chalk.yellow('Continuing with free mode (no API key).\n'));
+    return {
+      provider: new ApiSportsProvider(),
+      mode: 'proxy',
+      savedApiKey: null,
+    };
+  }
+}
 
-  // Step 1: Free mode by default (no API key required)
-  console.log(chalk.cyan('Step 1: Choose your mode'));
-  console.log(chalk.dim('Rugbyclaw works without an API key (free mode, limited requests).'));
-  console.log(chalk.dim('Add your own API key any time to unlock more leagues + higher limits.\n'));
+async function resolveAccessMode(existingSecrets: Secrets | null, setupStyle: SetupStyle): Promise<AccessModeResult> {
+  renderStep('Step 1: Access mode', 'Free mode is enough to get started. Add API key only if you need more leagues/limits.');
+
+  if (setupStyle === 'quick') {
+    if (existingSecrets?.api_key) {
+      renderTip('Quick setup keeps your saved API key.');
+      console.log('');
+      return {
+        provider: new ApiSportsProvider(existingSecrets.api_key),
+        mode: 'direct',
+        savedApiKey: existingSecrets.api_key,
+      };
+    }
+
+    renderTip('Quick setup uses free mode by default (no API key).');
+    console.log('');
+    return {
+      provider: new ApiSportsProvider(),
+      mode: 'proxy',
+      savedApiKey: null,
+    };
+  }
 
   if (existingSecrets?.api_key) {
     const { useSavedKey } = await inquirer.prompt<{ useSavedKey: boolean }>([
       {
         type: 'confirm',
         name: 'useSavedKey',
-        message: 'Use your saved API key for unlimited access?',
+        message: 'Use your saved API key?',
         default: true,
       },
     ]);
 
     if (useSavedKey) {
-      provider = new ApiSportsProvider(existingSecrets.api_key);
-      savedApiKey = existingSecrets.api_key;
-      mode = 'direct';
-    } else {
-      console.log(chalk.dim('\nUsing free mode (no API key).\n'));
-      provider = new ApiSportsProvider();
-      mode = 'proxy';
+      return {
+        provider: new ApiSportsProvider(existingSecrets.api_key),
+        mode: 'direct',
+        savedApiKey: existingSecrets.api_key,
+      };
     }
-  } else {
-    const { addKey } = await inquirer.prompt<{ addKey: boolean }>([
-      {
-        type: 'confirm',
-        name: 'addKey',
-        message: 'Add an API key now?',
-        default: false,
-      },
-    ]);
 
-    if (addKey) {
-      console.log(chalk.dim('Sign up: https://api-sports.io/rugby\n'));
-
-      const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        {
-          type: 'input',
-          name: 'apiKey',
-          message: 'API-Sports API key:',
-          default: '',
-        },
-      ]);
-
-      if (apiKey.trim().length === 0) {
-        console.log(chalk.yellow('\nNo API key entered. Using free mode.\n'));
-        provider = new ApiSportsProvider();
-        mode = 'proxy';
-      } else {
-        // Test the API key
-        console.log(chalk.dim('\nTesting API key...'));
-        const testProvider = new ApiSportsProvider(apiKey);
-
-        try {
-          await testProvider.getLeagueFixtures(LEAGUES.top14.id);
-          console.log(chalk.green('✓ API key is valid — unlimited access enabled\n'));
-
-          // Save secrets only after validation succeeds
-          const secrets: Secrets = { api_key: apiKey, api_tier: 'premium' };
-          await saveSecrets(secrets);
-          savedApiKey = apiKey;
-          provider = testProvider;
-          mode = 'direct';
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          console.log(chalk.red(`✗ API key test failed: ${message}`));
-          console.log(chalk.yellow('Continuing with free mode (no API key).\n'));
-
-          provider = new ApiSportsProvider();
-          mode = 'proxy';
-        }
-      }
-    } else {
-      console.log(chalk.dim('\nUsing free mode (no API key).\n'));
-      provider = new ApiSportsProvider();
-      mode = 'proxy';
-    }
   }
 
-  // Step 2: Favorite leagues
-  console.log(chalk.cyan('Step 2: Favorite Leagues'));
-  console.log(chalk.dim('Select the competitions you want to follow\n'));
+  const { addKeyNow } = await inquirer.prompt<{ addKeyNow: boolean }>([
+    {
+      type: 'confirm',
+      name: 'addKeyNow',
+      message: 'Add API key now? (optional)',
+      default: false,
+    },
+  ]);
 
-  // Pre-select defaults if no existing config
+  if (!addKeyNow) {
+    renderTip('Using free mode (no API key).');
+    console.log('');
+    return {
+      provider: new ApiSportsProvider(),
+      mode: 'proxy',
+      savedApiKey: null,
+    };
+  }
+
+  console.log(chalk.dim('Get a key: https://api-sports.io/rugby\n'));
+  const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
+    {
+      type: 'input',
+      name: 'apiKey',
+      message: 'API-Sports API key:',
+      default: '',
+    },
+  ]);
+
+  return validateAndPersistApiKey(apiKey);
+}
+
+function buildLeagueChoices(
+  mode: AccessMode,
+  existingConfig: Config
+): Array<{ name: string; value: string; checked: boolean }> {
   const availableLeagueSlugs = mode === 'direct'
     ? Object.keys(LEAGUES)
     : DEFAULT_PROXY_LEAGUES;
@@ -175,17 +269,40 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     : DEFAULT_PROXY_LEAGUES;
   const defaultChecked = defaultCheckedRaw.filter((slug) => availableLeagueSlugs.includes(slug));
 
-  if (mode === 'proxy') {
-    console.log(chalk.dim('Free mode leagues are limited. Add your own API key to unlock more.\n'));
-  }
-
-  const leagueChoices = Object.entries(LEAGUES)
+  return Object.entries(LEAGUES)
     .filter(([slug]) => availableLeagueSlugs.includes(slug))
     .map(([slug, league]) => ({
       name: `${league.name} (${league.country})`,
       value: slug,
       checked: defaultChecked.includes(slug),
     }));
+}
+
+async function promptForFavoriteLeagues(
+  mode: AccessMode,
+  existingConfig: Config,
+  setupStyle: SetupStyle
+): Promise<string[]> {
+  renderStep('Step 2: Favorite leagues', 'These decide what you see in scores and fixtures.');
+
+  if (mode === 'proxy') {
+    renderTip('Free mode uses the default league set.');
+    console.log('');
+  }
+
+  const leagueChoices = buildLeagueChoices(mode, existingConfig);
+  const recommended = leagueChoices.filter((choice) => choice.checked).map((choice) => choice.value);
+
+  if (setupStyle === 'quick') {
+    const quickDefault = (recommended.length > 0 ? recommended : DEFAULT_PROXY_LEAGUES)
+      .filter((slug) => leagueChoices.some((choice) => choice.value === slug));
+    const recommendedLabels = quickDefault
+      .map((slug) => leagueLabel(slug))
+      .join(', ');
+    renderDone(`Quick setup selects: ${chalk.cyan(recommendedLabels)}`);
+    console.log('');
+    return quickDefault;
+  }
 
   const { favoriteLeagues } = await inquirer.prompt<{ favoriteLeagues: string[] }>([
     {
@@ -193,17 +310,36 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
       name: 'favoriteLeagues',
       message: 'Select leagues:',
       choices: leagueChoices,
-      validate: (input: string[]) =>
-        input.length > 0 || 'Select at least one league',
+      validate: (input: string[]) => input.length > 0 || 'Select at least one league',
     },
   ]);
 
-  // Step 3: Favorite teams (per league selection)
-  console.log(chalk.cyan('\nStep 3: Favorite Teams (Optional)'));
-  console.log(chalk.dim('Select teams to follow for team-specific commands.\n'));
+  return favoriteLeagues;
+}
+
+async function promptForFavoriteTeams(
+  provider: ApiSportsProvider,
+  mode: AccessMode,
+  favoriteLeagues: string[],
+  existingConfig: Config,
+  setupStyle: SetupStyle
+): Promise<FavoriteTeam[]> {
+  renderStep('Step 3: Favorite teams (optional)', 'You can skip this now and still use Rugbyclaw normally.');
+
+  if (setupStyle === 'quick') {
+    if (existingConfig.favorite_teams.length > 0) {
+      renderDone(`Quick setup keeps your ${existingConfig.favorite_teams.length} existing favorite team(s).`);
+      console.log('');
+      return existingConfig.favorite_teams;
+    }
+
+    renderTip('Quick setup skips team picking for now.');
+    console.log(chalk.dim('Add teams anytime with "rugbyclaw config --guided".\n'));
+    return [];
+  }
 
   const favoriteTeams: FavoriteTeam[] = [];
-  const existingTeamIds = new Set(existingConfig.favorite_teams.map((t) => t.id));
+  const existingTeamIds = new Set(existingConfig.favorite_teams.map((team) => team.id));
 
   const { pickTeams } = await inquirer.prompt<{ pickTeams: boolean }>([
     {
@@ -215,14 +351,16 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   ]);
 
   if (!pickTeams) {
-    console.log(chalk.dim('\nSkipping team selection. You can run "rugbyclaw config" again any time.\n'));
+    console.log(chalk.dim('\nSkipping team selection. You can rerun setup anytime.\n'));
+    return favoriteTeams;
   }
 
   let warnedTeamPickerUnavailable = false;
 
   for (const leagueSlug of favoriteLeagues) {
-    if (!pickTeams) break;
     const league = LEAGUES[leagueSlug];
+    if (!league) continue;
+
     console.log(chalk.dim(`Loading ${league.name} teams...`));
 
     try {
@@ -233,13 +371,12 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
         continue;
       }
 
-      // Sort teams alphabetically
       teams.sort((a, b) => a.name.localeCompare(b.name));
 
-      const teamChoices = teams.map((t) => ({
-        name: t.name,
-        value: t,
-        checked: existingTeamIds.has(t.id),
+      const teamChoices = teams.map((team) => ({
+        name: team.name,
+        value: team,
+        checked: existingTeamIds.has(team.id),
       }));
 
       const { selectedTeams } = await inquirer.prompt<{ selectedTeams: Team[] }>([
@@ -253,25 +390,25 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
       ]);
 
       for (const team of selectedTeams) {
-        // Check if already added from another league
-        const existing = favoriteTeams.find((t) => t.id === team.id);
+        const existing = favoriteTeams.find((item) => item.id === team.id);
         if (existing) {
-          // Add this league to the team's leagueIds
           if (!existing.leagueIds.includes(league.id)) {
             existing.leagueIds.push(league.id);
           }
-        } else {
-          favoriteTeams.push({
-            id: team.id,
-            name: team.name,
-            slug: team.name.toLowerCase().replace(/\s+/g, '-'),
-            leagueIds: [league.id],
-          });
+          continue;
         }
+
+        favoriteTeams.push({
+          id: team.id,
+          name: team.name,
+          slug: team.name.toLowerCase().replace(/\s+/g, '-'),
+          leagueIds: [league.id],
+        });
       }
 
       if (selectedTeams.length > 0) {
-        console.log(chalk.green(`✓ Selected ${selectedTeams.length} team(s)\n`));
+        renderDone(`Selected ${selectedTeams.length} team(s)`);
+        console.log('');
       } else {
         console.log('');
       }
@@ -285,8 +422,8 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
         warnedTeamPickerUnavailable = true;
         console.log(chalk.yellow('Team picker is unavailable in free mode right now.'));
         console.log(chalk.dim('You can still:'));
-        console.log(chalk.dim('- Run "rugbyclaw team search <name>" later to find a team'));
-        console.log(chalk.dim('- Rerun "rugbyclaw config" and add your own API key for reliable team lists\n'));
+        console.log(chalk.dim('- Run "rugbyclaw team search <name>" later'));
+        console.log(chalk.dim('- Add your own API key later for stable team lists\n'));
         break;
       }
 
@@ -294,12 +431,52 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     }
   }
 
-  // Step 4: Timezone
+  return favoriteTeams;
+}
+
+async function promptForFinalTimeZone(existingTimezone: string, setupStyle: SetupStyle): Promise<string> {
+  renderStep('Step 4: Timezone', 'We use this to show dates/times correctly for you.');
+
   const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const preferredTimezone = isValidTimeZone(existingTimezone) ? existingTimezone : detectedTimezone;
 
-  const timezone = await promptForTimeZone(existingConfig.timezone, detectedTimezone);
+  if (setupStyle === 'quick') {
+    const { keepDetected } = await inquirer.prompt<{ keepDetected: boolean }>([
+      {
+        type: 'confirm',
+        name: 'keepDetected',
+        message: `Use ${preferredTimezone}?`,
+        default: true,
+      },
+    ]);
 
-  // Save config
+    if (keepDetected) {
+      return preferredTimezone;
+    }
+  }
+
+  return promptForTimeZone(existingTimezone, detectedTimezone);
+}
+
+export async function configCommand(options: ConfigOptions): Promise<void> {
+  renderSetupIntro();
+
+  const existingConfig = await loadConfig();
+  const existingSecrets = await loadSecrets();
+  const isFirstSetup = detectInitialSetup(existingConfig, Boolean(existingSecrets?.api_key));
+  const setupStyle = await promptForSetupStyle(options, isFirstSetup);
+
+  const access = await resolveAccessMode(existingSecrets, setupStyle);
+  const favoriteLeagues = await promptForFavoriteLeagues(access.mode, existingConfig, setupStyle);
+  const favoriteTeams = await promptForFavoriteTeams(
+    access.provider,
+    access.mode,
+    favoriteLeagues,
+    existingConfig,
+    setupStyle
+  );
+  const timezone = await promptForFinalTimeZone(existingConfig.timezone, setupStyle);
+
   const config: Config = {
     schema_version: 1,
     timezone,
@@ -309,35 +486,41 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
 
   await saveConfig(config);
 
-  // Summary
-  console.log(chalk.bold('\n✓ Configuration saved!\n'));
+  console.log(chalk.bold.green('\n✓ Configuration saved!\n'));
+  console.log(chalk.dim('Setup style:'), setupStyle === 'quick' ? chalk.green('Quick') : chalk.cyan('Guided'));
   console.log(
     chalk.dim('Mode:'),
-    mode === 'direct'
+    access.mode === 'direct'
       ? chalk.green('Unlimited (own API key)')
       : chalk.yellow('Free tier (50 req/day)')
   );
-  console.log(chalk.dim('Leagues:'), favoriteLeagues.join(', '));
-  console.log(chalk.dim('Teams:'), favoriteTeams.map((t) => t.name).join(', ') || 'None');
-  console.log(chalk.dim('Timezone:'), timezone);
+  console.log(chalk.dim('Leagues:'), chalk.cyan(favoriteLeagues.join(', ')));
+  console.log(chalk.dim('Teams:'), favoriteTeams.length > 0 ? chalk.cyan(favoriteTeams.map((team) => team.name).join(', ')) : chalk.dim('None'));
+  console.log(chalk.dim('Timezone:'), chalk.cyan(timezone));
   console.log('');
 
   if (!options.quiet) {
-    console.log(chalk.cyan('Next steps:'));
-    console.log(`  ${chalk.white('rugbyclaw status')}            Verify your setup`);
-    console.log(`  ${chalk.white('rugbyclaw scores')}            Today’s matches`);
-    console.log(`  ${chalk.white('rugbyclaw fixtures')}          Upcoming fixtures`);
-    console.log(`  ${chalk.white('rugbyclaw team search <name>')} Find a team`);
-    console.log(`  ${chalk.white('rugbyclaw notify --live')}     Live updates (polling)`);
+    console.log(chalk.bold.cyan('Try these commands next (in order):'));
+    console.log(`  ${chalk.white('1) rugbyclaw status')}                Confirm your setup`);
+    console.log(`  ${chalk.white('2) rugbyclaw scores --explain')}      Today + why empty if needed`);
+    console.log(`  ${chalk.white('3) rugbyclaw fixtures')}              Upcoming matches`);
+    console.log(`  ${chalk.white('4) rugbyclaw team search toulouse')}  Find a team`);
+    console.log(`  ${chalk.white('5) rugbyclaw doctor')}                Full health check`);
     console.log('');
-    console.log(chalk.dim('For OpenClaw/automation, prefer JSON output: add --json to commands.'));
+    console.log(chalk.dim('Need extra help? Run "rugbyclaw config --guided" for full setup.'));
+    console.log(chalk.dim('Need automation/OpenClaw? Add --json to commands for machine-readable output.'));
     console.log('');
   }
 
   if (options.json) {
     console.log(
       JSON.stringify(
-        { config, mode, api_key_saved: Boolean(savedApiKey) },
+        {
+          config,
+          mode: access.mode,
+          api_key_saved: Boolean(access.savedApiKey),
+          setup_style: setupStyle,
+        },
         null,
         2
       )

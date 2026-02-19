@@ -37,17 +37,21 @@ function isFirstRun(): boolean {
 function showWelcome(): void {
   console.log('');
   console.log(chalk.bold.green('Welcome to Rugbyclaw!'));
+  console.log(chalk.cyan('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   console.log('');
   console.log('Rugby scores, fixtures, and results from your terminal.');
   console.log(chalk.dim('Works out of the box — no API key required (free mode).'));
   console.log('');
-  console.log(chalk.cyan('Try it now:'));
+  console.log(chalk.bold.cyan('Best next step:'));
+  console.log(`  ${chalk.black.bgCyan(' rugbyclaw start ')}  ${chalk.dim('30-second setup (recommended)')}`);
+  console.log('');
+  console.log(chalk.bold.cyan('Or try it now:'));
   console.log(`  ${chalk.white('rugbyclaw fixtures')}   Upcoming matches`);
   console.log(`  ${chalk.white('rugbyclaw results')}    Recent results`);
   console.log(`  ${chalk.white('rugbyclaw scores')}     Today's live scores`);
   console.log('');
   console.log(chalk.dim('Free mode leagues: Top 14, Premiership, URC, Champions Cup, Six Nations'));
-  console.log(chalk.dim('Run "rugbyclaw config" to set your timezone and favorites (still no API key needed).'));
+  console.log(chalk.dim('Run "rugbyclaw start" for quick setup, or "rugbyclaw config --guided" for full control.'));
   console.log(chalk.dim('Run "rugbyclaw status" to verify setup.'));
   console.log('');
 }
@@ -96,12 +100,34 @@ ${chalk.cyan('Examples:')}
     await doctorCommand(program.opts());
   });
 
+// Start command (beginner-first onboarding)
+program
+  .command('start')
+  .description('Beginner setup (fast, free mode by default)')
+  .addHelpText('after', `
+${chalk.cyan('Examples:')}
+  ${chalk.white('rugbyclaw start')}             Quick setup (recommended)
+  ${chalk.white('rugbyclaw start --guided')}    Full guided setup
+`)
+  .option('--guided', 'Use full guided setup instead of quick mode')
+  .action(async (options) => {
+    const base = program.opts();
+    await configCommand({ ...base, ...options, quick: !options.guided, guided: Boolean(options.guided) });
+  });
+
 // Config command
 program
   .command('config')
   .description('Customize leagues, teams, or add your own API key')
-  .action(async () => {
-    await configCommand(program.opts());
+  .addHelpText('after', `
+${chalk.cyan('Examples:')}
+  ${chalk.white('rugbyclaw config --quick')}     Fast setup with fewer prompts
+  ${chalk.white('rugbyclaw config --guided')}    Full setup (mode/leagues/teams/timezone)
+`)
+  .option('--quick', 'Force quick setup (fewer prompts)')
+  .option('--guided', 'Force full guided setup')
+  .action(async (options) => {
+    await configCommand({ ...program.opts(), ...options });
   });
 
 // Scores command

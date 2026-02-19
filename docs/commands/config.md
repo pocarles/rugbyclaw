@@ -3,7 +3,7 @@ title: rugbyclaw config
 description: Interactive setup wizard (free mode or API key)
 category: commands
 tags: [config, setup, preferences]
-updated: 2026-02-05
+updated: 2026-02-19
 ---
 
 # rugbyclaw config
@@ -22,6 +22,8 @@ rugbyclaw config [options]
 |--------|-------------|---------|
 | `--json` | Output as JSON | false |
 | `--quiet` | Minimal output | false |
+| `--quick` | Force quick setup (few prompts) | false |
+| `--guided` | Force full guided setup | false |
 
 ## What it configures
 
@@ -29,6 +31,15 @@ rugbyclaw config [options]
 - Favorite leagues
 - (Optional) favorite teams
 - Timezone (used for displaying match times; selected from a menu)
+
+## Quick vs Guided
+
+- Quick mode (`rugbyclaw start` or `rugbyclaw config --quick`) is beginner-first:
+  - Free mode by default
+  - Recommended leagues auto-selected
+  - Team selection skipped
+  - Timezone confirmation
+- Guided mode (`rugbyclaw config --guided`) lets you choose every detail.
 
 ## Files written
 

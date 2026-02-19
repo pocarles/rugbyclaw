@@ -3,7 +3,7 @@ title: Getting Started
 description: Install RugbyClaw and start using it in 30 seconds
 category: getting-started
 tags: [setup, installation, quickstart]
-updated: 2026-02-02
+updated: 2026-02-19
 ---
 
 # Getting Started with RugbyClaw
@@ -71,19 +71,25 @@ RugbyClaw works in two modes:
 - Unlock more leagues
 - For power users who check scores daily
 
-## Recommended: Configure (Free or Direct)
+## Recommended: Start (Beginner Setup)
 
 Run:
 
 ```bash
-rugbyclaw config
+rugbyclaw start
 ```
 
-You'll be asked to:
-1. Choose free mode (default) or add an API key (optional)
-2. Select favorite leagues (free mode is limited to default leagues)
-3. (Optional) add favorite teams
-4. Set your timezone
+Quick setup keeps prompts minimal:
+1. Uses free mode by default
+2. Applies recommended leagues
+3. Skips optional team picking
+4. Confirms your timezone
+
+Need full control? Run:
+
+```bash
+rugbyclaw config --guided
+```
 
 Verify your setup any time:
 
@@ -101,10 +107,10 @@ rugbyclaw status --json
 ## Troubleshooting
 
 **"Rate limit exceeded"?**
-→ You've used your 50 daily requests. Run `rugbyclaw config` to add your own API key for unlimited access.
+→ You've used your 50 daily requests. Run `rugbyclaw config --guided` to add your own API key for unlimited access.
 
 **Want more leagues?**
-→ Add your own API key via `rugbyclaw config`
+→ Add your own API key via `rugbyclaw config --guided`
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-19*

@@ -62,7 +62,7 @@ rugbyclaw doctor
 
 **Solution:**
 1. Get new key from [api-sports.io](https://api-sports.io)
-2. Run `rugbyclaw config` again
+2. Run `rugbyclaw config --guided` again
 3. Enter the new key
 
 ### Can't find config file
@@ -72,7 +72,7 @@ rugbyclaw doctor
 **To reset:**
 ```bash
 rm ~/.config/rugbyclaw/config.json
-rugbyclaw config
+rugbyclaw start
 ```
 
 ## API Errors
@@ -158,7 +158,7 @@ rugbyclaw scores --no-color
 rugbyclaw status
 
 # Set your preferred timezone (saved)
-rugbyclaw config
+rugbyclaw start
 # Select correct timezone in wizard
 
 # Or override for one command (useful for automation/agents)

@@ -29,8 +29,8 @@ npm install -g rugbyclaw
 ## Quick Start
 
 ```bash
-# Configure your preferences
-rugbyclaw config
+# Beginner setup (recommended)
+rugbyclaw start
 
 # Check today's scores
 rugbyclaw scores
@@ -47,7 +47,15 @@ rugbyclaw results champions_cup
 
 ## Setup
 
-Run `rugbyclaw config` to configure your preferences:
+Run `rugbyclaw start` for the fastest setup:
+- No API key required (free mode)
+- Uses recommended leagues automatically
+- Skips optional team picking
+- Confirms timezone from a menu
+
+Need full control? Run `rugbyclaw config --guided`.
+
+`rugbyclaw config` also supports advanced setup:
 - No API key required (free mode uses a proxy with limits)
 - (Optional) add your API-Sports Rugby API key (get yours at [api-sports.io](https://api-sports.io))
 - Select favorite leagues (free mode is limited to default leagues)
@@ -63,6 +71,17 @@ rugbyclaw --tz America/New_York fixtures
 API key is stored securely in `~/.config/rugbyclaw/secrets.json` (mode 600).
 
 ## Commands
+
+### `rugbyclaw start`
+
+Beginner-first setup wizard:
+- Quick mode by default (few prompts)
+- Use `--guided` for full customization
+
+```bash
+rugbyclaw start
+rugbyclaw start --guided
+```
 
 ### `rugbyclaw config`
 
