@@ -165,6 +165,19 @@ rugbyclaw config
 rugbyclaw --tz America/New_York fixtures
 ```
 
+### "No matches today"
+
+**Problem:** `rugbyclaw scores` returns no matches and you want to know why.
+
+**Solution:**
+```bash
+rugbyclaw scores --explain
+rugbyclaw doctor
+```
+
+`--explain` prints timezone/date/leagues context for the query.  
+`doctor` adds per-league API result counts for today.
+
 ### Fixtures show "Coming Soon"
 
 **Problem:** API-Sports sometimes publishes placeholder kickoff date/time values for upcoming fixtures until closer to match day.

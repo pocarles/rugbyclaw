@@ -1,7 +1,17 @@
 import chalk from 'chalk';
 import { createRequire } from 'node:module';
-import { getConfigDir, getEffectiveTimeZone, isValidTimeZone, loadConfig, loadSecrets } from '../lib/config.js';
+import {
+  DEFAULT_PROXY_LEAGUES,
+  getConfigDir,
+  getEffectiveLeagues,
+  getEffectiveTimeZone,
+  isValidTimeZone,
+  loadConfig,
+  loadSecrets,
+} from '../lib/config.js';
 import { API_SPORTS_BASE_URL, PROXY_URL } from '../lib/providers/apisports.js';
+import { LEAGUES } from '../lib/leagues.js';
+import { getTodayYMD } from '../lib/datetime.js';
 
 interface DoctorOptions {
   json?: boolean;
@@ -14,6 +24,24 @@ type CheckResult = {
   status?: number;
   error?: string;
   details?: unknown;
+};
+
+type LeagueProbe = {
+  slug: string;
+  id: string;
+  name: string;
+  results: number;
+  ok: boolean;
+  status?: number;
+  error?: string;
+};
+
+type ScoresProbe = {
+  mode: 'proxy' | 'direct';
+  timezone: string;
+  date_queried: string;
+  leagues: LeagueProbe[];
+  total_results: number;
 };
 
 function formatMs(ms?: number): string {
@@ -106,6 +134,71 @@ function pickApiSportsSampleSeason(): number {
   return new Date().getFullYear();
 }
 
+async function runScoresProbe(
+  mode: 'proxy' | 'direct',
+  timeZone: string,
+  leagueSlugs: string[],
+  apiKey?: string
+): Promise<ScoresProbe> {
+  const dateYmd = getTodayYMD(timeZone);
+  const baseUrl = mode === 'proxy' ? PROXY_URL : API_SPORTS_BASE_URL;
+  const headers = mode === 'direct' && apiKey ? { 'x-apisports-key': apiKey } : undefined;
+
+  const leagues = leagueSlugs
+    .map((slug) => ({ slug, id: LEAGUES[slug]?.id, name: LEAGUES[slug]?.name }))
+    .filter((league): league is { slug: string; id: string; name: string } => Boolean(league.id && league.name));
+
+  const probeResults: LeagueProbe[] = [];
+
+  for (const league of leagues) {
+    const result = await fetchJsonWithTimeout(
+      `${baseUrl}/games?league=${league.id}&date=${dateYmd}`,
+      { headers }
+    );
+
+    if ('error' in result) {
+      probeResults.push({
+        ...league,
+        results: 0,
+        ok: false,
+        error: result.error,
+      });
+      continue;
+    }
+
+    const validated = validateApiSportsEnvelope(result);
+    if (!validated.ok) {
+      probeResults.push({
+        ...league,
+        results: 0,
+        ok: false,
+        status: result.status,
+        error: validated.error || 'invalid response',
+      });
+      continue;
+    }
+
+    const json = asObject(result.json);
+    const count = typeof json?.results === 'number' ? json.results : 0;
+
+    probeResults.push({
+      ...league,
+      results: count,
+      ok: true,
+      status: result.status,
+    });
+  }
+
+  const totalResults = probeResults.reduce((sum, item) => sum + item.results, 0);
+  return {
+    mode,
+    timezone: timeZone,
+    date_queried: dateYmd,
+    leagues: probeResults,
+    total_results: totalResults,
+  };
+}
+
 export async function doctorCommand(options: DoctorOptions): Promise<void> {
   const require = createRequire(import.meta.url);
   const pkg = require('../../package.json') as { version?: string };
@@ -116,6 +209,7 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
   const hasApiKey = Boolean(secrets?.api_key);
   const mode: 'direct' | 'proxy' = hasApiKey ? 'direct' : 'proxy';
   const timeZone = getEffectiveTimeZone(config);
+  const effectiveLeagueSlugs = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
 
   const checks: Record<string, CheckResult> = {};
 
@@ -144,8 +238,20 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
     checks.api_direct = validateApiSportsEnvelope(directRes);
   }
 
+  const scoresProbeStart = Date.now();
+  const scoresProbe = await runScoresProbe(mode, timeZone, effectiveLeagueSlugs, secrets?.api_key);
+  const scoresProbeErrors = scoresProbe.leagues.filter((league) => !league.ok);
+  checks.scores_probe = {
+    ok: scoresProbeErrors.length === 0,
+    ms: Date.now() - scoresProbeStart,
+    details: scoresProbe,
+    error: scoresProbeErrors.length > 0
+      ? `failed for ${scoresProbeErrors.length}/${scoresProbe.leagues.length} leagues`
+      : undefined,
+  };
+
   const proxyCoreOk = checks.proxy_health.ok && checks.proxy_sample.ok;
-  const directOk = hasApiKey ? Boolean(checks.api_direct?.ok) : true;
+  const directOk = hasApiKey ? Boolean(checks.api_direct?.ok) && checks.scores_probe.ok : checks.scores_probe.ok;
   const ok = mode === 'proxy' ? proxyCoreOk : directOk;
 
   const output = {
@@ -159,6 +265,7 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
     proxy_url: PROXY_URL,
     proxy_url_override: process.env.RUGBYCLAW_PROXY_URL || null,
     checks,
+    scores_probe: scoresProbe,
     generated_at: new Date().toISOString(),
   };
 
@@ -194,6 +301,20 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
     lines.push(formatCheck('API-Sports direct (leagues)', checks.api_direct));
   } else {
     lines.push(chalk.dim('- API-Sports direct skipped (no API key)'));
+  }
+  lines.push(formatCheck('Scores probe (today by league)', checks.scores_probe));
+  lines.push('');
+  lines.push(chalk.bold('Scores probe details'));
+  lines.push(`${chalk.dim('Timezone used:')} ${scoresProbe.timezone}`);
+  lines.push(`${chalk.dim('Date queried:')} ${scoresProbe.date_queried}`);
+  lines.push(`${chalk.dim('Leagues queried:')} ${scoresProbe.leagues.length > 0 ? scoresProbe.leagues.map((league) => `${league.slug}(${league.id})`).join(', ') : 'none'}`);
+  lines.push(`${chalk.dim('Total API results:')} ${scoresProbe.total_results}`);
+  for (const league of scoresProbe.leagues) {
+    const statusPart = league.ok ? chalk.green('ok') : chalk.red('fail');
+    const details = league.ok
+      ? `${league.results} results`
+      : `${league.error ?? 'error'}${league.status ? ` [${league.status}]` : ''}`;
+    lines.push(chalk.dim(`- ${league.name}: ${statusPart} (${details})`));
   }
 
   if (!checks.proxy_status.ok && checks.proxy_health.ok) {

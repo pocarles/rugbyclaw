@@ -108,10 +108,12 @@ program
 program
   .command('scores')
   .description("Today's matches across favorite leagues")
+  .option('--explain', 'Explain why output is empty')
   .addHelpText('after', `
 ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw scores')}              Live scores from your leagues
   ${chalk.white('rugbyclaw scores --json')}       Output as JSON
+  ${chalk.white('rugbyclaw scores --explain')}    Show context if empty
 `)
   .action(async () => {
     await scoresCommand(program.opts());
@@ -124,6 +126,7 @@ program
   .option('-n, --limit <number>', 'Number of matches to show', '15')
   .option('--ics', 'Export fixtures to .ics calendar file')
   .option('--show-ids', 'Show match IDs for calendar export')
+  .option('--explain', 'Explain why output is empty')
   .addHelpText('after', `
 ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw fixtures')}            All your favorite leagues
@@ -131,6 +134,7 @@ ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw fixtures -n 5')}       Next 5 matches
   ${chalk.white('rugbyclaw fixtures --ics')}      Export to calendar file
   ${chalk.white('rugbyclaw fixtures --show-ids')} Show match IDs for export
+  ${chalk.white('rugbyclaw fixtures --explain')}  Show context if empty
 
 ${chalk.cyan('Available leagues:')}
   top14, premiership, urc, pro_d2, super_rugby,

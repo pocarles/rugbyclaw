@@ -8,6 +8,7 @@ import {
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
+import { getScoresNoMatchesExplanation } from '../lib/explain.js';
 import { renderScores, matchToOutput, renderError } from '../render/terminal.js';
 import type { ScoresOutput } from '../types/index.js';
 import { getTodayYMD } from '../lib/datetime.js';
@@ -15,6 +16,7 @@ import { getTodayYMD } from '../lib/datetime.js';
 interface ScoresOptions {
   json?: boolean;
   quiet?: boolean;
+  explain?: boolean;
 }
 
 export async function scoresCommand(options: ScoresOptions): Promise<void> {
@@ -27,6 +29,9 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
 
   // Get effective leagues (user's favorites or defaults)
   const favoriteLeagues = secrets?.api_key ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+  const selectedLeagues = favoriteLeagues
+    .map((slug) => ({ slug, id: LEAGUES[slug]?.id, name: LEAGUES[slug]?.name }))
+    .filter((league): league is { slug: string; id: string; name: string } => Boolean(league.id && league.name));
   const leagueIds = favoriteLeagues
     .map((slug) => LEAGUES[slug]?.id)
     .filter(Boolean) as string[];
@@ -48,6 +53,19 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
       console.log(renderScores(output));
+      if (options.explain) {
+        const explanation = getScoresNoMatchesExplanation({
+          mode: hasApiKey ? 'direct' : 'proxy',
+          timeZone,
+          dateYmd,
+          leagues: selectedLeagues,
+          matchCount: output.matches.length,
+        });
+        if (explanation.length > 0) {
+          console.log('');
+          for (const line of explanation) console.log(line);
+        }
+      }
       const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
     }

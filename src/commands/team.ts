@@ -9,6 +9,7 @@ import {
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { normalizeText, similarityScore } from '../lib/fuzzy.js';
+import { getTeamQueryCandidates } from '../lib/team-aliases.js';
 import {
   renderMatch,
   renderTeamSearch,
@@ -160,6 +161,17 @@ function pickBestTeamId(
   return undefined;
 }
 
+function pickBestTeamIdFromQueries(
+  queries: string[],
+  candidates: Array<{ id: string; name: string }>
+): string | undefined {
+  for (const query of queries) {
+    const teamId = pickBestTeamId(query, candidates);
+    if (teamId) return teamId;
+  }
+  return undefined;
+}
+
 function isWomenTeamName(name: string): boolean {
   const n = normalizeText(name);
   if (n.includes(' women') || n.includes(" women's")) return true;
@@ -182,11 +194,15 @@ async function handleSearch(
     teams = await getTeamsFromLeagueResults(provider, leagueIds);
   }
 
+  const queryCandidates = getTeamQueryCandidates(query);
   const queryNorm = normalizeText(query);
   const wantsWomen = /\b(w|women|womens|women's)\b/.test(queryNorm);
 
   const ranked = Array.from(teams.values())
-    .map((t) => ({ team: t, score: similarityScore(query, t.name) }))
+    .map((team) => ({
+      team,
+      score: Math.max(...queryCandidates.map((candidate) => similarityScore(candidate, team.name))),
+    }))
     .filter((r) => wantsWomen || !isWomenTeamName(r.team.name))
     .filter((r) => r.score >= 0.55)
     .sort((a, b) => b.score - a.score)
@@ -219,12 +235,14 @@ async function handleNext(
   leagueIds: string[],
   options: TeamOptions
 ): Promise<void> {
+  const queryCandidates = getTeamQueryCandidates(nameOrId);
+
   // First try to find team in favorites
   let teamId = config.favorite_teams.find(
     (t) =>
-      t.id === nameOrId ||
-      t.name.toLowerCase().includes(nameOrId.toLowerCase()) ||
-      t.slug.includes(nameOrId.toLowerCase())
+      queryCandidates.some((candidate) => t.id === candidate) ||
+      queryCandidates.some((candidate) => t.name.toLowerCase().includes(candidate.toLowerCase())) ||
+      queryCandidates.some((candidate) => t.slug.includes(candidate.toLowerCase()))
   )?.id;
 
   // Get effective leagues (user's favorites or defaults)
@@ -241,15 +259,13 @@ async function handleNext(
 
   // If not in favorites, first try to match team name in fixtures
   if (!teamId) {
-    const searchLower = nameOrId.toLowerCase();
-
     // Find team in fixtures by partial name match
     for (const match of allLeagueFixtures) {
-      if (match.homeTeam.name.toLowerCase().includes(searchLower)) {
+      if (queryCandidates.some((candidate) => match.homeTeam.name.toLowerCase().includes(candidate.toLowerCase()))) {
         teamId = match.homeTeam.id;
         break;
       }
-      if (match.awayTeam.name.toLowerCase().includes(searchLower)) {
+      if (queryCandidates.some((candidate) => match.awayTeam.name.toLowerCase().includes(candidate.toLowerCase()))) {
         teamId = match.awayTeam.id;
         break;
       }
@@ -265,20 +281,24 @@ async function handleNext(
       matchCandidates.set(m.awayTeam.id, { id: m.awayTeam.id, name: m.awayTeam.name });
     }
 
-    teamId = pickBestTeamId(nameOrId, Array.from(matchCandidates.values()));
+    teamId = pickBestTeamIdFromQueries(queryCandidates, Array.from(matchCandidates.values()));
 
     // Then try fuzzy match against league teams.
     if (!teamId) {
       const teamsMap = await getLeagueTeams(provider, leagueIds);
-      teamId = pickBestTeamId(
-        nameOrId,
+      teamId = pickBestTeamIdFromQueries(
+        queryCandidates,
         Array.from(teamsMap.values()).map((t) => ({ id: t.id, name: t.name }))
       );
     }
 
     // Finally, fall back to API search.
     if (!teamId) {
-      const searchResults = await provider.searchTeams(nameOrId);
+      let searchResults: Team[] = [];
+      for (const candidate of queryCandidates) {
+        searchResults = await provider.searchTeams(candidate);
+        if (searchResults.length > 0) break;
+      }
       if (searchResults.length === 0) {
         console.log(renderWarning(`No team found for "${nameOrId}"`));
         process.exit(0);
@@ -345,12 +365,14 @@ async function handleLast(
   leagueIds: string[],
   options: TeamOptions
 ): Promise<void> {
+  const queryCandidates = getTeamQueryCandidates(nameOrId);
+
   // First try to find team in favorites
   let teamId = config.favorite_teams.find(
     (t) =>
-      t.id === nameOrId ||
-      t.name.toLowerCase().includes(nameOrId.toLowerCase()) ||
-      t.slug.includes(nameOrId.toLowerCase())
+      queryCandidates.some((candidate) => t.id === candidate) ||
+      queryCandidates.some((candidate) => t.name.toLowerCase().includes(candidate.toLowerCase())) ||
+      queryCandidates.some((candidate) => t.slug.includes(candidate.toLowerCase()))
   )?.id;
 
   // Get effective leagues (user's favorites or defaults)
@@ -367,15 +389,13 @@ async function handleLast(
 
   // If not in favorites, first try to match team name in results
   if (!teamId) {
-    const searchLower = nameOrId.toLowerCase();
-
     // Find team in results by partial name match
     for (const match of allLeagueResults) {
-      if (match.homeTeam.name.toLowerCase().includes(searchLower)) {
+      if (queryCandidates.some((candidate) => match.homeTeam.name.toLowerCase().includes(candidate.toLowerCase()))) {
         teamId = match.homeTeam.id;
         break;
       }
-      if (match.awayTeam.name.toLowerCase().includes(searchLower)) {
+      if (queryCandidates.some((candidate) => match.awayTeam.name.toLowerCase().includes(candidate.toLowerCase()))) {
         teamId = match.awayTeam.id;
         break;
       }
@@ -391,20 +411,24 @@ async function handleLast(
       matchCandidates.set(m.awayTeam.id, { id: m.awayTeam.id, name: m.awayTeam.name });
     }
 
-    teamId = pickBestTeamId(nameOrId, Array.from(matchCandidates.values()));
+    teamId = pickBestTeamIdFromQueries(queryCandidates, Array.from(matchCandidates.values()));
 
     // Then try fuzzy match against league teams.
     if (!teamId) {
       const teamsMap = await getLeagueTeams(provider, leagueIds);
-      teamId = pickBestTeamId(
-        nameOrId,
+      teamId = pickBestTeamIdFromQueries(
+        queryCandidates,
         Array.from(teamsMap.values()).map((t) => ({ id: t.id, name: t.name }))
       );
     }
 
     // Finally, fall back to API search.
     if (!teamId) {
-      const searchResults = await provider.searchTeams(nameOrId);
+      let searchResults: Team[] = [];
+      for (const candidate of queryCandidates) {
+        searchResults = await provider.searchTeams(candidate);
+        if (searchResults.length > 0) break;
+      }
       if (searchResults.length === 0) {
         console.log(renderWarning(`No team found for "${nameOrId}"`));
         process.exit(0);

@@ -9,6 +9,7 @@ import {
 import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
+import { getFixturesNoMatchesExplanation } from '../lib/explain.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
 import { matchesToICS } from '../lib/ics.js';
 import type { FixturesOutput, Match } from '../types/index.js';
@@ -19,6 +20,7 @@ interface FixturesOptions {
   limit?: string;
   ics?: boolean;
   showIds?: boolean;
+  explain?: boolean;
 }
 
 export async function fixturesCommand(
@@ -35,6 +37,7 @@ export async function fixturesCommand(
 
   let matches: Match[] = [];
   let leagueName: string | undefined;
+  let selectedLeagues: Array<{ slug: string; id: string; name: string }> = [];
 
   try {
     if (leagueInput) {
@@ -54,10 +57,14 @@ export async function fixturesCommand(
       }
 
       leagueName = league.name;
+      selectedLeagues = [{ slug: league.slug, id: league.id, name: league.name }];
       matches = await provider.getLeagueFixtures(league.id);
     } else {
       // Get effective leagues (user's favorites or defaults)
       const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+      selectedLeagues = favoriteLeagues
+        .map((slug) => ({ slug, id: LEAGUES[slug]?.id, name: LEAGUES[slug]?.name }))
+        .filter((league): league is { slug: string; id: string; name: string } => Boolean(league.id && league.name));
       const leagueIds = favoriteLeagues
         .map((slug) => LEAGUES[slug]?.id)
         .filter(Boolean) as string[];
@@ -105,6 +112,19 @@ export async function fixturesCommand(
       console.log(JSON.stringify(output, null, 2));
     } else if (!options.quiet) {
       console.log(renderFixtures(output, options.showIds, timeZone));
+      if (options.explain) {
+        const explanation = getFixturesNoMatchesExplanation({
+          mode: hasApiKey ? 'direct' : 'proxy',
+          timeZone,
+          leagues: selectedLeagues,
+          matchCount: output.matches.length,
+          limit,
+        });
+        if (explanation.length > 0) {
+          console.log('');
+          for (const line of explanation) console.log(line);
+        }
+      }
       const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
     }

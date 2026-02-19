@@ -29,6 +29,7 @@ rugbyclaw fixtures [options] [league]
 | `-n, --limit <number>` | Number of matches to show | 15 |
 | `--ics` | Export to .ics calendar file | false |
 | `--show-ids` | Show match IDs for calendar export | false |
+| `--explain` | Explain empty output context | false |
 | `--json` | Output as JSON | false |
 
 ## Examples
@@ -74,6 +75,14 @@ rugbyclaw fixtures --show-ids
 ```
 
 Displays match IDs (useful for `rugbyclaw calendar <id>`).
+
+### Explain empty output
+
+```bash
+rugbyclaw fixtures --explain
+```
+
+When no fixtures are returned, Rugbyclaw prints mode, timezone, queried leagues, and limit.
 
 ## Supported Leagues
 

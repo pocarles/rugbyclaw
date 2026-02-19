@@ -193,6 +193,32 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.ci.toml
 
+      - name: Smoke test proxy API envelope
+        run: |
+          set -euo pipefail
+
+          PROXY_URL="https://rugbyclaw-proxy.pocarles.workers.dev"
+          SEASON="$(date -u +%Y)"
+
+          echo "Checking ${PROXY_URL}/health"
+          curl -fsS "${PROXY_URL}/health" | jq -e '.status == "ok"' >/dev/null
+
+          echo "Checking ${PROXY_URL}/status"
+          curl -fsS "${PROXY_URL}/status" | jq -e '
+            .status == "ok"
+            and (.rate_limit.day.limit | type == "number")
+            and (.rate_limit.minute.limit | type == "number")
+          ' >/dev/null
+
+          echo "Checking ${PROXY_URL}/games?league=51&season=${SEASON}"
+          curl -fsS "${PROXY_URL}/games?league=51&season=${SEASON}" | jq -e '
+            has("results")
+            and has("response")
+            and has("errors")
+            and (.results | type == "number")
+            and (.response | type == "array")
+          ' >/dev/null
+
       - name: Show deployment status
         working-directory: worker
         env:

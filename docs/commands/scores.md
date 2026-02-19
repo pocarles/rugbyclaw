@@ -3,7 +3,7 @@ title: rugbyclaw scores
 description: Show today's matches across your favorite leagues
 category: commands
 tags: [scores, live, matches]
-updated: 2026-02-02
+updated: 2026-02-19
 ---
 
 # rugbyclaw scores
@@ -22,6 +22,7 @@ rugbyclaw scores [options]
 |--------|-------------|---------|
 | `--json` | Output as JSON | false |
 | `--quiet` | Minimal output | false |
+| `--explain` | Explain empty output context | false |
 
 ## Examples
 
@@ -52,6 +53,19 @@ rugbyclaw scores --json
 
 Returns structured JSON for scripts/automation.
 
+### Explain empty output
+
+```bash
+rugbyclaw scores --explain
+```
+
+When no matches are returned, Rugbyclaw prints:
+- Mode used (free proxy or direct API key)
+- Timezone used
+- Date queried
+- Leagues queried
+- Next diagnostic step (`rugbyclaw doctor`)
+
 ## How It Works
 
 - Shows matches happening today
@@ -73,4 +87,4 @@ Returns structured JSON for scripts/automation.
 - [results](./results.md) - Recent results
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-19*

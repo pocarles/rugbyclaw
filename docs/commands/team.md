@@ -3,7 +3,7 @@ title: rugbyclaw team
 description: Query specific teams - search, next match, last result
 category: commands
 tags: [team, search, tracking]
-updated: 2026-02-02
+updated: 2026-02-19
 ---
 
 # rugbyclaw team
@@ -91,6 +91,7 @@ Racing never looked like competing.
   - If you added an API key: your configured leagues
   - In free mode: default leagues only
 - Use partial names: `toulouse` matches `Stade Toulousain`
+- Common aliases are supported (examples: `usap` → `USA Perpignan`, `la rochelle` → `Stade Rochelais`)
 - Search first if unsure of exact name
 - Add `--ics` to next matches to sync to calendar
 - Team names are case-insensitive
@@ -113,4 +114,4 @@ Racing never looked like competing.
 - [calendar](./calendar.md) - Export to calendar
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-19*
