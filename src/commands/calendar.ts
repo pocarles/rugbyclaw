@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { lstat, writeFile } from 'node:fs/promises';
 import { loadSecrets } from '../lib/config.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { matchToICS } from '../lib/ics.js';
@@ -9,12 +9,45 @@ interface CalendarOptions {
   quiet?: boolean;
   stdout?: boolean;
   out?: string;
+  force?: boolean;
+}
+
+function exitWithError(message: string, options: CalendarOptions): never {
+  if (options.json) {
+    console.log(JSON.stringify({ error: message }, null, 2));
+  } else {
+    console.log(renderError(message));
+  }
+  process.exit(1);
 }
 
 export async function calendarCommand(
   matchId: string,
   options: CalendarOptions
 ): Promise<void> {
+  if (options.json && options.stdout) {
+    exitWithError('Cannot use --json with --stdout (would mix ICS and JSON output).', options);
+  }
+
+  const outPath = options.out || `match-${matchId}.ics`;
+
+  if (!options.stdout) {
+    try {
+      const stats = await lstat(outPath);
+      if (!stats.isFile()) {
+        exitWithError(`Refusing to write to non-regular file: ${outPath}`, options);
+      }
+      if (!options.force) {
+        exitWithError(`Refusing to overwrite existing file: ${outPath}. Use --force to replace it.`, options);
+      }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+
   // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
   const provider = new ApiSportsProvider(secrets?.api_key);
@@ -23,8 +56,7 @@ export async function calendarCommand(
     const match = await provider.getMatch(matchId);
 
     if (!match) {
-      console.log(renderError(`Match not found: ${matchId}`));
-      process.exit(1);
+      exitWithError(`Match not found: ${matchId}`, options);
     }
 
     const ics = matchToICS(match);
@@ -32,26 +64,21 @@ export async function calendarCommand(
     if (options.stdout) {
       // Output to stdout
       process.stdout.write(ics);
-    } else if (options.out) {
-      // Write to specified file
-      await writeFile(options.out, ics);
-      if (!options.quiet) {
-        console.log(renderSuccess(`Calendar saved to ${options.out}`));
-      }
-    } else {
-      // Default: create file with match ID
-      const filename = `match-${matchId}.ics`;
-      await writeFile(filename, ics);
-      if (!options.quiet) {
-        console.log(renderSuccess(`Calendar saved to ${filename}`));
-      }
+      return;
     }
 
-    if (options.json && !options.stdout) {
+    await writeFile(outPath, ics, { flag: options.force ? 'w' : 'wx' });
+
+    if (!options.quiet) {
+      console.log(renderSuccess(`Calendar saved to ${outPath}`));
+    }
+
+    if (options.json) {
       console.log(
         JSON.stringify(
           {
             match_id: matchId,
+            out: outPath,
             home: match.homeTeam.name,
             away: match.awayTeam.name,
             date: match.date.toISOString(),
@@ -63,8 +90,12 @@ export async function calendarCommand(
       );
     }
   } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'EEXIST') {
+      exitWithError(`Refusing to overwrite existing file: ${outPath}. Use --force to replace it.`, options);
+    }
+
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    exitWithError(message, options);
   }
 }
