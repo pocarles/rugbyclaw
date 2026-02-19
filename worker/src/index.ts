@@ -5,7 +5,7 @@
  * Allows users to try Rugbyclaw without their own API key.
  */
 
-import { isAllowedEndpoint } from './allowlist';
+import { getAllowedEndpoint, isAllowedEndpoint, type AllowedEndpoint } from './allowlist';
 
 interface Env {
   API_SPORTS_KEY: string;
@@ -17,8 +17,6 @@ interface Env {
 
 const API_SPORTS_BASE = 'https://v1.rugby.api-sports.io';
 
-type Endpoint = '/games' | '/teams' | '/leagues';
-
 function parseAllowedLeagues(env: Env): Set<string> {
   return new Set(
     (env.DEFAULT_LEAGUES || '')
@@ -28,20 +26,13 @@ function parseAllowedLeagues(env: Env): Set<string> {
   );
 }
 
-function getEndpoint(pathname: string): Endpoint | null {
-  if (pathname === '/games' || pathname.startsWith('/games/')) return '/games';
-  if (pathname === '/teams' || pathname.startsWith('/teams/')) return '/teams';
-  if (pathname === '/leagues' || pathname.startsWith('/leagues/')) return '/leagues';
-  return null;
-}
-
 function validateQuery(
-  endpoint: Endpoint,
+  endpoint: AllowedEndpoint,
   searchParams: URLSearchParams,
   allowedLeagues: Set<string>
 ): { ok: true; cacheTtlSeconds: number } | { ok: false; message: string; status: number } {
   const keys = Array.from(searchParams.keys());
-  const allowedKeysByEndpoint: Record<Endpoint, Set<string>> = {
+  const allowedKeysByEndpoint: Record<AllowedEndpoint, Set<string>> = {
     '/games': new Set(['league', 'season', 'date', 'id']),
     '/teams': new Set(['search', 'league', 'season', 'id']),
     '/leagues': new Set(['id', 'season']),
@@ -279,7 +270,7 @@ export default {
       return errorResponse('Endpoint not allowed', 403);
     }
 
-    const endpoint = getEndpoint(pathname);
+    const endpoint = getAllowedEndpoint(pathname);
     if (!endpoint) {
       return errorResponse('Endpoint not allowed', 403);
     }
