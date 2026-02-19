@@ -213,10 +213,12 @@ program
   .description('Export match to ICS calendar file')
   .option('--stdout', 'Output to stdout instead of file')
   .option('-o, --out <file>', 'Output file path')
+  .option('-f, --force', 'Overwrite output file if it exists')
   .addHelpText('after', `
 ${chalk.cyan('Examples:')}
   ${chalk.white('rugbyclaw calendar 49979')}         Save as match-49979.ics
   ${chalk.white('rugbyclaw calendar 49979 -o game.ics')} Custom filename
+  ${chalk.white('rugbyclaw calendar 49979 -o game.ics --force')} Replace existing file
   ${chalk.white('rugbyclaw calendar 49979 --stdout')}  Output to terminal
 
 ${chalk.dim('Tip: Use "rugbyclaw fixtures --show-ids" to find match IDs')}
