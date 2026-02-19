@@ -30,5 +30,6 @@ rugbyclaw calendar <matchId> [options]
 
 - Use `rugbyclaw fixtures --show-ids` to find match IDs.
 - ICS timestamps are exported in UTC; calendar apps typically display them in your local timezone.
+- When kickoff time is unknown (`time_tbd`), Rugbyclaw exports an all-day event for that date.
 - `--stdout` and `--json` are mutually exclusive.
 - Existing files are protected by default; use `--force` to replace one explicitly.

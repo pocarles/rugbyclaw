@@ -14,6 +14,13 @@ function formatICSDate(date: Date): string {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
 
+function formatICSDateOnly(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
+}
+
 /**
  * Escape text for ICS format.
  */
@@ -49,15 +56,36 @@ function foldLine(line: string): string {
  */
 export function matchToCalendarEvent(match: Match): CalendarEvent {
   const summary = `${match.homeTeam.name} vs ${match.awayTeam.name}`;
-  const description = [
+  const descriptionParts = [
     `${match.league.name}`,
     match.round ? `Round ${match.round}` : '',
     match.venue ? `Venue: ${match.venue}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  ];
 
   const startDate = new Date(match.timestamp);
+
+  if (match.timeTbd) {
+    const allDayStart = new Date(Date.UTC(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth(),
+      startDate.getUTCDate()
+    ));
+    const allDayEnd = new Date(Date.UTC(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth(),
+      startDate.getUTCDate() + 1
+    ));
+
+    return {
+      uid: generateUID(match.id),
+      summary,
+      description: [...descriptionParts, 'Kickoff time: TBD'].filter(Boolean).join('\n'),
+      location: match.venue,
+      start: allDayStart,
+      end: allDayEnd,
+      allDay: true,
+    };
+  }
 
   // Rugby matches are typically 80 minutes + halftime
   const endDate = new Date(startDate.getTime() + 100 * 60 * 1000);
@@ -65,7 +93,7 @@ export function matchToCalendarEvent(match: Match): CalendarEvent {
   return {
     uid: generateUID(match.id),
     summary,
-    description,
+    description: descriptionParts.filter(Boolean).join('\n'),
     location: match.venue,
     start: startDate,
     end: endDate,
@@ -85,10 +113,20 @@ export function generateICS(event: CalendarEvent): string {
     'BEGIN:VEVENT',
     `UID:${escapeICS(event.uid)}`,
     `DTSTAMP:${formatICSDate(new Date())}`,
-    `DTSTART:${formatICSDate(event.start)}`,
-    `DTEND:${formatICSDate(event.end)}`,
     `SUMMARY:${escapeICS(event.summary)}`,
   ];
+
+  if (event.allDay) {
+    lines.push(
+      `DTSTART;VALUE=DATE:${formatICSDateOnly(event.start)}`,
+      `DTEND;VALUE=DATE:${formatICSDateOnly(event.end)}`
+    );
+  } else {
+    lines.push(
+      `DTSTART:${formatICSDate(event.start)}`,
+      `DTEND:${formatICSDate(event.end)}`
+    );
+  }
 
   if (event.description) {
     lines.push(`DESCRIPTION:${escapeICS(event.description)}`);
@@ -125,10 +163,20 @@ export function generateMultiEventICS(events: CalendarEvent[]): string {
       'BEGIN:VEVENT',
       `UID:${escapeICS(event.uid)}`,
       `DTSTAMP:${formatICSDate(new Date())}`,
-      `DTSTART:${formatICSDate(event.start)}`,
-      `DTEND:${formatICSDate(event.end)}`,
       `SUMMARY:${escapeICS(event.summary)}`
     );
+
+    if (event.allDay) {
+      lines.push(
+        `DTSTART;VALUE=DATE:${formatICSDateOnly(event.start)}`,
+        `DTEND;VALUE=DATE:${formatICSDateOnly(event.end)}`
+      );
+    } else {
+      lines.push(
+        `DTSTART:${formatICSDate(event.start)}`,
+        `DTEND:${formatICSDate(event.end)}`
+      );
+    }
 
     if (event.description) {
       lines.push(`DESCRIPTION:${escapeICS(event.description)}`);

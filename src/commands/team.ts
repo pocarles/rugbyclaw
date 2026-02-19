@@ -167,6 +167,10 @@ function isWomenTeamName(name: string): boolean {
   return false;
 }
 
+function isNumericTeamId(value: string): boolean {
+  return /^\d+$/.test(value.trim());
+}
+
 async function handleSearch(
   query: string,
   provider: ApiSportsProvider,
@@ -226,13 +230,18 @@ async function handleNext(
   leagueIds: string[],
   options: TeamOptions
 ): Promise<void> {
+  const normalizedInput = nameOrId.trim();
+  const normalizedInputLower = normalizedInput.toLowerCase();
+
   // First try to find team in favorites
-  let teamId = config.favorite_teams.find(
-    (t) =>
-      t.id === nameOrId ||
-      t.name.toLowerCase().includes(nameOrId.toLowerCase()) ||
-      t.slug.includes(nameOrId.toLowerCase())
-  )?.id;
+  let teamId = isNumericTeamId(normalizedInput)
+    ? normalizedInput
+    : config.favorite_teams.find(
+      (t) =>
+        t.id === normalizedInput ||
+        t.name.toLowerCase().includes(normalizedInputLower) ||
+        t.slug.includes(normalizedInputLower)
+    )?.id;
 
   // Get effective leagues (user's favorites or defaults)
   if (hasApiKey && leagueIds.length === 0) {
@@ -248,7 +257,7 @@ async function handleNext(
 
   // If not in favorites, first try to match team name in fixtures
   if (!teamId) {
-    const searchLower = nameOrId.toLowerCase();
+    const searchLower = normalizedInputLower;
 
     // Find team in fixtures by partial name match
     for (const match of allLeagueFixtures) {
@@ -398,13 +407,18 @@ async function handleLast(
   leagueIds: string[],
   options: TeamOptions
 ): Promise<void> {
+  const normalizedInput = nameOrId.trim();
+  const normalizedInputLower = normalizedInput.toLowerCase();
+
   // First try to find team in favorites
-  let teamId = config.favorite_teams.find(
-    (t) =>
-      t.id === nameOrId ||
-      t.name.toLowerCase().includes(nameOrId.toLowerCase()) ||
-      t.slug.includes(nameOrId.toLowerCase())
-  )?.id;
+  let teamId = isNumericTeamId(normalizedInput)
+    ? normalizedInput
+    : config.favorite_teams.find(
+      (t) =>
+        t.id === normalizedInput ||
+        t.name.toLowerCase().includes(normalizedInputLower) ||
+        t.slug.includes(normalizedInputLower)
+    )?.id;
 
   // Get effective leagues (user's favorites or defaults)
   if (hasApiKey && leagueIds.length === 0) {
@@ -420,7 +434,7 @@ async function handleLast(
 
   // If not in favorites, first try to match team name in results
   if (!teamId) {
-    const searchLower = nameOrId.toLowerCase();
+    const searchLower = normalizedInputLower;
 
     // Find team in results by partial name match
     for (const match of allLeagueResults) {

@@ -177,5 +177,6 @@ export interface CalendarEvent {
   location?: string;
   start: Date;
   end: Date;
+  allDay?: boolean;
   url?: string;
 }
