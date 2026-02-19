@@ -16,16 +16,23 @@ interface Env {
 }
 
 const API_SPORTS_BASE = 'https://v1.rugby.api-sports.io';
+const FALLBACK_DEFAULT_LEAGUES = ['16', '13', '76', '54', '51']; // Top14, Premiership, URC, Champions Cup, Six Nations
+const DEFAULT_RATE_LIMIT_PER_DAY = 50;
+const DEFAULT_RATE_LIMIT_PER_MINUTE = 10;
 
 type Endpoint = '/games' | '/teams' | '/leagues';
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const n = Number.parseInt((value || '').trim(), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 function parseAllowedLeagues(env: Env): Set<string> {
-  return new Set(
-    (env.DEFAULT_LEAGUES || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-  );
+  const raw = (env.DEFAULT_LEAGUES || '').trim();
+  const leagues = (raw.length > 0 ? raw.split(',') : FALLBACK_DEFAULT_LEAGUES)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return new Set(leagues);
 }
 
 function getEndpoint(pathname: string): Endpoint | null {
@@ -243,8 +250,8 @@ export default {
 
     if (pathname === '/status') {
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const rateLimitDay = parseInt(env.RATE_LIMIT_PER_DAY || '50', 10);
-      const rateLimitMinute = parseInt(env.RATE_LIMIT_PER_MINUTE || '10', 10);
+      const rateLimitDay = parsePositiveInt(env.RATE_LIMIT_PER_DAY, DEFAULT_RATE_LIMIT_PER_DAY);
+      const rateLimitMinute = parsePositiveInt(env.RATE_LIMIT_PER_MINUTE, DEFAULT_RATE_LIMIT_PER_MINUTE);
       const rate = await getRateLimitStatus(env.RATE_LIMITS, ip, rateLimitDay, rateLimitMinute);
 
       return new Response(
@@ -306,8 +313,8 @@ export default {
     }
 
     // Check rate limit (cache miss only)
-    const rateLimitDay = parseInt(env.RATE_LIMIT_PER_DAY || '50', 10);
-    const rateLimitMinute = parseInt(env.RATE_LIMIT_PER_MINUTE || '10', 10);
+    const rateLimitDay = parsePositiveInt(env.RATE_LIMIT_PER_DAY, DEFAULT_RATE_LIMIT_PER_DAY);
+    const rateLimitMinute = parsePositiveInt(env.RATE_LIMIT_PER_MINUTE, DEFAULT_RATE_LIMIT_PER_MINUTE);
     const rate = await checkRateLimit(env.RATE_LIMITS, ip, rateLimitDay, rateLimitMinute);
 
     if (!rate.allowed) {

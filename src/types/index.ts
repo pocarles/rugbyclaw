@@ -146,8 +146,17 @@ export interface TeamSearchOutput {
   }>;
 }
 
+export interface TeamMatchQueryOutput {
+  action: 'next' | 'last';
+  query: string;
+  team_id: string | null;
+  match: MatchOutput | null;
+  reason?: string;
+  generated_at: string;
+}
+
 export interface NotifyOutput {
-  type: 'weekly' | 'daily' | 'live';
+  type: 'weekly' | 'daily' | 'live' | 'all';
   notifications: Notification[];
   generated_at: string;
 }

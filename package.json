@@ -8,7 +8,8 @@
     "rugbyclaw": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/clean-dist.mjs && tsc",
+    "typecheck": "tsc --pretty false --noEmit",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "lint": "eslint src",

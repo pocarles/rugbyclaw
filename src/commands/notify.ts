@@ -9,7 +9,8 @@ import {
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { generateSummary } from '../lib/personality.js';
-import { renderNotify, matchToOutput, renderError } from '../render/terminal.js';
+import { renderNotify, matchToOutput } from '../render/terminal.js';
+import { exitWithError } from '../lib/cli-output.js';
 import { formatDateYMD, getTodayYMD, getTomorrowYMD } from '../lib/datetime.js';
 import type {
   Match,
@@ -336,6 +337,21 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
   let state = await loadState();
   const timeZone = getEffectiveTimeZone(config);
 
+  const requestedModes = [
+    options.weekly ? 'weekly' : null,
+    options.daily ? 'daily' : null,
+    options.live ? 'live' : null,
+  ].filter(Boolean) as Array<'weekly' | 'daily' | 'live'>;
+
+  if (requestedModes.length > 1) {
+    const message = 'Pick one: --weekly, --daily, or --live (not multiple).';
+    exitWithError(message, options);
+  }
+
+  // Use .at(0) so TS understands the array may be empty (index access is not checked by default).
+  const requestedMode = requestedModes.at(0);
+  const mode: NotifyOutput['type'] = requestedMode ?? 'all';
+
   const hasApiKey = Boolean(secrets?.api_key);
   const leagueSlugs = hasApiKey
     ? (config.favorite_leagues.length > 0 ? config.favorite_leagues : DEFAULT_PROXY_LEAGUES)
@@ -349,14 +365,14 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
   let notifications: Notification[] = [];
 
   try {
-    if (options.weekly) {
+    if (mode === 'weekly') {
       notifications = await handleWeekly(provider, leagueIds, teamIds, timeZone);
-    } else if (options.daily) {
+    } else if (mode === 'daily') {
       const result = await handleDaily(provider, leagueIds, teamIds, timeZone, state);
       notifications = result.notifications;
       state = result.state;
       await saveState(state);
-    } else if (options.live) {
+    } else if (mode === 'live') {
       const result = await handleLive(provider, leagueIds, teamIds, timeZone, state);
       notifications = result.notifications;
       state = result.state;
@@ -373,7 +389,7 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
     }
 
     const output: NotifyOutput = {
-      type: options.weekly ? 'weekly' : options.daily ? 'daily' : 'live',
+      type: mode,
       notifications,
       generated_at: new Date().toISOString(),
     };
@@ -384,17 +400,14 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
       if (notifications.length > 0) {
         console.log(renderNotify(output));
       } else {
-        const mode = options.weekly ? 'weekly' : options.daily ? 'daily' : 'live';
-        console.log(`No ${mode} notifications at this time.`);
+        const msg = mode === 'all'
+          ? 'No notifications at this time.'
+          : `No ${mode} notifications at this time.`;
+        console.log(msg);
       }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    if (options.json) {
-      console.log(JSON.stringify({ error: message }));
-    } else {
-      console.log(renderError(message));
-    }
-    process.exit(1);
+    exitWithError(message, options);
   }
 }

@@ -39,7 +39,7 @@ rugbyclaw scores
 rugbyclaw fixtures top14
 
 # Toulouse's next match
-rugbyclaw team toulouse next
+rugbyclaw team next toulouse
 
 # Recent Champions Cup results
 rugbyclaw results champions_cup
@@ -105,7 +105,7 @@ rugbyclaw results premiership
 Query a specific team.
 
 ```bash
-rugbyclaw team toulouse next    # Next match
+rugbyclaw team next toulouse    # Next match
 rugbyclaw team toulouse last    # Last result
 rugbyclaw team search racing    # Find team ID
 ```
@@ -117,6 +117,7 @@ Export a match to ICS calendar format.
 ```bash
 rugbyclaw calendar 123456 --stdout > match.ics
 rugbyclaw calendar 123456 --out ~/Desktop/match.ics
+rugbyclaw calendar 123456 --out ~/Desktop/match.ics --force
 ```
 
 ### `rugbyclaw notify`
@@ -175,6 +176,9 @@ All commands support `--json` for machine-readable output:
 ```bash
 rugbyclaw scores --json | jq '.matches[0]'
 ```
+
+Contract details and error/exit-code rules:
+- [docs/reference/json-contract.md](./docs/reference/json-contract.md)
 
 ## Configuration Files
 

@@ -366,37 +366,3 @@ export function renderSuccess(message: string): string {
 export function renderWarning(message: string): string {
   return chalk.yellow(`⚠ ${message}`);
 }
-
-/**
- * Render a "not configured" error with helpful instructions.
- */
-export function renderNotConfigured(): string {
-  const lines = [
-    chalk.red('Not configured yet!'),
-    '',
-    chalk.white('Run the setup wizard to get started:'),
-    '',
-    `  ${chalk.cyan('rugbyclaw config')}`,
-    '',
-    chalk.dim('You\'ll need an API-Sports Rugby API key'),
-    chalk.dim('Sign up at https://api-sports.io/rugby ($10/mo recommended)'),
-  ];
-  return lines.join('\n');
-}
-
-/**
- * Render an "API key missing" error with helpful instructions.
- */
-export function renderApiKeyMissing(): string {
-  const lines = [
-    chalk.red('API key not found!'),
-    '',
-    chalk.white('Your config exists but the API key is missing.'),
-    chalk.white('Run the setup wizard again:'),
-    '',
-    `  ${chalk.cyan('rugbyclaw config')}`,
-    '',
-    chalk.dim('Your API key is stored securely in ~/.config/rugbyclaw/secrets.json'),
-  ];
-  return lines.join('\n');
-}

@@ -8,7 +8,8 @@ import {
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
-import { renderScores, matchToOutput, renderError } from '../render/terminal.js';
+import { renderScores, matchToOutput } from '../render/terminal.js';
+import { exitWithError } from '../lib/cli-output.js';
 import type { ScoresOutput } from '../types/index.js';
 import { getTodayYMD } from '../lib/datetime.js';
 
@@ -53,7 +54,6 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    exitWithError(message, options);
   }
 }

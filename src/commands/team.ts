@@ -13,13 +13,14 @@ import {
   renderMatch,
   renderTeamSearch,
   matchToOutput,
-  renderError,
   renderWarning,
   renderSuccess,
 } from '../render/terminal.js';
+import { exitWithError, printJson } from '../lib/cli-output.js';
 import { generateSummary } from '../lib/personality.js';
 import { matchToICS } from '../lib/ics.js';
-import type { Match, TeamSearchOutput, MatchOutput, Team } from '../types/index.js';
+import { toSafeFileSlug } from '../lib/safe-filename.js';
+import type { Match, TeamSearchOutput, MatchOutput, Team, TeamMatchQueryOutput } from '../types/index.js';
 
 interface TeamOptions {
   json?: boolean;
@@ -70,8 +71,7 @@ export async function teamCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    exitWithError(message, options);
   }
 }
 
@@ -194,8 +194,15 @@ async function handleSearch(
     .map((r) => r.team);
 
   if (ranked.length === 0) {
-    console.log(renderWarning(`No Rugby Union team found for "${query}"`));
-    process.exit(0);
+    const output: TeamSearchOutput = { query, teams: [] };
+    if (options.json) {
+      printJson(output);
+      return;
+    }
+    if (!options.quiet) {
+      console.log(renderWarning(`No Rugby Union team found for "${query}"`));
+    }
+    return;
   }
 
   const output: TeamSearchOutput = {
@@ -277,11 +284,25 @@ async function handleNext(
     }
 
     // Finally, fall back to API search.
-    if (!teamId) {
+  if (!teamId) {
       const searchResults = await provider.searchTeams(nameOrId);
       if (searchResults.length === 0) {
-        console.log(renderWarning(`No team found for "${nameOrId}"`));
-        process.exit(0);
+        if (options.json) {
+          const output: TeamMatchQueryOutput = {
+            action: 'next',
+            query: nameOrId,
+            team_id: null,
+            match: null,
+            reason: `No team found for "${nameOrId}"`,
+            generated_at: new Date().toISOString(),
+          };
+          printJson(output);
+          return;
+        }
+        if (!options.quiet) {
+          console.log(renderWarning(`No team found for "${nameOrId}"`));
+        }
+        return;
       }
 
       // Find first search result that appears in our league fixtures
@@ -312,15 +333,40 @@ async function handleNext(
   const nextMatch = teamFixtures.find((m) => m.timestamp > Date.now());
 
   if (!nextMatch) {
-    console.log(renderWarning('No upcoming matches found.'));
-    process.exit(0);
+    if (options.json) {
+      const output: TeamMatchQueryOutput = {
+        action: 'next',
+        query: nameOrId,
+        team_id: teamId ?? null,
+        match: null,
+        reason: 'No upcoming matches found.',
+        generated_at: new Date().toISOString(),
+      };
+      printJson(output);
+      return;
+    }
+    if (!options.quiet) {
+      console.log(renderWarning('No upcoming matches found.'));
+    }
+    return;
   }
 
   // Export to ICS if requested
   if (options.ics) {
     const ics = matchToICS(nextMatch);
-    const filename = `${nextMatch.homeTeam.name.toLowerCase().replace(/\s+/g, '-')}-vs-${nextMatch.awayTeam.name.toLowerCase().replace(/\s+/g, '-')}.ics`;
+    const filename = `${toSafeFileSlug(nextMatch.homeTeam.name)}-vs-${toSafeFileSlug(nextMatch.awayTeam.name)}-${nextMatch.id}.ics`;
     await writeFile(filename, ics);
+    if (options.json) {
+      printJson({
+        exported: true,
+        out: filename,
+        match_id: nextMatch.id,
+        home: nextMatch.homeTeam.name,
+        away: nextMatch.awayTeam.name,
+        generated_at: new Date().toISOString(),
+      });
+      return;
+    }
     if (!options.quiet) {
       console.log(renderSuccess(`Calendar saved to ${filename}`));
     }
@@ -330,7 +376,14 @@ async function handleNext(
   const output = matchToOutput(nextMatch, { timeZone });
 
   if (options.json) {
-    console.log(JSON.stringify(output, null, 2));
+    const jsonOutput: TeamMatchQueryOutput = {
+      action: 'next',
+      query: nameOrId,
+      team_id: teamId ?? null,
+      match: output,
+      generated_at: new Date().toISOString(),
+    };
+    printJson(jsonOutput);
   } else if (!options.quiet) {
     console.log(renderMatch(output, true, timeZone)); // Show calendar hint
   }
@@ -406,8 +459,22 @@ async function handleLast(
     if (!teamId) {
       const searchResults = await provider.searchTeams(nameOrId);
       if (searchResults.length === 0) {
-        console.log(renderWarning(`No team found for "${nameOrId}"`));
-        process.exit(0);
+        if (options.json) {
+          const output: TeamMatchQueryOutput = {
+            action: 'last',
+            query: nameOrId,
+            team_id: null,
+            match: null,
+            reason: `No team found for "${nameOrId}"`,
+            generated_at: new Date().toISOString(),
+          };
+          printJson(output);
+          return;
+        }
+        if (!options.quiet) {
+          console.log(renderWarning(`No team found for "${nameOrId}"`));
+        }
+        return;
       }
 
       // Find first search result that appears in our league results
@@ -438,16 +505,39 @@ async function handleLast(
   const lastMatch = teamResults[0];
 
   if (!lastMatch) {
-    console.log(renderWarning('No recent results found.'));
-    process.exit(0);
+    if (options.json) {
+      const output: TeamMatchQueryOutput = {
+        action: 'last',
+        query: nameOrId,
+        team_id: teamId ?? null,
+        match: null,
+        reason: 'No recent results found.',
+        generated_at: new Date().toISOString(),
+      };
+      printJson(output);
+      return;
+    }
+    if (!options.quiet) {
+      console.log(renderWarning('No recent results found.'));
+    }
+    return;
   }
 
   const output: MatchOutput = matchToOutput(lastMatch, { timeZone });
   output.summary = generateSummary(lastMatch, teamId);
 
   if (options.json) {
-    console.log(JSON.stringify(output, null, 2));
-  } else if (!options.quiet) {
+    const jsonOutput: TeamMatchQueryOutput = {
+      action: 'last',
+      query: nameOrId,
+      team_id: teamId ?? null,
+      match: output,
+      generated_at: new Date().toISOString(),
+    };
+    printJson(jsonOutput);
+    return;
+  }
+  if (!options.quiet) {
     console.log(renderMatch(output, false, timeZone));
   }
 }

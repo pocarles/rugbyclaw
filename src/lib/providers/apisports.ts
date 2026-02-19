@@ -7,6 +7,23 @@ import { getCache, cacheKey } from '../cache.js';
 export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
 export const PROXY_URL = process.env.RUGBYCLAW_PROXY_URL || DEFAULT_PROXY_URL;
+const DEFAULT_HTTP_TIMEOUT_MS = 10_000;
+const DEFAULT_TRANSIENT_RETRIES = 1;
+
+function parsePositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return parsed;
+}
+
+const HTTP_TIMEOUT_MS = parsePositiveIntEnv('RUGBYCLAW_HTTP_TIMEOUT_MS', DEFAULT_HTTP_TIMEOUT_MS);
+const TRANSIENT_RETRIES = parsePositiveIntEnv('RUGBYCLAW_HTTP_RETRIES', DEFAULT_TRANSIENT_RETRIES);
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface ProxyStatus {
   status: string;
@@ -219,7 +236,7 @@ export class ApiSportsProvider implements Provider {
     return this.mode === 'proxy';
   }
 
-	  private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
+  private async fetch<T>(endpoint: string, params: Record<string, string>, cacheOptions: CacheOptions): Promise<T> {
     const searchParams = new URLSearchParams(params);
     const baseUrl = this.mode === 'proxy' ? PROXY_URL : API_SPORTS_BASE_URL;
     const url = `${baseUrl}/${endpoint}?${searchParams}`;
@@ -231,87 +248,135 @@ export class ApiSportsProvider implements Provider {
       return cached.data.response;
     }
 
-    // Fetch fresh data
-    try {
-      const headers: Record<string, string> = {};
-      if (this.mode === 'direct' && this.apiKey) {
-        headers['x-apisports-key'] = this.apiKey;
-      }
+    const maxAttempts = 1 + TRANSIENT_RETRIES;
 
-      const response = await fetch(url, { headers });
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const isLastAttempt = attempt === maxAttempts - 1;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
 
-      if (response.status === 429) {
-        // Return stale data if available on rate limit
+      try {
+        const headers: Record<string, string> = {};
+        if (this.mode === 'direct' && this.apiKey) {
+          headers['x-apisports-key'] = this.apiKey;
+        }
+
+        const response = await fetch(url, { headers, signal: controller.signal });
+
+        if (response.status === 429) {
+          // Return stale data if available on rate limit
+          if (cached) {
+            return cached.data.response;
+          }
+
+          // Different message for proxy vs direct mode
+          const message = this.mode === 'proxy'
+            ? 'Daily limit reached. Run "rugbyclaw config" to add your own API key for unlimited access.'
+            : 'Rate limit exceeded. Try again later.';
+
+          throw new ProviderError(message, 'RATE_LIMITED', this.name);
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          throw new ProviderError(
+            'Invalid API key. Check your configuration.',
+            'UNAUTHORIZED',
+            this.name
+          );
+        }
+
+        if (!response.ok) {
+          // Use stale cache on transient upstream errors whenever possible.
+          if (cached && (response.status >= 500 || response.status === 408)) {
+            return cached.data.response;
+          }
+
+          // Retry once for transient server failures.
+          if (!isLastAttempt && response.status >= 500) {
+            await wait(150 * (attempt + 1));
+            continue;
+          }
+
+          throw new ProviderError(
+            `API returned ${response.status}`,
+            'UNKNOWN',
+            this.name
+          );
+        }
+
+        let data: ApiResponse<T>;
+        try {
+          data = await response.json() as ApiResponse<T>;
+        } catch (error) {
+          if (cached) {
+            return cached.data.response;
+          }
+
+          if (!isLastAttempt) {
+            await wait(150 * (attempt + 1));
+            continue;
+          }
+
+          throw new ProviderError(
+            'Received invalid JSON from upstream.',
+            'PARSE_ERROR',
+            this.name,
+            error instanceof Error ? error : undefined
+          );
+        }
+
+        // Check for API errors
+        if (data.errors && Object.keys(data.errors).length > 0) {
+          const errorMsg = Array.isArray(data.errors)
+            ? data.errors.join(', ')
+            : Object.values(data.errors).join(', ');
+          throw new ProviderError(
+            `API error: ${errorMsg}`,
+            'UNKNOWN',
+            this.name
+          );
+        }
+
+        // Cache the result
+        await this.cache.set(key, data, cacheOptions);
+
+        return data.response;
+      } catch (error) {
+        if (error instanceof ProviderError) {
+          throw error;
+        }
+
+        if (!isLastAttempt) {
+          await wait(150 * (attempt + 1));
+          continue;
+        }
+
+        // If we have stale data, return it on network error.
         if (cached) {
           return cached.data.response;
         }
 
-        // Different message for proxy vs direct mode
         const message = this.mode === 'proxy'
-          ? 'Daily limit reached. Run "rugbyclaw config" to add your own API key for unlimited access.'
-          : 'Rate limit exceeded. Try again later.';
+          ? 'Free mode is temporarily unavailable. Try again later, or run "rugbyclaw config" to add your own API key.'
+          : 'Failed to fetch data. Check your internet connection.';
 
-        throw new ProviderError(message, 'RATE_LIMITED', this.name);
-      }
-
-      if (response.status === 401 || response.status === 403) {
         throw new ProviderError(
-          'Invalid API key. Check your configuration.',
-          'UNAUTHORIZED',
-          this.name
+          message,
+          'NETWORK_ERROR',
+          this.name,
+          error instanceof Error ? error : undefined
         );
+      } finally {
+        clearTimeout(timeout);
       }
+    }
 
-      if (!response.ok) {
-        throw new ProviderError(
-          `API returned ${response.status}`,
-          'UNKNOWN',
-          this.name
-        );
-      }
+    // Should be unreachable, but keep a deterministic fallback.
+    if (cached) return cached.data.response;
+    throw new ProviderError('Failed to fetch data.', 'NETWORK_ERROR', this.name);
+  }
 
-      const data = await response.json() as ApiResponse<T>;
-
-      // Check for API errors
-      if (data.errors && Object.keys(data.errors).length > 0) {
-        const errorMsg = Array.isArray(data.errors)
-          ? data.errors.join(', ')
-          : Object.values(data.errors).join(', ');
-        throw new ProviderError(
-          `API error: ${errorMsg}`,
-          'UNKNOWN',
-          this.name
-        );
-      }
-
-      // Cache the result
-      await this.cache.set(key, data, cacheOptions);
-
-      return data.response;
-	    } catch (error) {
-      // If we have stale data, return it on network error
-      if (cached) {
-        return cached.data.response;
-      }
-
-      if (error instanceof ProviderError) {
-        throw error;
-      }
-
-	      const message = this.mode === 'proxy'
-	        ? 'Free mode is temporarily unavailable. Try again later, or run "rugbyclaw config" to add your own API key.'
-	        : 'Failed to fetch data. Check your internet connection.';
-
-	      throw new ProviderError(
-	        message,
-	        'NETWORK_ERROR',
-	        this.name,
-	        error instanceof Error ? error : undefined
-	      );
-	    }
-	  }
-
-	  private parseGame(game: ApiGame): Match {
+  private parseGame(game: ApiGame): Match {
     const league = getLeagueById(String(game.league.id)) || {
       id: String(game.league.id),
       slug: game.league.name.toLowerCase().replace(/\s+/g, '_'),
@@ -320,12 +385,12 @@ export class ApiSportsProvider implements Provider {
       sport: 'rugby' as const,
     };
 
-	    // Prefer the server-provided UNIX timestamp for accurate time + timezone handling.
-	    const date = new Date(game.timestamp * 1000);
-	    const status = mapStatus(game.status);
-	    const timeTbd = status === 'scheduled' && isTop14PlaceholderTime(game);
+    // Prefer the server-provided UNIX timestamp for accurate time + timezone handling.
+    const date = new Date(game.timestamp * 1000);
+    const status = mapStatus(game.status);
+    const timeTbd = status === 'scheduled' && isTop14PlaceholderTime(game);
 
-	    return {
+    return {
       id: String(game.id),
       homeTeam: {
         id: String(game.teams.home.id),
@@ -344,10 +409,10 @@ export class ApiSportsProvider implements Provider {
         ? { home: game.scores.home, away: game.scores.away }
         : undefined,
       round: game.week || undefined,
-	      timestamp: game.timestamp * 1000, // Convert to ms
-	      timeTbd,
-	    };
-	  }
+      timestamp: game.timestamp * 1000, // Convert to ms
+      timeTbd,
+    };
+  }
 
   async searchTeams(query: string): Promise<Team[]> {
     const teams = await this.fetch<ApiTeam[]>(
@@ -410,10 +475,10 @@ export class ApiSportsProvider implements Provider {
     return this.parseGame(games[0]);
   }
 
-	  async getToday(leagueIds: string[], options?: { dateYmd?: string }): Promise<Match[]> {
-	    const dateStr = options?.dateYmd || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  async getToday(leagueIds: string[], options?: { dateYmd?: string }): Promise<Match[]> {
+    const dateStr = options?.dateYmd || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-	    const matchMap = new Map<string, Match>();
+    const matchMap = new Map<string, Match>();
 
     // Fetch games for today across all favorite leagues
     // API-Sports allows filtering by date

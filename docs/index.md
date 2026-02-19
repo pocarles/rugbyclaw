@@ -31,6 +31,7 @@
 - [Supported Leagues](./reference/leagues.md) - All supported competitions
 - [Configuration Files](./reference/configuration.md) - Config file reference
 - [API Limits](./reference/api-limits.md) - API-Sports rate limits
+- [JSON Output Contract](./reference/json-contract.md) - Stable machine-readable outputs
 
 ## Contributing
 

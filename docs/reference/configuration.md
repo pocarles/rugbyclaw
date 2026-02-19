@@ -3,7 +3,7 @@ title: Configuration Files
 description: Where Rugbyclaw stores preferences and state
 category: reference
 tags: [config, files, paths]
-updated: 2026-02-05
+updated: 2026-02-19
 ---
 
 # Configuration Files
@@ -34,6 +34,14 @@ rugbyclaw --tz America/New_York fixtures
 ```
 
 Timezone values must be valid IANA names (examples: `America/New_York`, `Europe/Paris`).
+
+## Environment overrides
+
+Use env vars for CI/automation when needed:
+
+- `RUGBYCLAW_PROXY_URL` — override the default proxy base URL
+- `RUGBYCLAW_HTTP_TIMEOUT_MS` — HTTP timeout in milliseconds (default: `10000`)
+- `RUGBYCLAW_HTTP_RETRIES` — transient retry count for upstream 5xx/network failures (default: `1`)
 
 ## `config.json`
 

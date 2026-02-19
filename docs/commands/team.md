@@ -3,7 +3,7 @@ title: rugbyclaw team
 description: Query specific teams - search, next match, last result
 category: commands
 tags: [team, search, tracking]
-updated: 2026-02-02
+updated: 2026-02-18
 ---
 
 # rugbyclaw team
@@ -85,6 +85,19 @@ Dupont orchestrated a masterclass, Ntamack finished brilliantly.
 Racing never looked like competing.
 ```
 
+## JSON Output
+
+All subcommands support `--json`.
+
+- `rugbyclaw team search <query> --json` returns `{ query, teams }` (empty list when no match).
+- `rugbyclaw team next <name> --json` and `rugbyclaw team last <name> --json` return:
+  - `action`: `"next"` or `"last"`
+  - `query`: the original input
+  - `team_id`: resolved team ID (or `null`)
+  - `match`: match object (or `null`)
+  - `reason`: present when `match` is `null`
+  - `generated_at`: ISO timestamp
+
 ## Tips
 
 - Team search is intentionally limited to Rugby Union teams in your effective leagues
@@ -113,4 +126,4 @@ Racing never looked like competing.
 - [calendar](./calendar.md) - Export to calendar
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-18*

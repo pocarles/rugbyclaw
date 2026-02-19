@@ -3,7 +3,7 @@ title: rugbyclaw fixtures
 description: View upcoming matches
 category: commands
 tags: [fixtures, upcoming, schedule]
-updated: 2026-02-02
+updated: 2026-02-18
 ---
 
 # rugbyclaw fixtures
@@ -65,7 +65,10 @@ Shows only next 5 matches.
 rugbyclaw fixtures --ics
 ```
 
-Creates `fixtures.ics` file you can import to your calendar app.
+Creates a calendar file you can import:
+
+- `rugby-fixtures.ics` (no league filter)
+- `<league>-fixtures.ics` (when you pass a specific league)
 
 ### Show match IDs
 
@@ -98,7 +101,7 @@ Without an API key, Rugbyclaw is limited to a default set of leagues (Top 14, Pr
 
 - Use `--ics` to sync entire schedule to your calendar
 - Check specific leagues during tournament weeks
-- Combine with `--json` for custom scripts
+- Combine with `--json` for scripts (including `--ics --json` for export metadata)
 
 ## Related Commands
 
@@ -107,4 +110,4 @@ Without an API key, Rugbyclaw is limited to a default set of leagues (Top 14, Pr
 - [results](./results.md) - Past results
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-18*

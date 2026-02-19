@@ -9,6 +9,7 @@ import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
 import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
+import { exitWithError, exitWithJson } from '../lib/cli-output.js';
 import { generateNeutralSummary } from '../lib/personality.js';
 import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
 
@@ -28,7 +29,11 @@ export async function resultsCommand(
   const secrets = await loadSecrets();
   const hasApiKey = Boolean(secrets?.api_key);
   const provider = new ApiSportsProvider(secrets?.api_key);
-  const limit = parseInt(options.limit || '15', 10);
+  const limitRaw = options.limit || '15';
+  const limit = Number.parseInt(limitRaw, 10);
+  if (!Number.isFinite(limit) || limit <= 0) {
+    exitWithError(`Invalid --limit "${limitRaw}" (expected a positive integer).`, options);
+  }
 
   let matches: Match[] = [];
   let leagueName: string | undefined;
@@ -39,12 +44,25 @@ export async function resultsCommand(
       const league = resolveLeague(leagueInput);
 
       if (!league) {
+        const available = Object.keys(LEAGUES);
+        if (options.json) {
+          exitWithJson({ error: `Unknown league: "${leagueInput}"`, available_leagues: available }, 1);
+        }
         console.log(renderError(`Unknown league: "${leagueInput}"`));
-        console.log('Available: ' + Object.keys(LEAGUES).join(', '));
+        console.log('Available: ' + available.join(', '));
         process.exit(1);
       }
 
       if (!hasApiKey && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
+        if (options.json) {
+          exitWithJson(
+            {
+              error: `"${league.name}" is not available in free mode.`,
+              hint: 'Run "rugbyclaw config" to add your own API key to unlock more leagues.',
+            },
+            1
+          );
+        }
         console.log(renderError(`"${league.name}" is not available in free mode.`));
         console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
         process.exit(1);
@@ -97,7 +115,6 @@ export async function resultsCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    exitWithError(message, options);
   }
 }

@@ -3,7 +3,7 @@ title: Getting Started
 description: Install RugbyClaw and start using it in 30 seconds
 category: getting-started
 tags: [setup, installation, quickstart]
-updated: 2026-02-02
+updated: 2026-02-18
 ---
 
 # Getting Started with RugbyClaw
@@ -51,7 +51,7 @@ Shows next 15 matches from your default leagues (Top 14, Premiership, URC, Champ
 ### Follow your team
 
 ```bash
-rugbyclaw team toulouse next
+rugbyclaw team next toulouse
 ```
 
 Shows when Toulouse plays next.
@@ -107,4 +107,4 @@ rugbyclaw status --json
 → Add your own API key via `rugbyclaw config`
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-18*

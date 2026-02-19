@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest';
+import { DEFAULT_PROXY_LEAGUES } from '../lib/config.js';
+import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 
-describe('smoke tests', () => {
-  it('should pass basic assertion', () => {
-    expect(true).toBe(true);
+describe('smoke', () => {
+  it('default proxy leagues exist in the registry', () => {
+    for (const slug of DEFAULT_PROXY_LEAGUES) {
+      expect(LEAGUES[slug]).toBeTruthy();
+    }
   });
 
-  it('should have correct package structure', () => {
-    // Basic smoke test to ensure package loads
-    expect(1 + 1).toBe(2);
+  it('resolves common league aliases', () => {
+    expect(resolveLeague('top 14')?.slug).toBe('top14');
+    expect(resolveLeague('prem')?.slug).toBe('premiership');
+    expect(resolveLeague('heineken champions cup')?.slug).toBe('champions_cup');
+    expect(resolveLeague('6 nations')?.slug).toBe('six_nations');
   });
 });

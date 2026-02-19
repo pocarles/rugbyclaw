@@ -24,7 +24,8 @@ docs/
 ├── reference/           # Technical specifications
 │   ├── leagues.md
 │   ├── configuration.md
-│   └── api-limits.md
+│   ├── api-limits.md
+│   └── json-contract.md
 └── troubleshooting.md   # Common problems + solutions
 ```
 
@@ -112,6 +113,7 @@ Use this to:
 - **Focus:** Rugby Union only
 - **Config Location:** `~/.config/rugbyclaw/`
 - **Cache:** `~/.cache/rugbyclaw/` (SWR caching)
+- **Automation Contract:** `reference/json-contract.md` defines JSON output + exit codes
 
 ## First step for agents
 
@@ -145,4 +147,4 @@ If you identify missing or outdated information:
 
 ---
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-19

@@ -309,6 +309,19 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
 
   await saveConfig(config);
 
+  if (options.json) {
+    console.log(
+      JSON.stringify(
+        { config, mode, api_key_saved: Boolean(savedApiKey) },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  if (options.quiet) return;
+
   // Summary
   console.log(chalk.bold('\n✓ Configuration saved!\n'));
   console.log(
@@ -322,25 +335,13 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
   console.log(chalk.dim('Timezone:'), timezone);
   console.log('');
 
-  if (!options.quiet) {
-    console.log(chalk.cyan('Next steps:'));
-    console.log(`  ${chalk.white('rugbyclaw status')}            Verify your setup`);
-    console.log(`  ${chalk.white('rugbyclaw scores')}            Today’s matches`);
-    console.log(`  ${chalk.white('rugbyclaw fixtures')}          Upcoming fixtures`);
-    console.log(`  ${chalk.white('rugbyclaw team search <name>')} Find a team`);
-    console.log(`  ${chalk.white('rugbyclaw notify --live')}     Live updates (polling)`);
-    console.log('');
-    console.log(chalk.dim('For OpenClaw/automation, prefer JSON output: add --json to commands.'));
-    console.log('');
-  }
-
-  if (options.json) {
-    console.log(
-      JSON.stringify(
-        { config, mode, api_key_saved: Boolean(savedApiKey) },
-        null,
-        2
-      )
-    );
-  }
+  console.log(chalk.cyan('Next steps:'));
+  console.log(`  ${chalk.white('rugbyclaw status')}            Verify your setup`);
+  console.log(`  ${chalk.white('rugbyclaw scores')}            Today’s matches`);
+  console.log(`  ${chalk.white('rugbyclaw fixtures')}          Upcoming fixtures`);
+  console.log(`  ${chalk.white('rugbyclaw team search <name>')} Find a team`);
+  console.log(`  ${chalk.white('rugbyclaw notify --live')}     Live updates (polling)`);
+  console.log('');
+  console.log(chalk.dim('For OpenClaw/automation, prefer JSON output: add --json to commands.'));
+  console.log('');
 }

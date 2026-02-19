@@ -10,7 +10,9 @@ import { LEAGUES, resolveLeague } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../lib/free-mode.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
+import { exitWithError, exitWithJson, printJson } from '../lib/cli-output.js';
 import { matchesToICS } from '../lib/ics.js';
+import { toSafeFileSlug } from '../lib/safe-filename.js';
 import type { FixturesOutput, Match } from '../types/index.js';
 
 interface FixturesOptions {
@@ -31,7 +33,11 @@ export async function fixturesCommand(
   const secrets = await loadSecrets();
   const hasApiKey = Boolean(secrets?.api_key);
   const provider = new ApiSportsProvider(secrets?.api_key);
-  const limit = parseInt(options.limit || '15', 10);
+  const limitRaw = options.limit || '15';
+  const limit = Number.parseInt(limitRaw, 10);
+  if (!Number.isFinite(limit) || limit <= 0) {
+    exitWithError(`Invalid --limit "${limitRaw}" (expected a positive integer).`, options);
+  }
 
   let matches: Match[] = [];
   let leagueName: string | undefined;
@@ -42,12 +48,25 @@ export async function fixturesCommand(
       const league = resolveLeague(leagueInput);
 
       if (!league) {
+        const available = Object.keys(LEAGUES);
+        if (options.json) {
+          exitWithJson({ error: `Unknown league: "${leagueInput}"`, available_leagues: available }, 1);
+        }
         console.log(renderError(`Unknown league: "${leagueInput}"`));
-        console.log('Available: ' + Object.keys(LEAGUES).join(', '));
+        console.log('Available: ' + available.join(', '));
         process.exit(1);
       }
 
       if (!hasApiKey && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
+        if (options.json) {
+          exitWithJson(
+            {
+              error: `"${league.name}" is not available in free mode.`,
+              hint: 'Run "rugbyclaw config" to add your own API key to unlock more leagues.',
+            },
+            1
+          );
+        }
         console.log(renderError(`"${league.name}" is not available in free mode.`));
         console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
         process.exit(1);
@@ -77,14 +96,24 @@ export async function fixturesCommand(
     // Export to ICS file
     if (options.ics) {
       if (matches.length === 0) {
-        console.log(renderWarning('No fixtures to export.'));
-        process.exit(0);
+        if (options.json) {
+          printJson({ exported: 0, out: null, warning: 'No fixtures to export.' });
+          return;
+        }
+        if (!options.quiet) {
+          console.log(renderWarning('No fixtures to export.'));
+        }
+        return;
       }
       const ics = matchesToICS(matches);
       const filename = leagueName
-        ? `${leagueName.toLowerCase().replace(/\s+/g, '-')}-fixtures.ics`
+        ? `${toSafeFileSlug(leagueName)}-fixtures.ics`
         : 'rugby-fixtures.ics';
       await writeFile(filename, ics);
+      if (options.json) {
+        printJson({ exported: matches.length, out: filename, generated_at: new Date().toISOString() });
+        return;
+      }
       if (!options.quiet) {
         console.log(renderSuccess(`Exported ${matches.length} fixtures to ${filename}`));
       }
@@ -110,7 +139,6 @@ export async function fixturesCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    exitWithError(message, options);
   }
 }
