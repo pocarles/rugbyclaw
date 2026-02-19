@@ -13,6 +13,8 @@ import { getFixturesNoMatchesExplanation } from '../lib/explain.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
 import { matchesToICS } from '../lib/ics.js';
 import type { FixturesOutput, Match } from '../types/index.js';
+import { emitCommandError } from '../lib/command-error.js';
+import { EXIT_CODES } from '../lib/exit-codes.js';
 
 interface FixturesOptions {
   json?: boolean;
@@ -45,15 +47,19 @@ export async function fixturesCommand(
       const league = resolveLeague(leagueInput);
 
       if (!league) {
-        console.log(renderError(`Unknown league: "${leagueInput}"`));
-        console.log('Available: ' + Object.keys(LEAGUES).join(', '));
-        process.exit(1);
+        if (!options.json && !options.quiet) {
+          console.log(renderError(`Unknown league: "${leagueInput}"`));
+          console.log('Available: ' + Object.keys(LEAGUES).join(', '));
+        }
+        emitCommandError(`Unknown league: "${leagueInput}"`, options, EXIT_CODES.INVALID_INPUT);
       }
 
       if (!hasApiKey && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
-        console.log(renderError(`"${league.name}" is not available in free mode.`));
-        console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
-        process.exit(1);
+        if (!options.json && !options.quiet) {
+          console.log(renderError(`"${league.name}" is not available in free mode.`));
+          console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
+        }
+        emitCommandError(`"${league.name}" is not available in free mode.`, options, EXIT_CODES.INVALID_INPUT);
       }
 
       leagueName = league.name;
@@ -130,7 +136,6 @@ export async function fixturesCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    emitCommandError(message, options);
   }
 }

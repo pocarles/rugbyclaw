@@ -36,6 +36,7 @@ rugbyclaw doctor --json --strict
 
 - In free mode, Rugbyclaw depends on the proxy Worker. `doctor` checks if it is reachable.
 - If you have an API key configured, `doctor` also checks direct API-Sports connectivity.
+- `--strict` makes `doctor` fail CI/automation when checks fail (non-zero exit code).
 - `doctor` now includes a **scores probe** for your configured timezone/date/leagues:
   - timezone used
   - date queried for `scores`

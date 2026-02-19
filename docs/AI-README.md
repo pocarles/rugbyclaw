@@ -130,6 +130,12 @@ rugbyclaw doctor --json --strict
 
 Use `mode` + `effective_leagues` to decide what to call next.
 
+For JSON command failures, expect:
+- `ok: false`
+- `error`: human-readable message
+- `exit_code`: numeric category
+- `error_type`: stable string category
+
 ## Common User Intents
 
 | User Says | Check |

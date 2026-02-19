@@ -11,6 +11,8 @@ import { getProxyQuotaLine, getProxyRateLimit, getProxyStatusIfFree } from '../l
 import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
 import { generateNeutralSummary } from '../lib/personality.js';
 import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
+import { emitCommandError } from '../lib/command-error.js';
+import { EXIT_CODES } from '../lib/exit-codes.js';
 
 interface ResultsOptions {
   json?: boolean;
@@ -39,15 +41,19 @@ export async function resultsCommand(
       const league = resolveLeague(leagueInput);
 
       if (!league) {
-        console.log(renderError(`Unknown league: "${leagueInput}"`));
-        console.log('Available: ' + Object.keys(LEAGUES).join(', '));
-        process.exit(1);
+        if (!options.json && !options.quiet) {
+          console.log(renderError(`Unknown league: "${leagueInput}"`));
+          console.log('Available: ' + Object.keys(LEAGUES).join(', '));
+        }
+        emitCommandError(`Unknown league: "${leagueInput}"`, options, EXIT_CODES.INVALID_INPUT);
       }
 
       if (!hasApiKey && !DEFAULT_PROXY_LEAGUES.includes(league.slug)) {
-        console.log(renderError(`"${league.name}" is not available in free mode.`));
-        console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
-        process.exit(1);
+        if (!options.json && !options.quiet) {
+          console.log(renderError(`"${league.name}" is not available in free mode.`));
+          console.log(renderWarning('Run "rugbyclaw config" to add your own API key to unlock more leagues.'));
+        }
+        emitCommandError(`"${league.name}" is not available in free mode.`, options, EXIT_CODES.INVALID_INPUT);
       }
 
       leagueName = league.name;
@@ -97,7 +103,6 @@ export async function resultsCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    emitCommandError(message, options);
   }
 }

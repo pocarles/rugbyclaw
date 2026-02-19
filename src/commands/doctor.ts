@@ -13,6 +13,7 @@ import { API_SPORTS_BASE_URL, PROXY_URL } from '../lib/providers/apisports.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { getTodayYMD } from '../lib/datetime.js';
 import { getKickoffOverridePaths, loadKickoffOverrides } from '../lib/kickoff-overrides.js';
+import { EXIT_CODES, type ExitCode } from '../lib/exit-codes.js';
 
 interface DoctorOptions {
   json?: boolean;
@@ -59,6 +60,29 @@ function formatCheck(label: string, result: CheckResult): string {
   const status = result.status ? chalk.dim(` [${result.status}]`) : '';
   const err = result.error ? chalk.dim(` ${result.error}`) : '';
   return `${chalk.red('✗')} ${label}${dur}${status}${err}`;
+}
+
+function inferDoctorFailureCode(
+  checks: Record<string, CheckResult>,
+  mode: 'proxy' | 'direct'
+): ExitCode {
+  const statusCandidates = [
+    checks.proxy_health.status,
+    checks.proxy_status.status,
+    checks.proxy_sample.status,
+    checks.api_direct?.status,
+  ].filter((value): value is number => Number.isFinite(value));
+
+  if (statusCandidates.includes(429)) return EXIT_CODES.RATE_LIMITED;
+
+  if (mode === 'direct' && checks.api_direct && !checks.api_direct.ok) {
+    const msg = String(checks.api_direct.error || '').toLowerCase();
+    if (msg.includes('unauthorized') || msg.includes('invalid api key') || checks.api_direct.status === 401 || checks.api_direct.status === 403) {
+      return EXIT_CODES.AUTH_ERROR;
+    }
+  }
+
+  return EXIT_CODES.UPSTREAM_ERROR;
 }
 
 async function fetchJsonWithTimeout(
@@ -280,15 +304,16 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
   };
 
   const shouldFail = Boolean(options.strict) && !output.ok;
+  const failureExitCode = shouldFail ? inferDoctorFailureCode(checks, mode) : EXIT_CODES.OK;
 
   if (options.json) {
     console.log(JSON.stringify(output, null, 2));
-    if (shouldFail) process.exitCode = 1;
+    if (shouldFail) process.exitCode = failureExitCode;
     return;
   }
 
   if (options.quiet) {
-    if (shouldFail) process.exitCode = 1;
+    if (shouldFail) process.exitCode = failureExitCode;
     return;
   }
 
@@ -339,5 +364,5 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
 
   console.log(lines.join('\n'));
 
-  if (shouldFail) process.exitCode = 1;
+  if (shouldFail) process.exitCode = failureExitCode;
 }

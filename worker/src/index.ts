@@ -16,6 +16,47 @@ interface Env {
 }
 
 const API_SPORTS_BASE = 'https://v1.rugby.api-sports.io';
+const MAX_URL_LENGTH = 2048;
+const MAX_QUERY_LENGTH = 1024;
+const MAX_QUERY_PARAMS = 8;
+const MAX_ID_LENGTH = 12;
+const MIN_SEASON = 2000;
+
+function isPositiveInteger(value: string): boolean {
+  return /^\d+$/.test(value);
+}
+
+function isValidSeason(value: string): boolean {
+  if (!/^\d{4}$/.test(value)) return false;
+  const season = Number(value);
+  const maxSeason = new Date().getUTCFullYear() + 1;
+  return season >= MIN_SEASON && season <= maxSeason;
+}
+
+function isValidDateYmd(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split('-').map((part) => Number(part));
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return (
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === m - 1 &&
+    date.getUTCDate() === d
+  );
+}
+
+function isValidSearchQuery(value: string): boolean {
+  return /^[\p{L}\p{N}\s.'-]+$/u.test(value);
+}
+
+export function validateRequestSize(url: URL): { ok: true } | { ok: false; message: string; status: number } {
+  if (url.toString().length > MAX_URL_LENGTH) {
+    return { ok: false, message: 'URL too long', status: 414 };
+  }
+  if (url.search.length > MAX_QUERY_LENGTH) {
+    return { ok: false, message: 'Query string too long', status: 400 };
+  }
+  return { ok: true };
+}
 
 function parseAllowedLeagues(env: Env): Set<string> {
   return new Set(
@@ -26,7 +67,7 @@ function parseAllowedLeagues(env: Env): Set<string> {
   );
 }
 
-function validateQuery(
+export function validateQuery(
   endpoint: AllowedEndpoint,
   searchParams: URLSearchParams,
   allowedLeagues: Set<string>
@@ -38,6 +79,10 @@ function validateQuery(
     '/leagues': new Set(['id', 'season']),
   };
 
+  if (keys.length > MAX_QUERY_PARAMS) {
+    return { ok: false, message: 'Too many query parameters', status: 400 };
+  }
+
   const allowedKeys = allowedKeysByEndpoint[endpoint];
   for (const key of keys) {
     if (!allowedKeys.has(key)) {
@@ -45,19 +90,100 @@ function validateQuery(
     }
   }
 
+  for (const key of allowedKeys) {
+    if (searchParams.getAll(key).length > 1) {
+      return { ok: false, message: `Duplicate query parameter not allowed: ${key}`, status: 400 };
+    }
+  }
+
+  const id = searchParams.get('id');
+  if (id && (!isPositiveInteger(id) || id.length > MAX_ID_LENGTH)) {
+    return { ok: false, message: 'Invalid id parameter', status: 400 };
+  }
+
+  const season = searchParams.get('season');
+  if (season && !isValidSeason(season)) {
+    return { ok: false, message: 'Invalid season parameter', status: 400 };
+  }
+
+  const date = searchParams.get('date');
+  if (date && !isValidDateYmd(date)) {
+    return { ok: false, message: 'Invalid date parameter (expected YYYY-MM-DD)', status: 400 };
+  }
+
   // Restrict league-scoped access to the default leagues only.
   const league = searchParams.get('league');
-  if (league && !allowedLeagues.has(league)) {
-    return {
-      ok: false,
-      message: 'League not available in free mode. Run "rugbyclaw config" to add your own API key.',
-      status: 403,
-    };
+  if (league) {
+    if (!isPositiveInteger(league) || league.length > MAX_ID_LENGTH) {
+      return { ok: false, message: 'Invalid league parameter', status: 400 };
+    }
+    if (!allowedLeagues.has(league)) {
+      return {
+        ok: false,
+        message: 'League not available in free mode. Run "rugbyclaw config" to add your own API key.',
+        status: 403,
+      };
+    }
+  }
+
+  // Limit search size to reduce abuse.
+  const search = searchParams.get('search');
+  if (search) {
+    if (search.length > 64) {
+      return { ok: false, message: 'Search query too long', status: 400 };
+    }
+    if (!isValidSearchQuery(search)) {
+      return { ok: false, message: 'Invalid search query', status: 400 };
+    }
+  }
+
+  // Endpoint-specific query combinations.
+  if (endpoint === '/games') {
+    const hasId = searchParams.has('id');
+    const hasLeague = searchParams.has('league');
+    const hasSeason = searchParams.has('season');
+    const hasDate = searchParams.has('date');
+
+    if (hasId && (hasLeague || hasSeason || hasDate)) {
+      return { ok: false, message: 'For /games with id, no other query parameters are allowed', status: 400 };
+    }
+
+    if (!hasId) {
+      if (!hasLeague) {
+        return { ok: false, message: 'league is required for /games queries', status: 400 };
+      }
+      if (!hasSeason && !hasDate) {
+        return { ok: false, message: 'season or date is required for /games queries', status: 400 };
+      }
+      if (hasSeason && hasDate) {
+        return { ok: false, message: 'Use either season or date for /games queries, not both', status: 400 };
+      }
+    }
+  }
+
+  if (endpoint === '/teams') {
+    const hasId = searchParams.has('id');
+    const hasSearch = searchParams.has('search');
+    const hasLeague = searchParams.has('league');
+    const hasSeason = searchParams.has('season');
+
+    if (hasId && (hasSearch || hasLeague || hasSeason)) {
+      return { ok: false, message: 'For /teams with id, no other query parameters are allowed', status: 400 };
+    }
+
+    if (!hasId) {
+      if (hasSearch) {
+        if (hasLeague || hasSeason) {
+          return { ok: false, message: 'For /teams search, only search is allowed', status: 400 };
+        }
+      } else if (!hasLeague || !hasSeason) {
+        return { ok: false, message: '/teams requires either id, search, or league+season', status: 400 };
+      }
+    }
   }
 
   // Restrict leagues endpoint to default leagues only.
   if (endpoint === '/leagues') {
-    const id = searchParams.get('id');
     if (!id) {
       return {
         ok: false,
@@ -72,12 +198,6 @@ function validateQuery(
         status: 403,
       };
     }
-  }
-
-  // Limit search size to reduce abuse.
-  const search = searchParams.get('search');
-  if (search && search.length > 64) {
-    return { ok: false, message: 'Search query too long', status: 400 };
   }
 
   // Cache TTL heuristics (seconds).
@@ -177,9 +297,6 @@ async function checkRateLimit(
 }
 
 /**
- * Validate that the requested endpoint is allowed.
- */
-/**
  * Create a JSON error response.
  */
 function errorResponse(message: string, status: number, headers: Record<string, string> = {}): Response {
@@ -223,6 +340,10 @@ export default {
     }
 
     const url = new URL(request.url);
+    const sizeValidation = validateRequestSize(url);
+    if (!sizeValidation.ok) {
+      return errorResponse(sizeValidation.message, sizeValidation.status);
+    }
     const pathname = url.pathname;
 
     // Health check endpoint

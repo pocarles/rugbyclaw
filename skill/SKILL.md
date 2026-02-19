@@ -112,7 +112,13 @@ This outputs an .ics file the user can import into any calendar app.
 
 ## Error Handling
 
-If commands fail, the JSON output includes an `error` field. Common issues:
+If commands fail, JSON output includes:
+- `ok: false`
+- `error`
+- `exit_code`
+- `error_type`
+
+Common issues:
 - "Rate limit exceeded" — Wait a bit, or add an API key for higher limits
 - "No matches found" — Check league slug or try different search
 

@@ -14,13 +14,13 @@ import {
   renderMatch,
   renderTeamSearch,
   matchToOutput,
-  renderError,
   renderWarning,
   renderSuccess,
 } from '../render/terminal.js';
 import { generateSummary } from '../lib/personality.js';
 import { matchToICS } from '../lib/ics.js';
 import type { Match, TeamSearchOutput, MatchOutput, Team } from '../types/index.js';
+import { emitCommandError } from '../lib/command-error.js';
 
 interface TeamOptions {
   json?: boolean;
@@ -71,8 +71,7 @@ export async function teamCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.log(renderError(message));
-    process.exit(1);
+    emitCommandError(message, options);
   }
 }
 

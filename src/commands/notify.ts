@@ -9,7 +9,7 @@ import {
 import { LEAGUES } from '../lib/leagues.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { generateSummary } from '../lib/personality.js';
-import { renderNotify, matchToOutput, renderError } from '../render/terminal.js';
+import { renderNotify, matchToOutput } from '../render/terminal.js';
 import { formatDateYMD, getTodayYMD, getTomorrowYMD } from '../lib/datetime.js';
 import type {
   Match,
@@ -18,6 +18,7 @@ import type {
   NotifyOutput,
   Notification,
 } from '../types/index.js';
+import { emitCommandError } from '../lib/command-error.js';
 
 interface NotifyOptions {
   json?: boolean;
@@ -390,11 +391,6 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    if (options.json) {
-      console.log(JSON.stringify({ error: message }));
-    } else {
-      console.log(renderError(message));
-    }
-    process.exit(1);
+    emitCommandError(message, options);
   }
 }

@@ -2,7 +2,9 @@ import { lstat, writeFile } from 'node:fs/promises';
 import { loadSecrets } from '../lib/config.js';
 import { ApiSportsProvider } from '../lib/providers/apisports.js';
 import { matchToICS } from '../lib/ics.js';
-import { renderError, renderSuccess } from '../render/terminal.js';
+import { renderSuccess } from '../render/terminal.js';
+import { emitCommandError } from '../lib/command-error.js';
+import { EXIT_CODES } from '../lib/exit-codes.js';
 
 interface CalendarOptions {
   json?: boolean;
@@ -13,12 +15,11 @@ interface CalendarOptions {
 }
 
 function exitWithError(message: string, options: CalendarOptions): never {
-  if (options.json) {
-    console.log(JSON.stringify({ error: message }, null, 2));
-  } else {
-    console.log(renderError(message));
-  }
-  process.exit(1);
+  emitCommandError(message, options, EXIT_CODES.INVALID_INPUT);
+}
+
+function exitWithRuntimeError(message: string, options: CalendarOptions): never {
+  emitCommandError(message, options);
 }
 
 export async function calendarCommand(
@@ -96,6 +97,6 @@ export async function calendarCommand(
     }
 
     const message = error instanceof Error ? error.message : 'Unknown error';
-    exitWithError(message, options);
+    exitWithRuntimeError(message, options);
   }
 }

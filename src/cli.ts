@@ -16,6 +16,7 @@ import { notifyCommand } from './commands/notify.js';
 import { statusCommand } from './commands/status.js';
 import { doctorCommand } from './commands/doctor.js';
 import { setConfigPathOverride, setTimeZoneOverride } from './lib/config.js';
+import { exitLabel, inferExitCodeFromMessage } from './lib/exit-codes.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version?: string };
@@ -61,12 +62,14 @@ async function runSafe(action: () => Promise<void>, options?: { json?: boolean }
     await action();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const exitCode = inferExitCodeFromMessage(message);
+    const errorType = exitLabel(exitCode);
     if (options?.json) {
-      console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+      console.log(JSON.stringify({ ok: false, error: message, exit_code: exitCode, error_type: errorType }, null, 2));
     } else {
       console.error(chalk.red(`Error: ${message}`));
     }
-    process.exitCode = 1;
+    process.exitCode = exitCode;
   }
 }
 
