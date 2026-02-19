@@ -98,6 +98,9 @@ If a kickoff time is known to be a provider placeholder, JSON output includes:
 - `time_tbd: true`
 - `time_confidence: "pending"` (otherwise `"exact"`)
 
+When `time_confidence` is `"pending"`, kickoff date/time can still change upstream.  
+CLI output groups these matches under **Coming Soon** to avoid showing misleading kickoff details.
+
 ## Tips
 
 - Use `--ics` to sync entire schedule to your calendar

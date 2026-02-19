@@ -172,8 +172,11 @@ export function renderFixtures(
     '',
   ];
 
-  if (output.matches.some((m) => m.time_tbd)) {
-    lines.push(chalk.yellow('⚠ Kickoff times pending from API-Sports for some Top 14 fixtures (showing Coming Soon).'));
+  const pendingKickoffMatches = output.matches.filter((m) => m.status === 'scheduled' && m.time_tbd);
+  const confirmedKickoffMatches = output.matches.filter((m) => !(m.status === 'scheduled' && m.time_tbd));
+
+  if (pendingKickoffMatches.length > 0) {
+    lines.push(chalk.yellow('⚠ Kickoff date/time pending from API-Sports for some fixtures (showing Coming Soon).'));
     lines.push('');
   }
 
@@ -183,9 +186,9 @@ export function renderFixtures(
     lines.push('');
   }
 
-  // Group by date
+  // Group confirmed fixtures by date
   const byDate = new Map<string, MatchOutput[]>();
-  for (const match of output.matches) {
+  for (const match of confirmedKickoffMatches) {
     if (!byDate.has(match.date)) {
       byDate.set(match.date, []);
     }
@@ -195,6 +198,14 @@ export function renderFixtures(
   for (const [date, matches] of byDate) {
     lines.push(chalk.yellow(formatDate(date, timeZone)));
     for (const match of matches) {
+      lines.push(formatMatchLine(match, showIds));
+    }
+    lines.push('');
+  }
+
+  if (pendingKickoffMatches.length > 0) {
+    lines.push(chalk.yellow('Coming Soon'));
+    for (const match of pendingKickoffMatches) {
       lines.push(formatMatchLine(match, showIds));
     }
     lines.push('');
@@ -272,7 +283,9 @@ export function renderMatch(
   const status = formatStatus(match.status);
   const showTbd = match.status === 'scheduled' && match.time_tbd;
   const dateTime = match.status === 'scheduled'
-    ? `${formatDate(match.date, timeZone)} at ${showTbd ? chalk.yellow('Coming Soon') : formatTime(match.time)}`
+    ? showTbd
+      ? chalk.yellow('Coming Soon')
+      : `${formatDate(match.date, timeZone)} at ${formatTime(match.time)}`
     : formatDate(match.date, timeZone);
 
   lines.push(chalk.bold(`${match.home.name} vs ${match.away.name}`));

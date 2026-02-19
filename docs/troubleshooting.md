@@ -3,7 +3,7 @@ title: Troubleshooting
 description: Common problems and solutions
 category: troubleshooting
 tags: [errors, problems, help]
-updated: 2026-02-05
+updated: 2026-02-19
 ---
 
 # Troubleshooting
@@ -165,13 +165,14 @@ rugbyclaw config
 rugbyclaw --tz America/New_York fixtures
 ```
 
-### Top 14 times show "TBD"
+### Fixtures show "Coming Soon"
 
-**Problem:** API-Sports sometimes publishes placeholder kickoff times (UTC on the hour) for Top 14 fixtures until closer to match day.
+**Problem:** API-Sports sometimes publishes placeholder kickoff date/time values for upcoming fixtures until closer to match day.
 
 **Solution:**
-- Wait for API-Sports to update the official times
-- RugbyClaw will show `TBD` to avoid displaying incorrect kickoff times
+- Wait for API-Sports to update the official kickoff details
+- RugbyClaw shows `Coming Soon` to avoid displaying incorrect kickoff date/time
+- In JSON output, look for `time_confidence: "pending"` (`time_tbd: true`)
 
 ## Developer / Proxy Issues
 
@@ -216,4 +217,4 @@ rugbyclaw scores
    - Their API might be having issues
 
 ---
-*Last updated: 2026-02-05*
+*Last updated: 2026-02-19*
