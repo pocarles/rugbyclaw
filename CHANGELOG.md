@@ -6,7 +6,7 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
-## [0.1.7] - 2026-02-20
+## [0.1.8] - 2026-02-20
 
 ### Added
 - Official fallback kickoff sources now cover more competitions when API-Sports kickoff data is placeholder/TBD:
@@ -74,4 +74,4 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 [0.1.3]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.3
 [0.1.2]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.2
-[0.1.7]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.7
+[0.1.8]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.8
