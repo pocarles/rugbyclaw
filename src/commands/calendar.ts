@@ -20,12 +20,23 @@ function exitWithError(message: string, options: CalendarOptions): never {
   emitCommandError(message, options, EXIT_CODES.INVALID_INPUT);
 }
 
+export function isValidMatchId(matchId: string): boolean {
+  return /^\d{1,12}$/.test(matchId);
+}
+
 export async function calendarCommand(
   matchId: string,
   options: CalendarOptions
 ): Promise<void> {
   if (wantsStructuredOutput(options) && options.stdout) {
     exitWithError('Cannot use --json/--agent with --stdout (would mix ICS and JSON output).', options);
+  }
+
+  if (!isValidMatchId(matchId)) {
+    exitWithError(
+      `Invalid matchId "${matchId}". Use a numeric match ID from "rugbyclaw fixtures --show-ids".`,
+      options
+    );
   }
 
   const outPath = options.out || `match-${matchId}.ics`;
