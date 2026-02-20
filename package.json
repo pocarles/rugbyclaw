@@ -7,8 +7,17 @@
   "bin": {
     "rugbyclaw": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "data",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "tsc",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "lint": "tsc --noEmit",
