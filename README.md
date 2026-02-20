@@ -182,6 +182,10 @@ rugbyclaw openclaw init --json
 rugbyclaw openclaw init --agent
 ```
 
+## Coming Soon
+
+- `rugbyclaw standings [league]` — planned league table command (not available in `0.1.8`).
+
 ## Supported Leagues
 
 **8 competitions covered:**

@@ -22,6 +22,10 @@
 - [calendar](./commands/calendar.md) - Export matches to calendar
 - [notify](./commands/notify.md) - Notifications for cron/OpenClaw
 
+## Coming Soon
+
+- `rugbyclaw standings [league]` - League table command (planned, not released yet)
+
 ## Guides
 
 - [Following Your Team](./guides/following-teams.md) - Track specific teams
