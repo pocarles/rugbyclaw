@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { getAllowedEndpoint, isAllowedEndpoint } from '../worker/src/allowlist';
+import { getAllowedEndpoint, isAllowedEndpoint } from '../worker/src/allowlist.ts';
 
-describe('worker allowlist', () => {
-  it('allows exact endpoint and subpaths only', () => {
-    expect(isAllowedEndpoint('/games')).toBe(true);
-    expect(isAllowedEndpoint('/games/')).toBe(true);
-    expect(isAllowedEndpoint('/gamesXYZ')).toBe(false);
-    expect(isAllowedEndpoint('/teams/search')).toBe(true);
-    expect(isAllowedEndpoint('/te')).toBe(false);
+describe('worker endpoint allowlist', () => {
+  it('accepts exact endpoints', () => {
+    expect(getAllowedEndpoint('/games')).toBe('/games');
+    expect(getAllowedEndpoint('/teams')).toBe('/teams');
+    expect(getAllowedEndpoint('/leagues')).toBe('/leagues');
   });
 
-  it('resolves canonical endpoint safely', () => {
-    expect(getAllowedEndpoint('/games')).toBe('/games');
-    expect(getAllowedEndpoint('/games/123')).toBe('/games');
+  it('accepts endpoint subpaths only', () => {
+    expect(getAllowedEndpoint('/games/live')).toBe('/games');
+    expect(getAllowedEndpoint('/teams/search')).toBe('/teams');
+    expect(getAllowedEndpoint('/leagues/current')).toBe('/leagues');
+  });
+
+  it('rejects lookalike prefixes', () => {
     expect(getAllowedEndpoint('/gamesXYZ')).toBeNull();
-    expect(getAllowedEndpoint('/leagues/16')).toBe('/leagues');
+    expect(getAllowedEndpoint('/teams-v2')).toBeNull();
+    expect(getAllowedEndpoint('/leagues123')).toBeNull();
+    expect(isAllowedEndpoint('/gamesXYZ')).toBe(false);
   });
 });

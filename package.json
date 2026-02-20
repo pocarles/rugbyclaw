@@ -11,7 +11,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
-    "lint": "eslint src",
+    "lint": "tsc --noEmit",
     "test": "vitest run",
     "proxy:dev": "npm --prefix worker run dev",
     "proxy:deploy": "npm --prefix worker run deploy",
@@ -46,13 +46,10 @@
     "ora": "^8.0.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.11.0",
     "@types/yauzl": "^2.10.3",
-    "eslint": "^9.39.2",
     "typescript": "^5.3.3",
-    "typescript-eslint": "^8.54.0",
     "vitest": "^4.0.18"
   }
 }

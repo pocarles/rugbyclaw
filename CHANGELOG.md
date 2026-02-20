@@ -6,22 +6,29 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-02-20
+
 ### Added
-- Global `--agent` mode for strict one-line automation envelopes (`ok`, `exit_code`, `error_type`, `data`, `trace_id`).
-- New `rugbyclaw openclaw init` command to emit copy/paste-safe OpenClaw bootstrap + health-check commands.
-- New scheduled GitHub workflow: `Monitor Proxy Health` (checks `/health`, `/status`, `/games`, flags latency spikes, opens/updates alert issue).
-- New CI guard script (`scripts/check-contract-note.sh`) to require a changelog/version note when JSON-contract-facing files change.
+- Official fallback kickoff sources now cover more competitions when API-Sports kickoff data is placeholder/TBD:
+  - Premiership
+  - Six Nations
+  - Super Rugby Pacific
+  - Champions Cup
+  - Challenge Cup
+- New docs page for agent-friendly contracts and machine-readable endpoints:
+  - `llms.txt`
+  - `llms-full.txt`
+  - `docs/agent.json`
+  - `docs/updates.xml`
 
 ### Changed
-- Worker now returns request tracing headers (`X-Request-Id`) and exposes trace IDs in status JSON.
-- CLI JSON outputs now surface `trace_id`, plus `stale` / `cached_at` when stale cache fallback is used.
-- Free-mode fallback UX now prints: “Live data unavailable, showing last update …” when stale cache is served.
+- Time fallback matching now applies across supported fallback leagues (LNR + URC + InCrowd-backed competitions).
+- CLI `--tz` parsing now validates early and returns clear Commander validation errors for invalid values.
+- Release process docs now include website/agent-doc sync steps and feed checks.
 
 ### Security
-- Worker request hardening:
-  - strict endpoint/query validation and size limits,
-  - user-agent sanity checks + scanner denylist,
-  - per-endpoint burst rate limits in addition to global per-minute/day limits.
+- Reduced attack surface in dev toolchain by removing eslint/typescript-eslint from dependencies.
+- `npm audit` now reports zero vulnerabilities in both root and worker workspaces after lockfile refresh.
 
 ## [0.1.3] - 2026-02-05
 
@@ -67,3 +74,4 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 [0.1.3]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.3
 [0.1.2]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.2
+[0.1.7]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.7

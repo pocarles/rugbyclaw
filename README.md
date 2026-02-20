@@ -19,6 +19,16 @@ Clean architecture, reliable data, Rugby Union focus.
 - [Getting Started](./docs/getting-started.md) - Install and configure in 5 minutes
 - [Commands Reference](./docs/commands/) - Detailed command documentation
 - [Troubleshooting](./docs/troubleshooting.md) - Common issues and solutions
+- [AI & Agent Docs](./docs/reference/agent-friendly.md) - machine-readable contracts and feeds
+
+### Agent-Friendly Endpoints
+
+- `https://rugbyclaw.com/llms.txt` — compact LLM index
+- `https://rugbyclaw.com/llms-full.txt` — expanded machine context
+- `https://rugbyclaw.com/docs/agent.json` — JSON capability manifest
+- `https://rugbyclaw.com/docs/updates.xml` — docs updates RSS
+- `https://github.com/pocarles/rugbyclaw/releases.atom` — canonical releases feed
+- `https://github.com/pocarles/rugbyclaw/commits/main.atom` — canonical commits feed
 
 ## Installation
 

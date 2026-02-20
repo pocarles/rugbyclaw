@@ -33,6 +33,7 @@
 - [Supported Leagues](./reference/leagues.md) - All supported competitions
 - [Configuration Files](./reference/configuration.md) - Config file reference
 - [API Limits](./reference/api-limits.md) - API-Sports rate limits
+- [AI & Agent Docs](./reference/agent-friendly.md) - `--agent` output, llms files, and machine-readable feeds
 
 ## Contributing
 

@@ -5,6 +5,7 @@ import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 import { loadKickoffOverrides } from '../kickoff-overrides.js';
 import { randomUUID } from 'node:crypto';
+import { resolveOfficialKickoffFallbacks } from './top14-fallback.js';
 
 export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
@@ -123,10 +124,19 @@ interface ApiTeam {
 }
 
 const TOP14_LEAGUE_ID = '16';
-const TOP14_PLACEHOLDER_UTC_TIMES = new Set(['11:00', '13:00', '15:00', '17:00', '19:00', '21:00']);
+const PRO_D2_LEAGUE_ID = '17';
+const URC_LEAGUE_ID = '76';
+const LNR_LEAGUE_IDS = new Set([TOP14_LEAGUE_ID, PRO_D2_LEAGUE_ID]);
+const INCROWD_FALLBACK_LEAGUE_IDS = new Set(['13', '51', '71', '54', '52']);
+const KICKOFF_FALLBACK_LEAGUE_IDS = new Set([
+  ...LNR_LEAGUE_IDS,
+  URC_LEAGUE_ID,
+  ...INCROWD_FALLBACK_LEAGUE_IDS,
+]);
+const LNR_PLACEHOLDER_UTC_TIMES = new Set(['11:00', '13:00', '15:00', '17:00', '19:00', '21:00']);
 
 export function isLikelyTop14PlaceholderKickoff(game: ApiGame, nowMs = Date.now()): boolean {
-  if (String(game.league.id) !== TOP14_LEAGUE_ID) return false;
+  if (!LNR_LEAGUE_IDS.has(String(game.league.id))) return false;
   if (!game.time || !game.timezone) return false;
   if (game.timezone.toUpperCase() !== 'UTC') return false;
   if (!/^\d{2}:\d{2}$/.test(game.time)) return false;
@@ -135,7 +145,7 @@ export function isLikelyTop14PlaceholderKickoff(game: ApiGame, nowMs = Date.now(
   if (!Number.isFinite(hours)) return false;
   if (minutesStr !== '00') return false;
 
-  if (TOP14_PLACEHOLDER_UTC_TIMES.has(game.time)) return true;
+  if (LNR_PLACEHOLDER_UTC_TIMES.has(game.time)) return true;
 
   const kickoffMs = game.timestamp * 1000;
   const hoursAhead = (kickoffMs - nowMs) / (60 * 60 * 1000);
@@ -388,7 +398,18 @@ export class ApiSportsProvider implements Provider {
     }
   }
 
-  private parseGame(game: ApiGame): Match {
+  private async resolveKickoffFallbackOverrides(games: ApiGame[]): Promise<Map<string, number>> {
+    const candidates = games.filter((game) => (
+      mapStatus(game.status) === 'scheduled'
+      && KICKOFF_FALLBACK_LEAGUE_IDS.has(String(game.league.id))
+    ));
+
+    if (candidates.length === 0) return new Map();
+
+    return resolveOfficialKickoffFallbacks(candidates);
+  }
+
+  private parseGame(game: ApiGame, runtimeKickoff?: number): Match {
     const league = getLeagueById(String(game.league.id)) || {
       id: String(game.league.id),
       slug: game.league.name.toLowerCase().replace(/\s+/g, '_'),
@@ -399,10 +420,14 @@ export class ApiSportsProvider implements Provider {
 
     const status = mapStatus(game.status);
     const override = this.kickoffOverrides.get(String(game.id));
-    const timestamp = override ? override.kickoffMs : game.timestamp * 1000;
-    // Prefer UNIX timestamp source (provider or verified override) for timezone-safe rendering.
+    const hasRuntimeKickoff = Number.isFinite(runtimeKickoff);
+    const timestamp = override
+      ? override.kickoffMs
+      : hasRuntimeKickoff
+        ? Number(runtimeKickoff)
+        : game.timestamp * 1000;
     const date = new Date(timestamp);
-    const timeTbd = !override && status === 'scheduled' && isLikelyTop14PlaceholderKickoff(game);
+    const timeTbd = !override && !hasRuntimeKickoff && status === 'scheduled' && isLikelyTop14PlaceholderKickoff(game);
 
     return {
       id: String(game.id),
@@ -425,7 +450,7 @@ export class ApiSportsProvider implements Provider {
       round: game.week || undefined,
       timestamp, // ms
       timeTbd,
-      timeSource: override ? 'secondary' : 'provider',
+      timeSource: override || hasRuntimeKickoff ? 'secondary' : 'provider',
     };
   }
 
@@ -451,12 +476,12 @@ export class ApiSportsProvider implements Provider {
       { league: leagueId, season: String(season) },
       CACHE_PROFILES.standard
     );
+    const fallbackOverrides = await this.resolveKickoffFallbackOverrides(games);
 
     const now = Date.now();
 
-    // Filter to upcoming matches only and sort by date
     return games
-      .map((g) => this.parseGame(g))
+      .map((g) => this.parseGame(g, fallbackOverrides.get(String(g.id))))
       .filter((m) => m.status === 'scheduled' && m.timestamp > now)
       .sort((a, b) => a.timestamp - b.timestamp);
   }
@@ -487,7 +512,8 @@ export class ApiSportsProvider implements Provider {
       return null;
     }
 
-    return this.parseGame(games[0]);
+    const fallbackOverrides = await this.resolveKickoffFallbackOverrides(games);
+    return this.parseGame(games[0], fallbackOverrides.get(String(games[0].id)));
   }
 
   async getToday(leagueIds: string[], options?: { dateYmd?: string }): Promise<Match[]> {
@@ -504,9 +530,10 @@ export class ApiSportsProvider implements Provider {
           { league: leagueId, date: dateStr },
           CACHE_PROFILES.live
         );
+        const fallbackOverrides = await this.resolveKickoffFallbackOverrides(games);
 
         for (const game of games) {
-          const match = this.parseGame(game);
+          const match = this.parseGame(game, fallbackOverrides.get(String(game.id)));
           if (!matchMap.has(match.id)) {
             matchMap.set(match.id, match);
           }

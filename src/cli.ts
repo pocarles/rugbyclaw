@@ -17,6 +17,7 @@ import { statusCommand } from './commands/status.js';
 import { doctorCommand } from './commands/doctor.js';
 import { openclawInitCommand } from './commands/openclaw.js';
 import { setConfigPathOverride, setTimeZoneOverride } from './lib/config.js';
+import { parseTimeZoneOption } from './lib/cli-options.js';
 import { exitLabel, inferExitCodeFromMessage } from './lib/exit-codes.js';
 import { emitCommandSuccess, wantsStructuredOutput } from './lib/output.js';
 
@@ -96,7 +97,7 @@ program
   .option('--quiet', 'Minimal output')
   .option('--no-color', 'Disable color output')
   .option('--config <path>', 'Use a custom config directory or config.json path')
-  .option('--tz <timezone>', 'Override timezone (IANA), e.g. America/New_York');
+  .option('--tz <timezone>', 'Override timezone (IANA), e.g. America/New_York', parseTimeZoneOption);
 
 // Show welcome on first run with no command
 program.hook('preAction', () => {
