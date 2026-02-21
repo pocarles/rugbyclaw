@@ -6,6 +6,23 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-02-21
+
+### Added
+- `rugbyclaw start` now runs a quick post-setup health check to confirm proxy/provider readiness.
+- Provider retry/backoff on transient upstream failures to reduce flaky free-mode responses.
+- New tests for strict structured outputs and provider retry behavior.
+
+### Changed
+- `config` now clears stored API key secrets when switching to free/proxy mode.
+- `team` and `fixtures --ics` now keep strict `--agent`/`--json` envelopes even on empty results.
+- Improved diagnostics/follow-up messaging for stale data and free-mode status.
+
+### Security
+- Worker allowlist matching tightened to exact endpoint checks (no permissive prefix matching).
+- Worker rate-limit now applies before cached response returns, with limit headers on cache hits.
+- Secrets file write path now enforces `0600` permissions via explicit chmod.
+
 ## [0.1.10] - 2026-02-21
 
 ### Added
@@ -87,3 +104,4 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 [0.1.2]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.2
 [0.1.8]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.8
 [0.1.10]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.10
+[0.1.11]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.11
