@@ -13,6 +13,7 @@ import {
   getProxyStatusIfFree,
   getStaleFallbackLine,
 } from '../lib/free-mode.js';
+import { getResultsNoMatchesHint } from '../lib/explain.js';
 import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
 import { generateNeutralSummary } from '../lib/personality.js';
 import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
@@ -43,6 +44,8 @@ export async function resultsCommand(
 
   let matches: Match[] = [];
   let leagueName: string | undefined;
+  let requestUnits = 1;
+  let selectedLeagues: Array<{ slug: string; id: string; name: string }> = [];
 
   try {
     if (leagueInput) {
@@ -66,13 +69,19 @@ export async function resultsCommand(
       }
 
       leagueName = league.name;
+      selectedLeagues = [{ slug: league.slug, id: league.id, name: league.name }];
+      requestUnits = 1;
       matches = await provider.getLeagueResults(league.id);
     } else {
       // Get effective leagues (user's favorites or defaults)
       const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
+      selectedLeagues = favoriteLeagues
+        .map((slug) => ({ slug, id: LEAGUES[slug]?.id, name: LEAGUES[slug]?.name }))
+        .filter((league): league is { slug: string; id: string; name: string } => Boolean(league.id && league.name));
       const leagueIds = favoriteLeagues
         .map((slug) => LEAGUES[slug]?.id)
         .filter(Boolean) as string[];
+      requestUnits = Math.max(1, leagueIds.length);
 
       for (const id of leagueIds) {
         const leagueMatches = await provider.getLeagueResults(id);
@@ -114,7 +123,22 @@ export async function resultsCommand(
       if (runtime.staleFallback) {
         console.log(getStaleFallbackLine(runtime.cachedAt));
       }
-      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
+      const noMatchHints = getResultsNoMatchesHint({
+        mode: hasApiKey ? 'direct' : 'proxy',
+        timeZone,
+        leagues: selectedLeagues,
+        matchCount: output.matches.length,
+        limit,
+      });
+      if (noMatchHints.length > 0) {
+        console.log('');
+        for (const line of noMatchHints) console.log(line);
+      }
+      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey, {
+        staleFallback: runtime.staleFallback,
+        requestUnits,
+        timeZone,
+      });
       if (quotaLine) console.log(quotaLine);
 
       const hints: string[] = [];

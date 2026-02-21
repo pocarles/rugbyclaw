@@ -20,6 +20,11 @@ interface FixturesExplainInput extends BaseExplainInput {
   limit: number;
 }
 
+interface ResultsExplainInput extends BaseExplainInput {
+  matchCount: number;
+  limit: number;
+}
+
 function formatMode(mode: 'proxy' | 'direct'): string {
   return mode === 'proxy' ? 'Free mode (proxy)' : 'API key (direct)';
 }
@@ -54,5 +59,49 @@ export function getFixturesNoMatchesExplanation(input: FixturesExplainInput): st
     `- Match limit: ${input.limit}`,
     '- API result count: 0',
     '- Next step: run "rugbyclaw doctor" for deeper diagnostics.',
+  ];
+}
+
+export function getResultsNoMatchesExplanation(input: ResultsExplainInput): string[] {
+  if (input.matchCount > 0) return [];
+
+  return [
+    'Why no recent results:',
+    `- Mode: ${formatMode(input.mode)}`,
+    `- Timezone: ${input.timeZone}`,
+    `- Leagues queried: ${formatLeagues(input.leagues)}`,
+    `- Match limit: ${input.limit}`,
+    '- API result count: 0',
+    '- Next step: run "rugbyclaw doctor" for deeper diagnostics.',
+  ];
+}
+
+export function getScoresNoMatchesHint(input: ScoresExplainInput): string[] {
+  if (input.matchCount > 0) return [];
+
+  return [
+    `No matches returned for ${input.dateYmd} in ${input.timeZone}.`,
+    `Queried leagues: ${formatLeagues(input.leagues)}.`,
+    'Tip: run "rugbyclaw scores --explain" for full context or "rugbyclaw doctor" for diagnostics.',
+  ];
+}
+
+export function getFixturesNoMatchesHint(input: FixturesExplainInput): string[] {
+  if (input.matchCount > 0) return [];
+
+  return [
+    `No upcoming fixtures returned in ${input.timeZone}.`,
+    `Queried leagues: ${formatLeagues(input.leagues)} (limit ${input.limit}).`,
+    'Tip: run "rugbyclaw fixtures --explain" for full context or "rugbyclaw doctor" for diagnostics.',
+  ];
+}
+
+export function getResultsNoMatchesHint(input: ResultsExplainInput): string[] {
+  if (input.matchCount > 0) return [];
+
+  return [
+    `No recent results returned in ${input.timeZone}.`,
+    `Queried leagues: ${formatLeagues(input.leagues)} (limit ${input.limit}).`,
+    'Tip: run "rugbyclaw doctor" for diagnostics.',
   ];
 }

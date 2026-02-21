@@ -134,6 +134,8 @@ const KICKOFF_FALLBACK_LEAGUE_IDS = new Set([
   ...INCROWD_FALLBACK_LEAGUE_IDS,
 ]);
 const LNR_PLACEHOLDER_UTC_TIMES = new Set(['11:00', '13:00', '15:00', '17:00', '19:00', '21:00']);
+const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 500, 502, 503, 504]);
+const RETRY_MAX_ATTEMPTS = 3;
 
 export function isLikelyTop14PlaceholderKickoff(game: ApiGame, nowMs = Date.now()): boolean {
   if (!LNR_LEAGUE_IDS.has(String(game.league.id))) return false;
@@ -272,6 +274,56 @@ export class ApiSportsProvider implements Provider {
       || fallbackTraceId;
   }
 
+  private isRetryableNetworkError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const message = error.message.toLowerCase();
+    if (message.includes('aborted') || message.includes('timeout')) return true;
+    if (message.includes('fetch failed')) return true;
+    if (message.includes('network')) return true;
+    if (message.includes('socket')) return true;
+    if (message.includes('econnreset') || message.includes('enotfound') || message.includes('eai_again')) {
+      return true;
+    }
+    return error.name === 'TypeError';
+  }
+
+  private async waitForRetry(attempt: number): Promise<void> {
+    if (process.env.NODE_ENV === 'test') return;
+    const baseDelay = 150 * Math.pow(2, attempt - 1);
+    const jitter = Math.floor(Math.random() * 120);
+    const delayMs = Math.min(1000, baseDelay + jitter);
+    await new Promise<void>((resolve) => {
+      setTimeout(() => resolve(), delayMs);
+    });
+  }
+
+  private async fetchWithRetry(url: string, headers: Record<string, string>): Promise<Response> {
+    let lastNetworkError: unknown;
+
+    for (let attempt = 1; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
+      try {
+        const response = await fetch(url, { headers });
+
+        const shouldRetryStatus = RETRYABLE_HTTP_STATUSES.has(response.status);
+        if (shouldRetryStatus && attempt < RETRY_MAX_ATTEMPTS) {
+          await this.waitForRetry(attempt);
+          continue;
+        }
+
+        return response;
+      } catch (error) {
+        lastNetworkError = error;
+        const shouldRetryNetworkError = this.isRetryableNetworkError(error);
+        if (!shouldRetryNetworkError || attempt >= RETRY_MAX_ATTEMPTS) {
+          throw error;
+        }
+        await this.waitForRetry(attempt);
+      }
+    }
+
+    throw (lastNetworkError instanceof Error ? lastNetworkError : new Error('fetch failed'));
+  }
+
   consumeRuntimeMeta(): ProviderRuntimeMeta {
     const traceIds = [...this.traceIds];
     const latestTraceId = traceIds.length > 0 ? traceIds[traceIds.length - 1] : null;
@@ -313,7 +365,7 @@ export class ApiSportsProvider implements Provider {
         headers['x-apisports-key'] = this.apiKey;
       }
 
-      const response = await fetch(url, { headers });
+      const response = await this.fetchWithRetry(url, headers);
       const traceId = this.resolveResponseTraceId(response, clientTraceId);
       this.recordTrace(traceId);
 

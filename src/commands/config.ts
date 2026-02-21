@@ -5,6 +5,7 @@ import {
   saveConfig,
   loadSecrets,
   saveSecrets,
+  clearSecrets,
   DEFAULT_PROXY_LEAGUES,
   isValidTimeZone,
   getTimeZoneOverride,
@@ -610,6 +611,9 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
     };
 
     await saveConfig(config);
+    if (access.mode === 'proxy') {
+      await clearSecrets();
+    }
 
     payload = {
       config,

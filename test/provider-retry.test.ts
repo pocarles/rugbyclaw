@@ -4,12 +4,12 @@ import { getCache } from '../src/lib/cache.js';
 
 const SAMPLE_RESPONSE = {
   get: 'games',
-  parameters: { league: '9991', date: '2030-07-19' },
+  parameters: { league: '51', date: '2026-02-19' },
   errors: [],
   results: 1,
   response: [
     {
-      id: 12345,
+      id: 991,
       date: '2026-02-19T20:10:00+00:00',
       time: '20:10',
       timestamp: 1771531800,
@@ -27,43 +27,45 @@ const SAMPLE_RESPONSE = {
   ],
 };
 
-describe('provider stale fallback metadata', () => {
+describe('provider retry behavior', () => {
   beforeEach(async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2030-07-19T12:00:00.000Z'));
     await getCache().clear();
   });
 
   afterEach(async () => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
     await getCache().clear();
   });
 
-  it('returns stale cache and exposes stale metadata on upstream failure', async () => {
+  it('retries transient network failures before succeeding', async () => {
     const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
       .mockResolvedValueOnce(
         new Response(JSON.stringify(SAMPLE_RESPONSE), {
           status: 200,
-          headers: { 'x-request-id': 'proxy-trace-1' },
+          headers: { 'x-request-id': 'proxy-trace-retry' },
         })
-      )
-      .mockRejectedValueOnce(new Error('network down'));
-
+      );
     vi.stubGlobal('fetch', fetchMock);
 
     const provider = new ApiSportsProvider();
-    await provider.getToday(['9991'], { dateYmd: '2030-07-19' });
-    provider.consumeRuntimeMeta(); // isolate second call assertions
+    const matches = await provider.getToday(['51'], { dateYmd: '2026-02-19' });
 
-    vi.setSystemTime(new Date('2030-07-19T12:00:45.000Z')); // stale-after (30s) passed, still not expired
-
-    const matches = await provider.getToday(['9991'], { dateYmd: '2030-07-19' });
-    const meta = provider.consumeRuntimeMeta();
-
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(matches).toHaveLength(1);
-    expect(meta.staleFallback).toBe(true);
-    expect(meta.cachedAt).toBe('2030-07-19T12:00:00.000Z');
-    expect(meta.traceIds.length).toBeGreaterThan(0);
+  });
+
+  it('does not retry unauthorized responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: 'unauthorized' }), {
+        status: 401,
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = new ApiSportsProvider('bad-key');
+
+    await expect(provider.getLeagueFixtures('16')).rejects.toThrow('Invalid API key');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,7 +3,7 @@ title: rugbyclaw scores
 description: Show today's matches across your favorite leagues
 category: commands
 tags: [scores, live, matches]
-updated: 2026-02-19
+updated: 2026-02-21
 ---
 
 # rugbyclaw scores
@@ -60,7 +60,8 @@ Returns structured JSON for scripts/automation.
 rugbyclaw scores --explain
 ```
 
-When no matches are returned, Rugbyclaw prints:
+Rugbyclaw now prints a quick no-match explanation by default.  
+Use `--explain` for full details:
 - Mode used (free proxy or direct API key)
 - Timezone used
 - Date queried
@@ -84,6 +85,14 @@ Hides the contextual **Next steps** block.
 - Times shown in your configured timezone
 - Updates when you run the command (not live-updating)
 
+## Kickoff Confidence Markers
+
+- `Coming Soon` means kickoff date/time is still pending from provider data
+- `15:10*` means kickoff was verified from an official fallback source
+- JSON includes:
+  - `time_confidence`: `"pending"` or `"exact"`
+  - `time_source`: `"provider"` or `"secondary"`
+
 ## Tips
 
 - Run this command in the morning to see today's schedule
@@ -96,4 +105,4 @@ Hides the contextual **Next steps** block.
 - [results](./results.md) - Recent results
 
 ---
-*Last updated: 2026-02-19*
+*Last updated: 2026-02-21*

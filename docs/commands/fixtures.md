@@ -3,7 +3,7 @@ title: rugbyclaw fixtures
 description: View upcoming matches
 category: commands
 tags: [fixtures, upcoming, schedule]
-updated: 2026-02-19
+updated: 2026-02-21
 ---
 
 # rugbyclaw fixtures
@@ -91,7 +91,8 @@ Hides the contextual **Next steps** block.
 rugbyclaw fixtures --explain
 ```
 
-When no fixtures are returned, Rugbyclaw prints mode, timezone, queried leagues, and limit.
+Rugbyclaw now prints a short no-match explanation by default.  
+Use `--explain` for full context (mode, timezone, queried leagues, and limit).
 
 ## Supported Leagues
 
@@ -119,6 +120,7 @@ If a kickoff time is known to be a provider placeholder, JSON output includes:
 
 When `time_confidence` is `"pending"`, kickoff date/time can still change upstream.  
 CLI output groups these matches under **Coming Soon** to avoid showing misleading kickoff details.
+When a kickoff is verified from fallback data, CLI marks it with `*`.
 
 To apply trusted corrections, add optional overrides in:
 - `~/.config/rugbyclaw/kickoff-overrides.json`
@@ -136,4 +138,4 @@ To apply trusted corrections, add optional overrides in:
 - [results](./results.md) - Past results
 
 ---
-*Last updated: 2026-02-19*
+*Last updated: 2026-02-21*

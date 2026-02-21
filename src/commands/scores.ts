@@ -13,7 +13,7 @@ import {
   getProxyStatusIfFree,
   getStaleFallbackLine,
 } from '../lib/free-mode.js';
-import { getScoresNoMatchesExplanation } from '../lib/explain.js';
+import { getScoresNoMatchesExplanation, getScoresNoMatchesHint } from '../lib/explain.js';
 import { renderScores, matchToOutput } from '../render/terminal.js';
 import type { ScoresOutput } from '../types/index.js';
 import { getTodayYMD } from '../lib/datetime.js';
@@ -70,20 +70,30 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
       if (runtime.staleFallback) {
         console.log(getStaleFallbackLine(runtime.cachedAt));
       }
+      const explainInput = {
+        mode: hasApiKey ? 'direct' as const : 'proxy' as const,
+        timeZone,
+        dateYmd,
+        leagues: selectedLeagues,
+        matchCount: output.matches.length,
+      };
+      const noMatchHints = getScoresNoMatchesHint(explainInput);
+      if (noMatchHints.length > 0) {
+        console.log('');
+        for (const line of noMatchHints) console.log(line);
+      }
       if (options.explain) {
-        const explanation = getScoresNoMatchesExplanation({
-          mode: hasApiKey ? 'direct' : 'proxy',
-          timeZone,
-          dateYmd,
-          leagues: selectedLeagues,
-          matchCount: output.matches.length,
-        });
+        const explanation = getScoresNoMatchesExplanation(explainInput);
         if (explanation.length > 0) {
           console.log('');
           for (const line of explanation) console.log(line);
         }
       }
-      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
+      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey, {
+        staleFallback: runtime.staleFallback,
+        requestUnits: Math.max(1, selectedLeagues.length),
+        timeZone,
+      });
       if (quotaLine) console.log(quotaLine);
 
       const hints: string[] = [];

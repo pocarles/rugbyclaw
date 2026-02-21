@@ -39,6 +39,7 @@ describe('pending kickoff rendering', () => {
           date: '2026-02-05',
           time: '15:10',
           time_confidence: 'exact',
+          time_source: 'secondary',
         }),
       ],
       generated_at: '2026-02-01T00:00:00Z',
@@ -50,6 +51,9 @@ describe('pending kickoff rendering', () => {
     expect(rendered).toContain('Stade Francais Paris');
     expect(rendered).toContain('France');
     expect(rendered).toContain('Thu, Feb 5');
+    expect(rendered).toContain('15:10*');
+    expect(rendered).toContain('* Kickoff verified from official fallback source.');
+    expect(rendered).toContain('Coming Soon = kickoff still pending from provider.');
     expect(rendered).not.toContain('Sat, Feb 14');
   });
 
@@ -68,5 +72,20 @@ describe('pending kickoff rendering', () => {
     expect(rendered).toContain('Top 14 · Coming Soon');
     expect(rendered).not.toContain('Sat, Feb 14');
     expect(rendered).not.toContain(' at ');
+  });
+
+  it('marks verified kickoff source for team view', () => {
+    const match = makeScheduledMatch({
+      home: { name: 'Bordeaux Begles' },
+      away: { name: 'Castres Olympique' },
+      date: '2026-02-28',
+      time: '15:10',
+      time_confidence: 'exact',
+      time_source: 'secondary',
+    });
+
+    const rendered = stripAnsi(renderMatch(match, false, 'Europe/Paris'));
+    expect(rendered).toContain('Sat, Feb 28 at 15:10*');
+    expect(rendered).toContain('* Kickoff verified from official fallback source.');
   });
 });

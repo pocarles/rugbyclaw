@@ -8,7 +8,7 @@ describe('free mode quota line', () => {
 
   it('shows proxy unavailable warning in free mode when status is missing', () => {
     const line = getProxyQuotaLine(null, false);
-    expect(line).toContain('Free mode: proxy unavailable right now.');
+    expect(line).toContain('Free mode: proxy status unavailable right now.');
   });
 
   it('shows remaining quota in free mode when rate limits are present', () => {
@@ -21,5 +21,12 @@ describe('free mode quota line', () => {
     }, false);
 
     expect(line).toContain('Free quota: 49/50 today, 9/10 per minute');
+    expect(line).toContain('est 49 full runs left (9 right now)');
+    expect(line).toContain('resets midnight UTC');
+  });
+
+  it('shows stale fallback status when proxy status cannot be fetched', () => {
+    const line = getProxyQuotaLine(null, false, { staleFallback: true });
+    expect(line).toContain('using cached data');
   });
 });

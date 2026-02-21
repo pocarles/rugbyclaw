@@ -25,6 +25,7 @@ describe('agent output envelope', () => {
 
     const payload = JSON.parse(line) as Record<string, unknown>;
     expect(payload).toEqual({
+      schema_version: 1,
       ok: true,
       exit_code: 0,
       error_type: 'ok',
@@ -52,6 +53,7 @@ describe('agent output envelope', () => {
 
       const payload = JSON.parse(line) as Record<string, unknown>;
       expect(payload).toEqual({
+        schema_version: 1,
         ok: false,
         exit_code: 6,
         error_type: 'upstream_error',

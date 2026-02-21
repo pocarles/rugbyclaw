@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -59,6 +59,28 @@ describe('agent flow json contracts', () => {
     ]);
     expect(payload.mode).toBe('proxy');
     expect(payload.setup_style).toBe('quick');
+  });
+
+  it('config --mode proxy clears existing saved API key', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rugbyclaw-agent-config-proxy-'));
+    tempDirs.push(dir);
+    setConfigPathOverride(dir);
+
+    writeFileSync(
+      join(dir, 'secrets.json'),
+      JSON.stringify({ api_key: 'old-key', api_tier: 'premium' }, null, 2)
+    );
+
+    const { configCommand } = await import('../src/commands/config.js');
+    await withCapturedLogs(async () => configCommand({
+      yes: true,
+      json: true,
+      quiet: true,
+      mode: 'proxy',
+      timezone: 'UTC',
+    }));
+
+    expect(existsSync(join(dir, 'secrets.json'))).toBe(false);
   });
 
   it('doctor --json returns stable envelope and strict sets non-zero exit code', async () => {

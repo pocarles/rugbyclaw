@@ -1,5 +1,6 @@
 import { renderError } from '../render/terminal.js';
 import { EXIT_CODES, exitLabel, inferExitCodeFromMessage, type ExitCode } from './exit-codes.js';
+import { AGENT_ENVELOPE_VERSION } from './output.js';
 
 interface ErrorOutputOptions {
   json?: boolean;
@@ -23,6 +24,7 @@ export function emitCommandError(
   if (options.agent) {
     console.log(
       JSON.stringify({
+        schema_version: AGENT_ENVELOPE_VERSION,
         ok: false,
         exit_code: exitCode,
         error_type: reason,

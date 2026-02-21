@@ -19,7 +19,8 @@ import { openclawInitCommand } from './commands/openclaw.js';
 import { setConfigPathOverride, setTimeZoneOverride } from './lib/config.js';
 import { parseTimeZoneOption } from './lib/cli-options.js';
 import { exitLabel, inferExitCodeFromMessage } from './lib/exit-codes.js';
-import { emitCommandSuccess, wantsStructuredOutput } from './lib/output.js';
+import { AGENT_ENVELOPE_VERSION, emitCommandSuccess, wantsStructuredOutput } from './lib/output.js';
+import { runStartPostSetupCheck } from './lib/start-check.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version?: string };
@@ -70,6 +71,7 @@ async function runSafe(action: () => Promise<void>, options?: { json?: boolean; 
     if (options?.agent) {
       console.log(
         JSON.stringify({
+          schema_version: AGENT_ENVELOPE_VERSION,
           ok: false,
           exit_code: exitCode,
           error_type: errorType,
@@ -178,6 +180,9 @@ ${chalk.cyan('Examples:')}
         guided: Boolean(options.guided),
         timezone: base.tz,
       });
+      if (!wantsStructuredOutput(base) && !base.quiet) {
+        await runStartPostSetupCheck();
+      }
     }, { json: Boolean(base.json), agent: Boolean(base.agent) });
   });
 

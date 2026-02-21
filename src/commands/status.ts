@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { loadConfig, loadSecrets, DEFAULT_PROXY_LEAGUES, getConfigDir, getEffectiveTimeZone } from '../lib/config.js';
 import { LEAGUES } from '../lib/leagues.js';
 import { fetchProxyStatus } from '../lib/providers/apisports.js';
+import { getProxyQuotaLine } from '../lib/free-mode.js';
 import type { Config } from '../types/index.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 import { renderFollowups, shouldShowFollowups } from '../lib/followups.js';
@@ -67,12 +68,11 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     lines.push(chalk.dim(`Stored timezone: ${config.timezone}`));
   }
   lines.push(`${chalk.dim('Leagues:')} ${leagueNames.join(', ')}`);
-  if (proxyStatus?.rate_limit?.day) {
-    const day = proxyStatus.rate_limit.day;
-    const minute = proxyStatus.rate_limit.minute;
-    const minuteText = minute ? `, ${minute.remaining}/${minute.limit} per minute` : '';
-    lines.push(`${chalk.dim('Quota:')} ${day.remaining}/${day.limit} daily${minuteText}`);
-  }
+  const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey, {
+    requestUnits: Math.max(1, leagueSlugs.length),
+    timeZone,
+  });
+  if (quotaLine) lines.push(quotaLine);
   if (config.favorite_teams.length > 0) {
     lines.push(`${chalk.dim('Favorite teams:')} ${config.favorite_teams.length}`);
   }

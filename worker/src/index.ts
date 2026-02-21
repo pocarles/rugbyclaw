@@ -39,6 +39,12 @@ const BLOCKED_USER_AGENT_PATTERNS = [
   /wpscan/i,
 ];
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value || '', 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
 function isPositiveInteger(value: string): boolean {
   return /^\d+$/.test(value);
 }
@@ -460,8 +466,8 @@ export default {
 
     if (pathname === '/status') {
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const rateLimitDay = parseInt(env.RATE_LIMIT_PER_DAY || '50', 10);
-      const rateLimitMinute = parseInt(env.RATE_LIMIT_PER_MINUTE || '10', 10);
+      const rateLimitDay = parsePositiveInt(env.RATE_LIMIT_PER_DAY, 50);
+      const rateLimitMinute = parsePositiveInt(env.RATE_LIMIT_PER_MINUTE, 10);
       const rate = await getRateLimitStatus(env.RATE_LIMITS, ip, rateLimitDay, rateLimitMinute);
 
       return new Response(
@@ -519,22 +525,9 @@ export default {
     // Get client IP
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
 
-    // Edge cache: serve cached responses without consuming quota.
-    const cache = caches.default;
-    const cacheKey = new Request(url.toString(), { method: 'GET' });
-    const cached = await cache.match(cacheKey);
-    if (cached) {
-      const headers = new Headers(cached.headers);
-      headers.set('X-Cache', 'HIT');
-      headers.set('X-Proxy', 'rugbyclaw');
-      headers.set('Access-Control-Allow-Origin', '*');
-      headers.set('X-Request-Id', requestId);
-      return new Response(cached.body, { status: cached.status, headers });
-    }
-
-    // Check rate limit (cache miss only)
-    const rateLimitDay = parseInt(env.RATE_LIMIT_PER_DAY || '50', 10);
-    const rateLimitMinute = parseInt(env.RATE_LIMIT_PER_MINUTE || '10', 10);
+    // Check rate limit first, including cache hits.
+    const rateLimitDay = parsePositiveInt(env.RATE_LIMIT_PER_DAY, 50);
+    const rateLimitMinute = parsePositiveInt(env.RATE_LIMIT_PER_MINUTE, 10);
     const endpointBurstLimit = ENDPOINT_BURST_LIMITS[endpoint] ?? rateLimitMinute;
     const rate = await checkRateLimit(
       env.RATE_LIMITS,
@@ -559,6 +552,26 @@ export default {
           'X-RateLimit-Reset': 'midnight UTC',
         })
       );
+    }
+
+    // Edge cache.
+    const cache = caches.default;
+    const cacheKey = new Request(url.toString(), { method: 'GET' });
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      const headers = new Headers(cached.headers);
+      headers.set('X-Cache', 'HIT');
+      headers.set('X-Proxy', 'rugbyclaw');
+      headers.set('Access-Control-Allow-Origin', '*');
+      headers.set('X-Request-Id', requestId);
+      headers.set('X-RateLimit-Limit-Day', rate.limitDay.toString());
+      headers.set('X-RateLimit-Remaining-Day', rate.remainingDay.toString());
+      headers.set('X-RateLimit-Limit-Minute', rate.limitMinute.toString());
+      headers.set('X-RateLimit-Remaining-Minute', rate.remainingMinute.toString());
+      headers.set('X-RateLimit-Limit-Endpoint-Minute', rate.limitEndpointMinute.toString());
+      headers.set('X-RateLimit-Remaining-Endpoint-Minute', rate.remainingEndpointMinute.toString());
+      headers.set('X-RateLimit-Reset', 'midnight UTC');
+      return new Response(cached.body, { status: cached.status, headers });
     }
 
     // Build API-Sports request

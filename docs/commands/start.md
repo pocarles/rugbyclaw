@@ -3,7 +3,7 @@ title: rugbyclaw start
 description: Beginner-first setup (quick mode)
 category: commands
 tags: [start, setup, onboarding]
-updated: 2026-02-19
+updated: 2026-02-21
 ---
 
 # rugbyclaw start
@@ -32,6 +32,7 @@ rugbyclaw start [options]
 - Applies recommended leagues
 - Skips optional team selection
 - Confirms timezone
+- Runs a mini post-setup check (`proxy/API + one data probe`)
 
 Use `rugbyclaw start --guided` if you want full control over mode, leagues, teams, and timezone.
 

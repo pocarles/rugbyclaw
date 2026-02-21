@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -205,6 +205,19 @@ export async function loadSecrets(): Promise<Secrets | null> {
 export async function saveSecrets(secrets: Secrets): Promise<void> {
   await ensureConfigDir();
   await writeFile(secretsPath, JSON.stringify(secrets, null, 2), { mode: 0o600 });
+  await chmod(secretsPath, 0o600);
+}
+
+/**
+ * Remove API secrets (switch back to free mode).
+ */
+export async function clearSecrets(): Promise<void> {
+  try {
+    await unlink(secretsPath);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT') throw error;
+  }
 }
 
 /**

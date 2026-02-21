@@ -8,16 +8,13 @@ describe('worker endpoint allowlist', () => {
     expect(getAllowedEndpoint('/leagues')).toBe('/leagues');
   });
 
-  it('accepts endpoint subpaths only', () => {
-    expect(getAllowedEndpoint('/games/live')).toBe('/games');
-    expect(getAllowedEndpoint('/teams/search')).toBe('/teams');
-    expect(getAllowedEndpoint('/leagues/current')).toBe('/leagues');
-  });
-
-  it('rejects lookalike prefixes', () => {
+  it('rejects lookalike prefixes and subpaths', () => {
     expect(getAllowedEndpoint('/gamesXYZ')).toBeNull();
+    expect(getAllowedEndpoint('/games/live')).toBeNull();
     expect(getAllowedEndpoint('/teams-v2')).toBeNull();
+    expect(getAllowedEndpoint('/teams/search')).toBeNull();
     expect(getAllowedEndpoint('/leagues123')).toBeNull();
+    expect(getAllowedEndpoint('/leagues/current')).toBeNull();
     expect(isAllowedEndpoint('/gamesXYZ')).toBe(false);
   });
 });

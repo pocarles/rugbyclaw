@@ -62,10 +62,10 @@ describe('worker request validation', () => {
     });
   });
 
-  it('allows exact endpoints and nested subpaths', () => {
+  it('allows exact endpoints only', () => {
     expect(isAllowedEndpoint('/games')).toBe(true);
-    expect(isAllowedEndpoint('/games/123')).toBe(true);
-    expect(getAllowedEndpoint('/teams/123')).toBe('/teams');
+    expect(isAllowedEndpoint('/games/123')).toBe(false);
+    expect(getAllowedEndpoint('/teams/123')).toBeNull();
   });
 
   it('rejects lookalike endpoints', () => {

@@ -1,5 +1,7 @@
 import { EXIT_CODES, exitLabel } from './exit-codes.js';
 
+export const AGENT_ENVELOPE_VERSION = 1 as const;
+
 export interface StructuredOutputOptions {
   json?: boolean;
   agent?: boolean;
@@ -22,6 +24,7 @@ export function emitCommandSuccess<T>(
   if (options.agent) {
     console.log(
       JSON.stringify({
+        schema_version: AGENT_ENVELOPE_VERSION,
         ok: true,
         exit_code: EXIT_CODES.OK,
         error_type: exitLabel(EXIT_CODES.OK),

@@ -6,6 +6,7 @@ RugbyClaw is designed to be usable by humans and personal AI agents (OpenClaw, s
 
 - Use `--json` for structured output.
 - Use `--agent` for strict one-line envelopes:
+  - `schema_version`
   - `ok`
   - `exit_code`
   - `error_type`

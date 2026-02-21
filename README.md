@@ -63,6 +63,7 @@ Run `rugbyclaw start` for the fastest setup:
 - Uses recommended leagues automatically
 - Skips optional team picking
 - Confirms timezone from a menu
+- Runs a quick post-setup health check
 
 Need full control? Run `rugbyclaw config --guided`.
 
@@ -248,6 +249,7 @@ rugbyclaw scores --agent
 ```
 
 Agent mode always returns one-line envelopes:
+- `schema_version`
 - `ok`
 - `exit_code`
 - `error_type`

@@ -14,7 +14,7 @@ import {
   getProxyStatusIfFree,
   getStaleFallbackLine,
 } from '../lib/free-mode.js';
-import { getFixturesNoMatchesExplanation } from '../lib/explain.js';
+import { getFixturesNoMatchesExplanation, getFixturesNoMatchesHint } from '../lib/explain.js';
 import { renderFixtures, matchToOutput, renderError, renderWarning, renderSuccess } from '../render/terminal.js';
 import { matchesToICS } from '../lib/ics.js';
 import type { FixturesOutput, Match } from '../types/index.js';
@@ -99,8 +99,28 @@ export async function fixturesCommand(
     // Export to ICS file
     if (options.ics) {
       if (matches.length === 0) {
-        console.log(renderWarning('No fixtures to export.'));
-        process.exit(0);
+        const runtime = provider.consumeRuntimeMeta();
+        if (wantsStructuredOutput(options)) {
+          emitCommandSuccess(
+            {
+              league: leagueName,
+              exported: 0,
+              out: null,
+              reason: 'no_fixtures',
+              trace_id: runtime.traceId || undefined,
+              stale: runtime.staleFallback || undefined,
+              cached_at: runtime.cachedAt || undefined,
+            },
+            options,
+            { traceId: runtime.traceId }
+          );
+        } else if (!options.quiet) {
+          console.log(renderWarning('No fixtures to export.'));
+          if (runtime.staleFallback) {
+            console.log(getStaleFallbackLine(runtime.cachedAt));
+          }
+        }
+        return;
       }
       const ics = matchesToICS(matches);
       const filename = leagueName
@@ -134,20 +154,30 @@ export async function fixturesCommand(
       if (runtime.staleFallback) {
         console.log(getStaleFallbackLine(runtime.cachedAt));
       }
+      const explainInput = {
+        mode: hasApiKey ? 'direct' as const : 'proxy' as const,
+        timeZone,
+        leagues: selectedLeagues,
+        matchCount: output.matches.length,
+        limit,
+      };
+      const noMatchHints = getFixturesNoMatchesHint(explainInput);
+      if (noMatchHints.length > 0) {
+        console.log('');
+        for (const line of noMatchHints) console.log(line);
+      }
       if (options.explain) {
-        const explanation = getFixturesNoMatchesExplanation({
-          mode: hasApiKey ? 'direct' : 'proxy',
-          timeZone,
-          leagues: selectedLeagues,
-          matchCount: output.matches.length,
-          limit,
-        });
+        const explanation = getFixturesNoMatchesExplanation(explainInput);
         if (explanation.length > 0) {
           console.log('');
           for (const line of explanation) console.log(line);
         }
       }
-      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
+      const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey, {
+        staleFallback: runtime.staleFallback,
+        requestUnits: Math.max(1, selectedLeagues.length),
+        timeZone,
+      });
       if (quotaLine) console.log(quotaLine);
 
       const hints: string[] = [];

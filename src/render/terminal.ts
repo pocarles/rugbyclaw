@@ -57,6 +57,10 @@ function formatTime(timeStr: string): string {
   return `${hours}:${minutes}`;
 }
 
+function usesSecondaryKickoff(match: MatchOutput): boolean {
+  return match.status === 'scheduled' && !match.time_tbd && match.time_source === 'secondary';
+}
+
 /**
  * Format match status with color.
  */
@@ -83,6 +87,7 @@ function formatStatus(status: string): string {
 function formatMatchLine(match: MatchOutput, showId = false): string {
   const status = formatStatus(match.status);
   const showTbd = match.status === 'scheduled' && match.time_tbd;
+  const secondaryKickoff = usesSecondaryKickoff(match);
   const time = match.status === 'scheduled' && !showTbd && match.time
     ? formatTime(match.time)
     : '';
@@ -106,7 +111,8 @@ function formatMatchLine(match: MatchOutput, showId = false): string {
   } else if (showTbd) {
     line += `  ${chalk.yellow('Coming Soon')}`;
   } else if (time) {
-    line += `  ${chalk.cyan(time)}`;
+    const suffix = secondaryKickoff ? '*' : '';
+    line += `  ${chalk.cyan(`${time}${suffix}`)}`;
   }
 
   // Show match ID for calendar export
@@ -125,10 +131,18 @@ export function renderScores(output: ScoresOutput): string {
     return chalk.dim('No matches today.');
   }
 
+  const hasPendingKickoff = output.matches.some((match) => match.status === 'scheduled' && match.time_tbd);
+  const hasSecondaryKickoff = output.matches.some((match) => usesSecondaryKickoff(match));
+
   const lines: string[] = [
     chalk.bold("Today's Rugby"),
     '',
   ];
+
+  if (hasPendingKickoff) {
+    lines.push(chalk.yellow('⚠ Some kickoff date/times are still pending from the provider (showing Coming Soon).'));
+    lines.push('');
+  }
 
   // Group by league
   const byLeague = new Map<string, MatchOutput[]>();
@@ -146,6 +160,13 @@ export function renderScores(output: ScoresOutput): string {
       lines.push(formatMatchLine(match));
     }
     lines.push('');
+  }
+
+  if (hasSecondaryKickoff) {
+    lines.push(chalk.dim('* Kickoff verified from official fallback source.'));
+  }
+  if (hasPendingKickoff) {
+    lines.push(chalk.dim('Coming Soon = kickoff still pending from provider.'));
   }
 
   return lines.join('\n');
@@ -174,6 +195,7 @@ export function renderFixtures(
 
   const pendingKickoffMatches = output.matches.filter((m) => m.status === 'scheduled' && m.time_tbd);
   const confirmedKickoffMatches = output.matches.filter((m) => !(m.status === 'scheduled' && m.time_tbd));
+  const hasSecondaryKickoff = confirmedKickoffMatches.some((match) => usesSecondaryKickoff(match));
 
   if (pendingKickoffMatches.length > 0) {
     lines.push(chalk.yellow('⚠ Kickoff date/time pending from API-Sports for some fixtures (showing Coming Soon).'));
@@ -209,6 +231,13 @@ export function renderFixtures(
       lines.push(formatMatchLine(match, showIds));
     }
     lines.push('');
+  }
+
+  if (hasSecondaryKickoff) {
+    lines.push(chalk.dim('* Kickoff verified from official fallback source.'));
+  }
+  if (pendingKickoffMatches.length > 0) {
+    lines.push(chalk.dim('Coming Soon = kickoff still pending from provider.'));
   }
 
   if (showIds) {
@@ -282,10 +311,11 @@ export function renderMatch(
 
   const status = formatStatus(match.status);
   const showTbd = match.status === 'scheduled' && match.time_tbd;
+  const secondaryKickoff = usesSecondaryKickoff(match);
   const dateTime = match.status === 'scheduled'
     ? showTbd
       ? chalk.yellow('Coming Soon')
-      : `${formatDate(match.date, timeZone)} at ${formatTime(match.time)}`
+      : `${formatDate(match.date, timeZone)} at ${formatTime(match.time)}${secondaryKickoff ? '*' : ''}`
     : formatDate(match.date, timeZone);
 
   lines.push(chalk.bold(`${match.home.name} vs ${match.away.name}`));
@@ -304,6 +334,16 @@ export function renderMatch(
   if (match.venue) {
     lines.push('');
     lines.push(chalk.dim(`📍 ${match.venue}`));
+  }
+
+  if (secondaryKickoff) {
+    lines.push('');
+    lines.push(chalk.dim('* Kickoff verified from official fallback source.'));
+  }
+
+  if (showTbd) {
+    lines.push('');
+    lines.push(chalk.dim('Kickoff still pending from provider.'));
   }
 
   // Show calendar export hint for scheduled matches

@@ -215,8 +215,24 @@ async function handleSearch(
     .map((r) => r.team);
 
   if (ranked.length === 0) {
-    console.log(renderWarning(`No Rugby Union team found for "${query}"`));
-    process.exit(0);
+    const runtime = provider.consumeRuntimeMeta();
+    const output: TeamSearchOutput = {
+      query,
+      teams: [],
+      trace_id: runtime.traceId || undefined,
+      stale: runtime.staleFallback || undefined,
+      cached_at: runtime.cachedAt || undefined,
+    };
+
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess(output, options, { traceId: runtime.traceId });
+    } else if (!options.quiet) {
+      console.log(renderWarning(`No Rugby Union team found for "${query}"`));
+      if (runtime.staleFallback) {
+        console.log(getStaleFallbackLine(runtime.cachedAt));
+      }
+    }
+    return;
   }
 
   const runtime = provider.consumeRuntimeMeta();
@@ -319,8 +335,20 @@ async function handleNext(
         if (searchResults.length > 0) break;
       }
       if (searchResults.length === 0) {
-        console.log(renderWarning(`No team found for "${nameOrId}"`));
-        process.exit(0);
+        const runtime = provider.consumeRuntimeMeta();
+        if (wantsStructuredOutput(options)) {
+          emitCommandSuccess(
+            { query: nameOrId, action: 'next', match: null, reason: 'team_not_found' },
+            options,
+            { traceId: runtime.traceId }
+          );
+        } else if (!options.quiet) {
+          console.log(renderWarning(`No team found for "${nameOrId}"`));
+          if (runtime.staleFallback) {
+            console.log(getStaleFallbackLine(runtime.cachedAt));
+          }
+        }
+        return;
       }
 
       // Find first search result that appears in our league fixtures
@@ -351,8 +379,20 @@ async function handleNext(
   const nextMatch = teamFixtures.find((m) => m.timestamp > Date.now());
 
   if (!nextMatch) {
-    console.log(renderWarning('No upcoming matches found.'));
-    process.exit(0);
+    const runtime = provider.consumeRuntimeMeta();
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess(
+        { query: nameOrId, action: 'next', match: null, reason: 'no_upcoming_matches' },
+        options,
+        { traceId: runtime.traceId }
+      );
+    } else if (!options.quiet) {
+      console.log(renderWarning('No upcoming matches found.'));
+      if (runtime.staleFallback) {
+        console.log(getStaleFallbackLine(runtime.cachedAt));
+      }
+    }
+    return;
   }
 
   // Export to ICS if requested
@@ -460,8 +500,20 @@ async function handleLast(
         if (searchResults.length > 0) break;
       }
       if (searchResults.length === 0) {
-        console.log(renderWarning(`No team found for "${nameOrId}"`));
-        process.exit(0);
+        const runtime = provider.consumeRuntimeMeta();
+        if (wantsStructuredOutput(options)) {
+          emitCommandSuccess(
+            { query: nameOrId, action: 'last', match: null, reason: 'team_not_found' },
+            options,
+            { traceId: runtime.traceId }
+          );
+        } else if (!options.quiet) {
+          console.log(renderWarning(`No team found for "${nameOrId}"`));
+          if (runtime.staleFallback) {
+            console.log(getStaleFallbackLine(runtime.cachedAt));
+          }
+        }
+        return;
       }
 
       // Find first search result that appears in our league results
@@ -492,8 +544,20 @@ async function handleLast(
   const lastMatch = teamResults[0];
 
   if (!lastMatch) {
-    console.log(renderWarning('No recent results found.'));
-    process.exit(0);
+    const runtime = provider.consumeRuntimeMeta();
+    if (wantsStructuredOutput(options)) {
+      emitCommandSuccess(
+        { query: nameOrId, action: 'last', match: null, reason: 'no_recent_results' },
+        options,
+        { traceId: runtime.traceId }
+      );
+    } else if (!options.quiet) {
+      console.log(renderWarning('No recent results found.'));
+      if (runtime.staleFallback) {
+        console.log(getStaleFallbackLine(runtime.cachedAt));
+      }
+    }
+    return;
   }
 
   const output: MatchOutput = matchToOutput(lastMatch, { timeZone });
