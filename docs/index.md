@@ -3,6 +3,7 @@
 > Track rugby scores, fixtures, and results from your terminal
 
 **Works out of the box** — no API key required. Just `npm install -g rugbyclaw` and start using it.
+Each command also gives contextual **Next steps** for easier onboarding. Disable with `--no-followups` when you want minimal output.
 
 ## Getting Started
 

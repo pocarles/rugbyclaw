@@ -22,6 +22,7 @@ rugbyclaw status [options]
 |--------|-------------|---------|
 | `--json` | Output as JSON | false |
 | `--quiet` | Minimal output | false |
+| `--no-followups` | Disable next-step command hints | false |
 
 ## Examples
 

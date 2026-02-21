@@ -47,6 +47,7 @@ rugbyclaw fixtures
 ```
 
 Shows next 15 matches from your default leagues (Top 14, Premiership, URC, Champions Cup, Six Nations).
+RugbyClaw also prints a short **Next steps** section so beginners know what to do next (calendar export, team tracking, diagnostics).
 
 ### Follow your team
 
@@ -68,7 +69,7 @@ RugbyClaw works in two modes:
 
 ### Direct Mode (Optional)
 - Higher limits with your own API key
-- Unlock more leagues
+- Unlock all currently supported leagues (8 total)
 - For power users who check scores daily
 
 ## Recommended: Start (Beginner Setup)
@@ -96,6 +97,12 @@ Verify your setup any time:
 ```bash
 rugbyclaw status
 rugbyclaw status --json
+```
+
+Want a cleaner screen? Disable follow-up hints:
+
+```bash
+rugbyclaw scores --no-followups
 ```
 
 ## What's Next?

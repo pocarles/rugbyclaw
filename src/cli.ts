@@ -95,6 +95,7 @@ program
   .option('--json', 'Output as JSON')
   .option('--agent', 'Strict one-line JSON envelope for automation/OpenClaw')
   .option('--quiet', 'Minimal output')
+  .option('--no-followups', 'Disable next-step command hints')
   .option('--no-color', 'Disable color output')
   .option('--config <path>', 'Use a custom config directory or config.json path')
   .option('--tz <timezone>', 'Override timezone (IANA), e.g. America/New_York', parseTimeZoneOption);

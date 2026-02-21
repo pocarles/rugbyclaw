@@ -4,11 +4,13 @@ import { LEAGUES } from '../lib/leagues.js';
 import { fetchProxyStatus } from '../lib/providers/apisports.js';
 import type { Config } from '../types/index.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
+import { renderFollowups, shouldShowFollowups } from '../lib/followups.js';
 
 interface StatusOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
+  followups?: boolean;
 }
 
 function getEffectiveLeagueSlugs(config: Config, hasApiKey: boolean): string[] {
@@ -74,9 +76,16 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   if (config.favorite_teams.length > 0) {
     lines.push(`${chalk.dim('Favorite teams:')} ${config.favorite_teams.length}`);
   }
-  lines.push('');
-  lines.push(chalk.dim('Tip: run "rugbyclaw config" to change leagues/teams/timezone.'));
-  lines.push(chalk.dim('Tip: use "rugbyclaw scores --agent" for OpenClaw integration.'));
+  if (shouldShowFollowups(options)) {
+    const followups = renderFollowups([
+      'Change setup anytime: rugbyclaw config --guided',
+      'Today in machine mode (OpenClaw): rugbyclaw scores --agent',
+    ]);
+    if (followups) {
+      lines.push('');
+      lines.push(followups);
+    }
+  }
 
   console.log(lines.join('\n'));
 }

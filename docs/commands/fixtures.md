@@ -30,6 +30,7 @@ rugbyclaw fixtures [options] [league]
 | `--ics` | Export to .ics calendar file | false |
 | `--show-ids` | Show match IDs for calendar export | false |
 | `--explain` | Explain empty output context | false |
+| `--no-followups` | Disable next-step command hints | false |
 | `--json` | Output as JSON | false |
 
 ## Examples
@@ -75,6 +76,14 @@ rugbyclaw fixtures --show-ids
 ```
 
 Displays match IDs (useful for `rugbyclaw calendar <id>`).
+
+### Disable follow-up hints
+
+```bash
+rugbyclaw fixtures --no-followups
+```
+
+Hides the contextual **Next steps** block.
 
 ### Explain empty output
 

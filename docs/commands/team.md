@@ -95,6 +95,7 @@ Racing never looked like competing.
 - Search first if unsure of exact name
 - Add `--ics` to next matches to sync to calendar
 - Team names are case-insensitive
+- Add `--no-followups` if you want to hide next-step suggestions
 
 ## Troubleshooting
 

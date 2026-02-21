@@ -23,6 +23,7 @@ rugbyclaw scores [options]
 | `--json` | Output as JSON | false |
 | `--quiet` | Minimal output | false |
 | `--explain` | Explain empty output context | false |
+| `--no-followups` | Disable next-step command hints | false |
 
 ## Examples
 
@@ -65,6 +66,14 @@ When no matches are returned, Rugbyclaw prints:
 - Date queried
 - Leagues queried
 - Next diagnostic step (`rugbyclaw doctor`)
+
+### Disable follow-up hints
+
+```bash
+rugbyclaw scores --no-followups
+```
+
+Hides the contextual **Next steps** block.
 
 ## How It Works
 

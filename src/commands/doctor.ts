@@ -15,11 +15,13 @@ import { getTodayYMD } from '../lib/datetime.js';
 import { getKickoffOverridePaths, loadKickoffOverrides } from '../lib/kickoff-overrides.js';
 import { EXIT_CODES, type ExitCode } from '../lib/exit-codes.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
+import { renderFollowups, shouldShowFollowups } from '../lib/followups.js';
 
 interface DoctorOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
+  followups?: boolean;
   strict?: boolean;
 }
 
@@ -366,6 +368,25 @@ export async function doctorCommand(options: DoctorOptions): Promise<void> {
     lines.push('');
     lines.push(chalk.yellow('Proxy is reachable but /status failed.'));
     lines.push(chalk.dim('Tip: redeploy the Worker, or check if you are using a proxy URL override.'));
+  }
+
+  if (shouldShowFollowups(options)) {
+    const followupHints = output.ok
+      ? [
+          'Verify current mode and leagues: rugbyclaw status',
+          'Run live command now: rugbyclaw scores',
+        ]
+      : [
+          mode === 'proxy'
+            ? 'If proxy stays down, add your own API key: rugbyclaw config --guided'
+            : 'Recheck your API key and setup: rugbyclaw config --guided',
+          'Confirm with machine-readable output: rugbyclaw doctor --json',
+        ];
+    const followups = renderFollowups(followupHints);
+    if (followups) {
+      lines.push('');
+      lines.push(followups);
+    }
   }
 
   console.log(lines.join('\n'));

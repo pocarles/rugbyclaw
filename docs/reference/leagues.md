@@ -3,7 +3,7 @@ title: Supported Leagues
 description: All rugby competitions supported by RugbyClaw
 category: reference
 tags: [leagues, competitions, reference]
-updated: 2026-02-02
+updated: 2026-02-20
 ---
 
 # Supported Leagues
@@ -20,7 +20,7 @@ In free mode, Rugbyclaw is limited to a default set of leagues:
 - `champions_cup`
 - `six_nations`
 
-Add your own API key via `rugbyclaw config` to unlock the full list below.
+Add your own API key via `rugbyclaw config` to unlock all currently supported leagues listed below (8 total).
 
 ## Club Competitions
 
@@ -76,6 +76,17 @@ Add your own API key via `rugbyclaw config` to unlock the full list below.
 - **Season:** February - March
 - **Format:** Annual international tournament
 
+## Planned Competitions (Coming Soon)
+
+These competitions are planned but not selectable yet in current CLI commands:
+
+- Women's Six Nations
+- Rugby Championship
+- Currie Cup
+- NPC
+- MLR
+- Rugby World Cup
+
 ## Usage
 
 Use league slugs in commands:
@@ -103,6 +114,7 @@ During `rugbyclaw config`, you can select which leagues to follow. Only selected
 - All times shown in your configured timezone
 - Data powered by API-Sports Rugby API
 - Coverage: Rugby Union only (no Rugby League)
+- If a competition is not listed in supported sections above, treat it as not available yet
 
 ---
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-20*

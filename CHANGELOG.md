@@ -6,6 +6,17 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-02-21
+
+### Added
+- Contextual CLI follow-up hints after key commands (`scores`, `fixtures`, `results`, `team`, `status`, `doctor`) to guide next actions.
+- Global `--no-followups` flag to disable these hints when users want minimal terminal output.
+- New follow-up helper tests to lock behavior for structured output (`--json`, `--agent`) and command quoting.
+
+### Changed
+- Documentation now clearly separates currently supported leagues (8) vs planned leagues (Coming Soon) across GitHub docs.
+- Getting started/docs now document follow-up hints and how to disable them.
+
 ## [0.1.8] - 2026-02-20
 
 ### Added
@@ -75,3 +86,4 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 [0.1.3]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.3
 [0.1.2]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.2
 [0.1.8]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.8
+[0.1.10]: https://github.com/pocarles/rugbyclaw/releases/tag/v0.1.10

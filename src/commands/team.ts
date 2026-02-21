@@ -23,11 +23,13 @@ import type { Match, TeamSearchOutput, MatchOutput, Team } from '../types/index.
 import { emitCommandError } from '../lib/command-error.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 import { getStaleFallbackLine } from '../lib/free-mode.js';
+import { printFollowups, quoteArg } from '../lib/followups.js';
 
 interface TeamOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
+  followups?: boolean;
   ics?: boolean;
 }
 
@@ -233,6 +235,13 @@ async function handleSearch(
     if (runtime.staleFallback) {
       console.log(getStaleFallbackLine(runtime.cachedAt));
     }
+    const firstTeam = output.teams[0];
+    if (firstTeam) {
+      printFollowups(options, [
+        `Next match: rugbyclaw team ${quoteArg(firstTeam.name)} next`,
+        `Last result: rugbyclaw team ${quoteArg(firstTeam.name)} last`,
+      ]);
+    }
   }
 }
 
@@ -367,6 +376,13 @@ async function handleNext(
     if (runtime.staleFallback) {
       console.log(getStaleFallbackLine(runtime.cachedAt));
     }
+    const hints = [
+      `See last result too: rugbyclaw team ${quoteArg(nameOrId)} last`,
+    ];
+    if (output.id) {
+      hints.push(`Add this match to calendar: rugbyclaw calendar ${output.id} --out ~/Desktop/rugby-match.ics`);
+    }
+    printFollowups(options, hints);
   }
 }
 
@@ -491,5 +507,9 @@ async function handleLast(
     if (runtime.staleFallback) {
       console.log(getStaleFallbackLine(runtime.cachedAt));
     }
+    printFollowups(options, [
+      `See upcoming match too: rugbyclaw team ${quoteArg(nameOrId)} next`,
+      'Browse upcoming fixtures: rugbyclaw fixtures',
+    ]);
   }
 }

@@ -19,11 +19,13 @@ import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
 import { emitCommandError } from '../lib/command-error.js';
 import { EXIT_CODES } from '../lib/exit-codes.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
+import { printFollowups, quoteArg } from '../lib/followups.js';
 
 interface ResultsOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
+  followups?: boolean;
   limit?: string;
 }
 
@@ -114,6 +116,19 @@ export async function resultsCommand(
       }
       const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
+
+      const hints: string[] = [];
+      if (output.matches.length > 0) {
+        const first = output.matches[0];
+        hints.push(leagueInput ? `See upcoming games: rugbyclaw fixtures ${leagueInput}` : 'See upcoming games: rugbyclaw fixtures');
+        if (first.home?.name) {
+          hints.push(`Track this team: rugbyclaw team ${quoteArg(first.home.name)} next`);
+        }
+      } else {
+        hints.push('Try a different league: rugbyclaw results top14');
+        hints.push('Check upcoming matches instead: rugbyclaw fixtures');
+      }
+      printFollowups(options, hints);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

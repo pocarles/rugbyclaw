@@ -19,11 +19,13 @@ import type { ScoresOutput } from '../types/index.js';
 import { getTodayYMD } from '../lib/datetime.js';
 import { emitCommandError } from '../lib/command-error.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
+import { printFollowups } from '../lib/followups.js';
 
 interface ScoresOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
+  followups?: boolean;
   explain?: boolean;
 }
 
@@ -83,6 +85,19 @@ export async function scoresCommand(options: ScoresOptions): Promise<void> {
       }
       const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
+
+      const hints: string[] = [];
+      if (output.matches.length > 0) {
+        const first = output.matches[0];
+        if (first.id) {
+          hints.push(`Save the first match to calendar: rugbyclaw calendar ${first.id} --out ~/Desktop/rugby-match.ics`);
+        }
+        hints.push('See what is coming next: rugbyclaw fixtures');
+      } else {
+        hints.push('Check upcoming games instead: rugbyclaw fixtures');
+        hints.push('Run health checks: rugbyclaw doctor');
+      }
+      printFollowups(options, hints);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

@@ -11,6 +11,7 @@ Clean architecture, reliable data, Rugby Union focus.
 - **Results** — Recent results with personality-driven summaries
 - **Team tracking** — Follow specific teams across competitions
 - **Calendar export** — Add matches to your calendar (ICS format)
+- **Smart follow-ups** — After commands, suggests the best next action (calendar, team tracking, diagnostics)
 
 ## Documentation
 
@@ -76,6 +77,12 @@ Tip (automation/agents): override timezone per command:
 
 ```bash
 rugbyclaw --tz America/New_York fixtures
+```
+
+Disable follow-up command hints when needed:
+
+```bash
+rugbyclaw fixtures --no-followups
 ```
 
 API key is stored securely in `~/.config/rugbyclaw/secrets.json` (mode 600).
@@ -184,7 +191,8 @@ rugbyclaw openclaw init --agent
 
 ## Coming Soon
 
-- `rugbyclaw standings [league]` — planned league table command (not available in `0.1.8`).
+- `rugbyclaw standings [league]` — planned league table command (not available yet).
+- Additional competitions listed below are planned but not selectable yet.
 
 ## Supported Leagues
 
@@ -209,6 +217,15 @@ rugbyclaw openclaw init --agent
 | Slug | League |
 |------|--------|
 | `six_nations` | Six Nations |
+
+## Planned Competitions (Coming Soon)
+
+- Women's Six Nations
+- Rugby Championship
+- Currie Cup
+- NPC
+- MLR
+- Rugby World Cup
 
 ## OpenClaw Integration
 

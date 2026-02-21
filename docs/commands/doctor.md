@@ -23,6 +23,7 @@ rugbyclaw doctor [options]
 | `--json` | Output as JSON | false |
 | `--agent` | Strict one-line JSON envelope (OpenClaw-safe) | false |
 | `--quiet` | Minimal output | false |
+| `--no-followups` | Disable next-step command hints | false |
 | `--strict` | Exit non-zero when checks fail | false |
 
 ## Examples

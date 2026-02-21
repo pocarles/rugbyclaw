@@ -21,11 +21,13 @@ import type { FixturesOutput, Match } from '../types/index.js';
 import { emitCommandError } from '../lib/command-error.js';
 import { EXIT_CODES } from '../lib/exit-codes.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
+import { printFollowups, quoteArg } from '../lib/followups.js';
 
 interface FixturesOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
+  followups?: boolean;
   limit?: string;
   ics?: boolean;
   showIds?: boolean;
@@ -147,6 +149,25 @@ export async function fixturesCommand(
       }
       const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey);
       if (quotaLine) console.log(quotaLine);
+
+      const hints: string[] = [];
+      if (output.matches.length > 0) {
+        const first = output.matches[0];
+        const fixturesCommand = leagueInput ? `rugbyclaw fixtures ${leagueInput}` : 'rugbyclaw fixtures';
+        if (options.showIds && first.id) {
+          hints.push(`Export this match to calendar: rugbyclaw calendar ${first.id} --out ~/Desktop/rugby-match.ics`);
+        } else {
+          hints.push(`Show IDs for calendar export: ${fixturesCommand} --show-ids`);
+        }
+        if (first.home?.name) {
+          hints.push(`Track one team next match: rugbyclaw team ${quoteArg(first.home.name)} next`);
+        }
+        hints.push(leagueInput ? `See recent results too: rugbyclaw results ${leagueInput}` : 'See recent results too: rugbyclaw results');
+      } else {
+        hints.push('Ask for context on empty output: rugbyclaw fixtures --explain');
+        hints.push('Run health checks: rugbyclaw doctor');
+      }
+      printFollowups(options, hints);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
