@@ -26,11 +26,14 @@ export interface PolymarketMarket {
   closed?: boolean;
 }
 
-interface MarketsResponse {
-  markets?: RawMarket[];
-  data?: RawMarket[];
-  market?: RawMarket;
-}
+type MarketsResponse =
+  | RawMarket[]
+  | {
+      markets?: RawMarket[];
+      data?: RawMarket[];
+      results?: RawMarket[];
+      market?: RawMarket;
+    };
 
 interface RawMarket {
   id?: string;
@@ -155,10 +158,7 @@ export class PolymarketProvider {
     if (options?.activeOnly !== false) params.set('active', 'true');
     const url = this.buildUrl('/markets', params);
     const response = await this.fetchJson(url);
-    const markets = response.markets ?? response.data;
-    if (!markets || !Array.isArray(markets)) {
-      throw new ProviderError('Unexpected Polymarket response shape', 'PARSE_ERROR', this.name);
-    }
+    const markets = this.extractMarkets(response);
     return markets.map(normalizeMarket);
   }
 
@@ -167,9 +167,9 @@ export class PolymarketProvider {
     if (!safeSlug) return null;
     const url = this.buildUrl(`/markets/${encodeURIComponent(safeSlug)}`);
     const response = await this.fetchJson(url);
-    const market = response.market ?? response;
-    if (!market || typeof market !== 'object') return null;
-    return normalizeMarket(market as RawMarket);
+    const market = this.extractSingleMarket(response);
+    if (!market) return null;
+    return normalizeMarket(market);
   }
 
   private sanitizeQuery(query: string): string {
@@ -202,6 +202,46 @@ export class PolymarketProvider {
       url.search = params.toString();
     }
     return url;
+  }
+
+  private extractMarkets(payload: MarketsResponse): RawMarket[] {
+    if (Array.isArray(payload)) {
+      if (!payload.every((entry) => entry && typeof entry === 'object')) {
+        throw new ProviderError('Unexpected Polymarket response shape', 'PARSE_ERROR', this.name);
+      }
+      return payload;
+    }
+
+    const candidates = [payload.markets, payload.data, payload.results];
+    const arrayCandidate = candidates.find((candidate) => Array.isArray(candidate));
+
+    if (arrayCandidate && arrayCandidate.every((entry) => entry && typeof entry === 'object')) {
+      return arrayCandidate;
+    }
+
+    throw new ProviderError('Unexpected Polymarket response shape', 'PARSE_ERROR', this.name);
+  }
+
+  private extractSingleMarket(payload: MarketsResponse): RawMarket | null {
+    if (Array.isArray(payload)) {
+      const [first] = payload;
+      return first && typeof first === 'object' ? (first as RawMarket) : null;
+    }
+
+    if (payload.market && typeof payload.market === 'object') {
+      return payload.market as RawMarket;
+    }
+
+    const candidates = [payload.markets, payload.data, payload.results].find((candidate) => Array.isArray(candidate));
+    if (candidates && candidates[0] && typeof candidates[0] === 'object') {
+      return candidates[0] as RawMarket;
+    }
+
+    if (payload && typeof payload === 'object') {
+      return payload as RawMarket;
+    }
+
+    return null;
   }
 
   private async fetchJson(url: URL): Promise<MarketsResponse> {

@@ -19,6 +19,29 @@ const SAMPLE_RESPONSE = {
   ],
 };
 
+const ARRAY_RESPONSE = [
+  {
+    id: 'poly-555',
+    slug: 'array-market',
+    question: 'Array market sample',
+    outcomes: ['Yes', 'No'],
+    prices: [0.45, 0.55],
+  },
+];
+
+const DATA_WRAPPED_RESPONSE = { data: ARRAY_RESPONSE };
+const RESULTS_WRAPPED_RESPONSE = {
+  results: [
+    {
+      id: 'poly-777',
+      slug: 'results-market',
+      question: 'Results wrapper sample',
+      outcomes: ['Up', 'Down'],
+      outcomePrices: ['0.12', '0.88'],
+    },
+  ],
+};
+
 describe('PolymarketProvider', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -64,6 +87,30 @@ describe('PolymarketProvider', () => {
     const provider = new PolymarketProvider();
     const markets = await provider.searchMarkets('home away');
     expect(markets[0].outcomes).toEqual([]);
+  });
+
+  it('supports top-level array responses', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(ARRAY_RESPONSE), { status: 200 })));
+
+    const provider = new PolymarketProvider();
+    const markets = await provider.searchMarkets('array market');
+
+    expect(markets).toHaveLength(1);
+    expect(markets[0].id).toBe('poly-555');
+    expect(markets[0].outcomes[0].lastPrice).toBeCloseTo(0.45);
+  });
+
+  it('supports wrapped responses in data and results keys', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(DATA_WRAPPED_RESPONSE), { status: 200 })));
+
+    const provider = new PolymarketProvider();
+    const dataMarkets = await provider.searchMarkets('wrapped');
+    expect(dataMarkets[0].slug).toBe('array-market');
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(RESULTS_WRAPPED_RESPONSE), { status: 200 })));
+    const resultsMarkets = await provider.searchMarkets('wrapped results');
+    expect(resultsMarkets[0].slug).toBe('results-market');
+    expect(resultsMarkets[0].outcomes[1].lastPrice).toBeCloseTo(0.88);
   });
 
   it('times out long-running requests', async () => {
