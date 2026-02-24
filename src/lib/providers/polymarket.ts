@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { ProviderError } from './types.js';
 
 export const POLYMARKET_BASE_URL = 'https://gamma-api.polymarket.com';
+const REQUEST_TIMEOUT_MS = 7000;
+const MAX_SEARCH_QUERY_LENGTH = 120;
+const MAX_SLUG_LENGTH = 120;
 
 export interface PolymarketOutcomeQuote {
   name: string;
@@ -71,11 +74,28 @@ function toNumber(value: unknown): number | undefined {
   return Number.isFinite(num) ? num : undefined;
 }
 
+function coerceOutcomeNames(rawOutcomes: unknown): string[] {
+  if (!Array.isArray(rawOutcomes)) return [];
+  return rawOutcomes
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .filter((name) => Boolean(name));
+}
+
+function coercePriceArray(values: unknown): Array<string | number> {
+  return Array.isArray(values) ? values : [];
+}
+
+function coerceText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
 function normalizeMarket(raw: RawMarket): PolymarketMarket {
-  const outcomes = raw.outcomes ?? [];
-  const prices = raw.outcomePrices ?? raw.prices ?? [];
-  const bestBids = raw.bestBidPrices ?? raw.bids ?? [];
-  const bestAsks = raw.bestAskPrices ?? raw.asks ?? [];
+  const outcomes = coerceOutcomeNames(raw.outcomes);
+  const prices = coercePriceArray(raw.outcomePrices ?? raw.prices);
+  const bestBids = coercePriceArray(raw.bestBidPrices ?? raw.bids);
+  const bestAsks = coercePriceArray(raw.bestAskPrices ?? raw.asks);
 
   const normalizedOutcomes: PolymarketOutcomeQuote[] = outcomes.map((name, idx) => ({
     name,
@@ -92,13 +112,13 @@ function normalizeMarket(raw: RawMarket): PolymarketMarket {
 
   return {
     id: String(id),
-    slug: raw.slug ?? String(id),
-    question: raw.question ?? raw.title ?? raw.name ?? 'Unknown market',
+    slug: coerceText(raw.slug) ?? String(id),
+    question: coerceText(raw.question) ?? coerceText(raw.title) ?? coerceText(raw.name) ?? 'Unknown market',
     outcomes: normalizedOutcomes,
     liquidity: toNumber(raw.liquidity),
     volume24h: toNumber(raw.volume24h ?? raw.volume),
-    endDate: raw.endDate ?? raw.closesAt ?? raw.closeTime,
-    updatedAt: raw.updatedAt ?? raw.lastUpdated ?? raw.lastTradeTime ?? raw.last_trade_time,
+    endDate: coerceText(raw.endDate ?? raw.closesAt ?? raw.closeTime),
+    updatedAt: coerceText(raw.updatedAt ?? raw.lastUpdated ?? raw.lastTradeTime ?? raw.last_trade_time),
     active: raw.active,
     closed: raw.closed,
   };
@@ -127,11 +147,14 @@ export class PolymarketProvider {
   }
 
   async searchMarkets(query: string, options?: { limit?: number; activeOnly?: boolean }): Promise<PolymarketMarket[]> {
+    const safeQuery = this.sanitizeQuery(query);
     const params = new URLSearchParams();
-    if (query) params.set('search', query);
-    params.set('limit', String(options?.limit ?? 50));
+    if (safeQuery) params.set('search', safeQuery);
+    const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
+    params.set('limit', String(limit));
     if (options?.activeOnly !== false) params.set('active', 'true');
-    const response = await this.fetchJson(`/markets?${params.toString()}`);
+    const url = this.buildUrl('/markets', params);
+    const response = await this.fetchJson(url);
     const markets = response.markets ?? response.data;
     if (!markets || !Array.isArray(markets)) {
       throw new ProviderError('Unexpected Polymarket response shape', 'PARSE_ERROR', this.name);
@@ -140,26 +163,67 @@ export class PolymarketProvider {
   }
 
   async getMarketBySlug(slug: string): Promise<PolymarketMarket | null> {
-    if (!slug) return null;
-    const response = await this.fetchJson(`/markets/${slug}`);
+    const safeSlug = this.sanitizeSlug(slug);
+    if (!safeSlug) return null;
+    const url = this.buildUrl(`/markets/${encodeURIComponent(safeSlug)}`);
+    const response = await this.fetchJson(url);
     const market = response.market ?? response;
     if (!market || typeof market !== 'object') return null;
     return normalizeMarket(market as RawMarket);
   }
 
-  private async fetchJson(path: string): Promise<MarketsResponse> {
+  private sanitizeQuery(query: string): string {
+    const trimmed = query.trim();
+    if (trimmed.length > MAX_SEARCH_QUERY_LENGTH) {
+      throw new ProviderError('Polymarket search query too long', 'PARSE_ERROR', this.name);
+    }
+    if (/[\r\n\t]/.test(trimmed)) {
+      throw new ProviderError('Polymarket search query contains invalid characters', 'PARSE_ERROR', this.name);
+    }
+    return trimmed;
+  }
+
+  private sanitizeSlug(slug: string): string | null {
+    const trimmed = slug.trim();
+    if (!trimmed) return null;
+    if (trimmed.length > MAX_SLUG_LENGTH) {
+      throw new ProviderError('Polymarket market id too long', 'PARSE_ERROR', this.name);
+    }
+    if (/[\r\n\t/]/.test(trimmed)) {
+      throw new ProviderError('Polymarket market id contains invalid characters', 'PARSE_ERROR', this.name);
+    }
+    return trimmed;
+  }
+
+  private buildUrl(path: string, params?: URLSearchParams): URL {
+    const sanitizedPath = path.startsWith('/') ? path : `/${path}`;
+    const url = new URL(sanitizedPath, POLYMARKET_BASE_URL);
+    if (params) {
+      url.search = params.toString();
+    }
+    return url;
+  }
+
+  private async fetchJson(url: URL): Promise<MarketsResponse> {
     const clientTraceId = randomUUID();
     let response: Response;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      response = await fetch(`${POLYMARKET_BASE_URL}${path}`, {
+      response = await fetch(url, {
         headers: {
           Accept: 'application/json',
           'x-rugbyclaw-trace-id': clientTraceId,
         },
+        signal: controller.signal,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'fetch failed';
-      throw new ProviderError(`Polymarket request failed: ${message}`, 'NETWORK_ERROR', this.name, undefined, clientTraceId);
+      clearTimeout(timeout);
+      const timedOut = error instanceof Error && error.name === 'AbortError';
+      const message = timedOut ? 'Polymarket request timed out. Try again shortly.' : 'Polymarket request failed. Please retry.';
+      throw new ProviderError(message, 'NETWORK_ERROR', this.name, undefined, clientTraceId);
+    } finally {
+      clearTimeout(timeout);
     }
 
     const traceId = this.resolveTraceId(response, clientTraceId);
@@ -171,7 +235,7 @@ export class PolymarketProvider {
 
     if (!response.ok) {
       throw new ProviderError(
-        `Polymarket returned ${response.status}`,
+        `Polymarket unavailable (status ${response.status}).`,
         response.status === 401 || response.status === 403 ? 'UNAUTHORIZED' : 'UNKNOWN',
         this.name,
         undefined,
@@ -182,8 +246,10 @@ export class PolymarketProvider {
     try {
       return (await response.json()) as MarketsResponse;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown parse error';
-      throw new ProviderError(`Failed to parse Polymarket response: ${message}`, 'PARSE_ERROR', this.name, undefined, traceId);
+      const message = error instanceof Error && error.name === 'AbortError'
+        ? 'Polymarket request timed out while reading response.'
+        : 'Invalid response from Polymarket.';
+      throw new ProviderError(message, 'PARSE_ERROR', this.name, undefined, traceId);
     }
   }
 

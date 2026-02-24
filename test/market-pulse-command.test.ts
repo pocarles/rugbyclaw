@@ -80,4 +80,71 @@ describe('market pulse command output', () => {
     expect(payload.data.confidence).toBe('high');
     expect(Array.isArray(payload.data.outcomes)).toBe(true);
   });
+
+  it('rejects oversized input to prevent noisy queries', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`exit:${code}`);
+    }) as never);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(marketPulseCommand({
+      home: 'H'.repeat(80),
+      away: 'Away XV',
+      quiet: true,
+    })).rejects.toThrow(/exit:2/);
+
+    expect(exitSpy).toHaveBeenCalledWith(2);
+    consoleSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it('keeps low-confidence markets suppressed by default', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      markets: [
+        {
+          id: 'poly-low',
+          slug: 'low',
+          question: 'Home XV vs Away XV - Match Odds',
+          outcomes: ['Home XV', 'Draw', 'Away XV'],
+          outcomePrices: ['0.5', '0.3', '0.2'],
+          bestBidPrices: ['0.05', '0.02', '0.01'],
+          bestAskPrices: ['0.95', '0.92', '0.91'],
+          liquidity: 10,
+          volume24h: 25,
+          updatedAt: '2026-02-24T11:30:00Z',
+        },
+      ],
+    }), { status: 200 })));
+
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`exit:${code}`);
+    }) as never);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(marketPulseCommand({
+      home: 'Home XV',
+      away: 'Away XV',
+      quiet: true,
+    })).rejects.toThrow(/exit:1/);
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    consoleSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it('validates match id format before querying providers', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`exit:${code}`);
+    }) as never);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(marketPulseCommand({
+      matchId: 'abc123',
+      quiet: true,
+    })).rejects.toThrow(/exit:2/);
+
+    expect(exitSpy).toHaveBeenCalledWith(2);
+    consoleSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
 });

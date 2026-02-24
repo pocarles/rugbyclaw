@@ -22,6 +22,7 @@ const SAMPLE_RESPONSE = {
 describe('PolymarketProvider', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('normalizes Polymarket markets with prices and metadata', async () => {
@@ -43,6 +44,43 @@ describe('PolymarketProvider', () => {
   it('throws on unexpected status codes', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 500 })));
     const provider = new PolymarketProvider();
-    await expect(provider.searchMarkets('broken')).rejects.toThrow(/Polymarket returned 500/);
+    await expect(provider.searchMarkets('broken')).rejects.toThrow(/Polymarket unavailable/);
+  });
+
+  it('guards against malformed outcome payloads', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      markets: [
+        {
+          id: 'poly-999',
+          slug: 'bad-outcomes',
+          question: 'Bad market',
+          outcomes: 'oops',
+          outcomePrices: { not: 'an array' },
+          updatedAt: '2026-02-24T12:00:00Z',
+        },
+      ],
+    }), { status: 200 })));
+
+    const provider = new PolymarketProvider();
+    const markets = await provider.searchMarkets('home away');
+    expect(markets[0].outcomes).toEqual([]);
+  });
+
+  it('times out long-running requests', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn((_url, init) => new Promise((_resolve, reject) => {
+      const signal = (init as { signal?: { addEventListener?: (type: string, cb: () => void) => void } } | undefined)?.signal;
+      signal?.addEventListener?.('abort', () => {
+        const error = new Error('Aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    })) as unknown as typeof fetch);
+
+    const provider = new PolymarketProvider();
+    const promise = provider.searchMarkets('home away');
+    vi.advanceTimersByTime(8000);
+
+    await expect(promise).rejects.toThrow(/timed out/i);
   });
 });
