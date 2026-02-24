@@ -19,6 +19,7 @@ Each command also gives contextual **Next steps** for easier onboarding. Disable
 - [scores](./commands/scores.md) - Today's matches across favorite leagues
 - [fixtures](./commands/fixtures.md) - Upcoming matches
 - [results](./commands/results.md) - Recent results with summaries
+- [market-pulse](./commands/market-pulse.md) - Polymarket implied probabilities for a match
 - [team](./commands/team.md) - Team queries (search, next, last)
 - [calendar](./commands/calendar.md) - Export matches to calendar
 - [notify](./commands/notify.md) - Notifications for cron/OpenClaw

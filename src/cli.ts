@@ -16,6 +16,7 @@ import { notifyCommand } from './commands/notify.js';
 import { statusCommand } from './commands/status.js';
 import { doctorCommand } from './commands/doctor.js';
 import { openclawInitCommand } from './commands/openclaw.js';
+import { marketPulseCommand } from './commands/market-pulse.js';
 import { setConfigPathOverride, setTimeZoneOverride } from './lib/config.js';
 import { parseTimeZoneOption } from './lib/cli-options.js';
 import { exitLabel, inferExitCodeFromMessage } from './lib/exit-codes.js';
@@ -264,6 +265,27 @@ ${chalk.cyan('Examples:')}
 `)
   .action(async (league, options) => {
     await resultsCommand(league, { ...program.opts(), ...options });
+  });
+
+// Market Pulse command
+program
+  .command('market-pulse')
+  .description('Polymarket implied probabilities for a match')
+  .option('--match-id <id>', 'API-Sports match id')
+  .option('--home <team>', 'Home team name (requires --away)')
+  .option('--away <team>', 'Away team name (requires --home)')
+  .option('--league <slug>', 'Optional league hint (slug or name)')
+  .option('--date <YYYY-MM-DD>', 'Optional date hint (YYYY-MM-DD)')
+  .option('--include-low-confidence', 'Include low-confidence markets (otherwise suppressed)')
+  .addHelpText('after', `
+${chalk.cyan('Examples:')}
+  ${chalk.white('rugbyclaw market-pulse --match-id 991')}               Resolve by API-Sports match id
+  ${chalk.white('rugbyclaw market-pulse --home Toulouse --away Paris')} Quick team lookup
+  ${chalk.white('rugbyclaw market-pulse --home Toulouse --away Paris --json')} JSON output
+  ${chalk.white('rugbyclaw market-pulse --home Toulouse --away Paris --include-low-confidence')} Show gated results
+`)
+  .action(async (options) => {
+    await marketPulseCommand({ ...program.opts(), ...options });
   });
 
 // Team command with subcommands

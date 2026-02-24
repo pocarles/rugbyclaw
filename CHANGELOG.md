@@ -6,6 +6,13 @@ Format: **Keep a Changelog** (https://keepachangelog.com/en/1.1.0/)
 
 ## [Unreleased]
 
+### Added
+- New `rugbyclaw market-pulse` command to surface Polymarket implied probabilities with confidence gating and structured output (`--json`, `--agent`).
+- Polymarket provider + matching layer for deterministic home/draw/away ordering with liquidity, spread, and freshness checks.
+
+### Changed
+- Docs now include a Market Pulse command page linked from the main index.
+
 ## [0.1.11] - 2026-02-21
 
 ### Added

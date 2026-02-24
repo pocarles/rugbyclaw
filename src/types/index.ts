@@ -188,3 +188,38 @@ export interface CalendarEvent {
   end: Date;
   url?: string;
 }
+
+// Market Pulse types
+
+export type MarketConfidence = 'high' | 'medium' | 'low';
+
+export interface MarketOutcome {
+  selection: 'home' | 'draw' | 'away';
+  name: string;
+  implied_prob: number;
+  best_bid?: number;
+  best_ask?: number;
+}
+
+export interface MarketPulseOutput {
+  match: {
+    id?: string;
+    home: string;
+    away: string;
+    league?: string;
+    date?: string;
+    market?: string;
+  };
+  market_name: string;
+  outcomes: MarketOutcome[];
+  confidence: MarketConfidence;
+  generated_at: string;
+  liquidity?: number;
+  volume_24h?: number;
+  spread?: number;
+  updated_at?: string;
+  trace_id?: string;
+  stale?: boolean;
+  cached_at?: string;
+  quality_warnings?: string[];
+}

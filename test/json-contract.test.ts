@@ -8,6 +8,7 @@ import type {
   ResultsOutput,
   ScoresOutput,
   TeamSearchOutput,
+  MarketPulseOutput,
 } from '../src/types/index.js';
 
 function sampleMatchOutput(): MatchOutput {
@@ -142,6 +143,62 @@ describe('json contract', () => {
       'match_id',
       'message',
       'type',
+    ]);
+  });
+
+  it('keeps market pulse contract stable', () => {
+    const pulse: MarketPulseOutput = {
+      match: {
+        id: '991',
+        home: 'Home XV',
+        away: 'Away XV',
+        league: 'Top 14',
+        date: '2026-02-19',
+        market: 'home-xv-away-xv',
+      },
+      market_name: 'Home XV vs Away XV - Match Odds',
+      outcomes: [
+        { selection: 'home', name: 'Home XV', implied_prob: 0.52, best_bid: 0.51, best_ask: 0.53 },
+        { selection: 'draw', name: 'Draw', implied_prob: 0.12, best_bid: 0.11, best_ask: 0.13 },
+        { selection: 'away', name: 'Away XV', implied_prob: 0.36, best_bid: 0.35, best_ask: 0.37 },
+      ],
+      confidence: 'high',
+      generated_at: '2026-02-19T00:00:00.000Z',
+      liquidity: 1500,
+      volume_24h: 3200,
+      spread: 0.04,
+      updated_at: '2026-02-19T10:00:00.000Z',
+      trace_id: 'poly-trace',
+      quality_warnings: ['missing_spread'],
+    };
+
+    expect(sortedKeys(pulse as unknown as Record<string, unknown>)).toEqual([
+      'confidence',
+      'generated_at',
+      'liquidity',
+      'market_name',
+      'match',
+      'outcomes',
+      'quality_warnings',
+      'spread',
+      'trace_id',
+      'updated_at',
+      'volume_24h',
+    ]);
+    expect(sortedKeys(pulse.match as unknown as Record<string, unknown>)).toEqual([
+      'away',
+      'date',
+      'home',
+      'id',
+      'league',
+      'market',
+    ]);
+    expect(sortedKeys(pulse.outcomes[0] as unknown as Record<string, unknown>)).toEqual([
+      'best_ask',
+      'best_bid',
+      'implied_prob',
+      'name',
+      'selection',
     ]);
   });
 });

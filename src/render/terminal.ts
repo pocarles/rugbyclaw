@@ -7,6 +7,8 @@ import type {
   TeamSearchOutput,
   NotifyOutput,
   Match,
+  MarketPulseOutput,
+  MarketConfidence,
 } from '../types/index.js';
 import { generateNeutralSummary } from '../lib/personality.js';
 import { formatDateYMD, formatTimeHM, getTodayYMD, getTomorrowYMD } from '../lib/datetime.js';
@@ -79,6 +81,22 @@ function formatStatus(status: string): string {
     default:
       return status;
   }
+}
+
+function formatPercent(value: number): string {
+  if (!Number.isFinite(value)) return '--';
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatConfidence(confidence: MarketConfidence): string {
+  if (confidence === 'high') return chalk.green.bold('HIGH');
+  if (confidence === 'medium') return chalk.yellow.bold('MEDIUM');
+  return chalk.red.bold('LOW');
+}
+
+function formatUsd(value?: number): string {
+  if (value === undefined || !Number.isFinite(value)) return '';
+  return `$${Math.round(value).toLocaleString('en-US')}`;
 }
 
 /**
@@ -368,6 +386,66 @@ export function renderNotify(output: NotifyOutput): string {
   for (const notification of output.notifications) {
     lines.push(notification.message);
     lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Render market pulse output.
+ */
+export function renderMarketPulse(output: MarketPulseOutput): string {
+  const lines: string[] = [];
+  const matchParts = [output.match.home, 'vs', output.match.away];
+  if (output.match.league) matchParts.push(`(${output.match.league})`);
+  if (output.match.date) matchParts.push(output.match.date);
+
+  lines.push(chalk.bold('Market Pulse'));
+  lines.push(matchParts.join(' '));
+  lines.push(`Source: Polymarket • Confidence ${formatConfidence(output.confidence)}`);
+  lines.push('');
+  lines.push(chalk.cyan(output.market_name));
+  lines.push('');
+  lines.push('Implied probabilities:');
+
+  const home = output.outcomes.find((o) => o.selection === 'home');
+  const draw = output.outcomes.find((o) => o.selection === 'draw');
+  const away = output.outcomes.find((o) => o.selection === 'away');
+
+  if (home) {
+    lines.push(`  ${output.match.home.padEnd(22)} ${formatPercent(home.implied_prob)}`);
+  }
+  if (draw) {
+    lines.push(`  ${'Draw'.padEnd(22)} ${formatPercent(draw.implied_prob)}`);
+  }
+  if (away) {
+    lines.push(`  ${output.match.away.padEnd(22)} ${formatPercent(away.implied_prob)}`);
+  }
+
+  const metaParts: string[] = [];
+  if (output.liquidity !== undefined) metaParts.push(`Liquidity ${formatUsd(output.liquidity)}`);
+  if (output.volume_24h !== undefined) metaParts.push(`24h vol ${formatUsd(output.volume_24h)}`);
+  if (output.spread !== undefined && Number.isFinite(output.spread)) {
+    metaParts.push(`Max spread ${(output.spread * 100).toFixed(1)}%`);
+  }
+  if (output.updated_at) metaParts.push(`Updated ${output.updated_at}`);
+
+  if (metaParts.length > 0) {
+    lines.push('');
+    lines.push(chalk.dim(metaParts.join(' • ')));
+  }
+
+  if (output.quality_warnings?.length) {
+    lines.push('');
+    lines.push(renderWarning('Confidence gates:'));
+    for (const warn of output.quality_warnings) {
+      lines.push(chalk.dim(` - ${warn.replace(/_/g, ' ')}`));
+    }
+  }
+
+  if (output.stale) {
+    lines.push('');
+    lines.push(chalk.yellow('⚠ Using cached Polymarket data (stale).'));
   }
 
   return lines.join('\n');
