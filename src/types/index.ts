@@ -76,7 +76,6 @@ export interface MatchNotificationState {
     day_before: boolean;
     hour_before: boolean;
     kickoff: boolean;
-    halftime: boolean;
     fulltime: boolean;
   };
 }
@@ -147,6 +146,45 @@ export interface ResultsOutput {
   cached_at?: string;
 }
 
+export interface StandingsEntry {
+  league?: string;
+  position: number;
+  team: {
+    id: string;
+    name: string;
+    badge?: string;
+  };
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  points_for: number;
+  points_against: number;
+  points_diff: number;
+  points: number;
+  bonus_points?: number;
+  bonus_points_try?: number;
+  bonus_points_losing?: number;
+  tries_for?: number;
+  tries_against?: number;
+  tries_diff?: number;
+  win_percent?: number;
+  avg_points_for?: number;
+  avg_points_against?: number;
+  form?: string;
+  description?: string;
+}
+
+export interface StandingsOutput {
+  league?: string;
+  standings: StandingsEntry[];
+  generated_at: string;
+  rate_limit?: RateLimitInfo;
+  trace_id?: string;
+  stale?: boolean;
+  cached_at?: string;
+}
+
 export interface TeamSearchOutput {
   query: string;
   teams: Array<{
@@ -162,7 +200,7 @@ export interface TeamSearchOutput {
 }
 
 export interface NotifyOutput {
-  type: 'weekly' | 'daily' | 'live';
+  type: 'weekly' | 'daily' | 'live' | 'all';
   notifications: Notification[];
   generated_at: string;
   trace_id?: string;
@@ -171,7 +209,7 @@ export interface NotifyOutput {
 }
 
 export interface Notification {
-  type: 'weekly_digest' | 'day_before' | 'hour_before' | 'kickoff' | 'score_update' | 'halftime' | 'fulltime';
+  type: 'weekly_digest' | 'day_before' | 'hour_before' | 'kickoff' | 'score_update' | 'fulltime';
   match_id: string;
   message: string;
   match?: MatchOutput;

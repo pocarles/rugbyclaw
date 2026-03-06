@@ -1,4 +1,4 @@
-import type { Match, Team } from '../../types/index.js';
+import type { Match, Team, StandingsEntry } from '../../types/index.js';
 
 /**
  * Provider interface for rugby data sources.
@@ -29,6 +29,12 @@ export interface Provider {
    * @param days - Number of days back to fetch (default: 14)
    */
   getLeagueResults(leagueId: string, days?: number): Promise<Match[]>;
+
+  /**
+   * Get standings table for a league.
+   * @param leagueId - The league ID
+   */
+  getStandings?(leagueId: string): Promise<StandingsEntry[]>;
 
   /**
    * Get a specific match by ID.

@@ -13,43 +13,37 @@ import {
   getProxyStatusIfFree,
   getStaleFallbackLine,
 } from '../lib/free-mode.js';
-import { getResultsNoMatchesHint } from '../lib/explain.js';
-import { renderResults, matchToOutput, renderError, renderWarning } from '../render/terminal.js';
-import { generateNeutralSummary } from '../lib/personality.js';
-import type { ResultsOutput, Match, MatchOutput } from '../types/index.js';
+import { renderStandings, renderError, renderWarning } from '../render/terminal.js';
+import type { StandingsEntry, StandingsOutput } from '../types/index.js';
 import { emitCommandError } from '../lib/command-error.js';
 import { EXIT_CODES } from '../lib/exit-codes.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
-import { printFollowups, quoteArg } from '../lib/followups.js';
+import { printFollowups } from '../lib/followups.js';
 
-interface ResultsOptions {
+interface StandingsOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
   followups?: boolean;
-  limit?: string;
 }
 
-export async function resultsCommand(
+export async function standingsCommand(
   leagueInput: string | undefined,
-  options: ResultsOptions
+  options: StandingsOptions
 ): Promise<void> {
   const config = await loadConfig();
   const timeZone = getEffectiveTimeZone(config);
-  // Get API key if available (otherwise use proxy mode)
   const secrets = await loadSecrets();
   const hasApiKey = Boolean(secrets?.api_key);
   const provider = new ApiSportsProvider(secrets?.api_key);
-  const limit = parseInt(options.limit || '15', 10);
 
-  let matches: Match[] = [];
+  let standings: StandingsEntry[] = [];
   let leagueName: string | undefined;
   let requestUnits = 1;
   let selectedLeagues: Array<{ slug: string; id: string; name: string }> = [];
 
   try {
     if (leagueInput) {
-      // Specific league
       const league = resolveLeague(leagueInput);
 
       if (!league) {
@@ -70,45 +64,29 @@ export async function resultsCommand(
 
       leagueName = league.name;
       selectedLeagues = [{ slug: league.slug, id: league.id, name: league.name }];
-      requestUnits = 1;
-      matches = await provider.getLeagueResults(league.id);
+      standings = await provider.getStandings(league.id) ?? [];
     } else {
-      // Get effective leagues (user's favorites or defaults)
       const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
       selectedLeagues = favoriteLeagues
         .map((slug) => ({ slug, id: LEAGUES[slug]?.id, name: LEAGUES[slug]?.name }))
         .filter((league): league is { slug: string; id: string; name: string } => Boolean(league.id && league.name));
-      const leagueIds = favoriteLeagues
-        .map((slug) => LEAGUES[slug]?.id)
-        .filter(Boolean) as string[];
-      requestUnits = Math.max(1, leagueIds.length);
+      requestUnits = Math.max(1, selectedLeagues.length);
 
-      for (const id of leagueIds) {
-        const leagueMatches = await provider.getLeagueResults(id);
-        matches.push(...leagueMatches);
+      for (const league of selectedLeagues) {
+        const leagueStandings = await provider.getStandings(league.id) ?? [];
+        standings.push(
+          ...leagueStandings.map((entry) => ({ ...entry, league: league.name }))
+        );
       }
-
-      // Sort by date (most recent first)
-      matches.sort((a, b) => b.timestamp - a.timestamp);
     }
-
-    // Apply limit
-    matches = matches.slice(0, limit);
-
-    // Add personality summaries
-    const matchOutputs: MatchOutput[] = matches.map((m) => {
-      const output = matchToOutput(m, { timeZone });
-      output.summary = generateNeutralSummary(m);
-      return output;
-    });
 
     const wantProxyStatus = !hasApiKey && (wantsStructuredOutput(options) || !options.quiet);
     const proxyStatus = await getProxyStatusIfFree(hasApiKey, wantProxyStatus);
     const runtime = provider.consumeRuntimeMeta();
 
-    const output: ResultsOutput = {
+    const output: StandingsOutput = {
       league: leagueName,
-      matches: matchOutputs,
+      standings,
       generated_at: new Date().toISOString(),
       rate_limit: getProxyRateLimit(proxyStatus),
       trace_id: runtime.traceId || undefined,
@@ -118,21 +96,13 @@ export async function resultsCommand(
 
     if (wantsStructuredOutput(options)) {
       emitCommandSuccess(output, options, { traceId: runtime.traceId });
-    } else if (!options.quiet) {
-      console.log(renderResults(output));
+      return;
+    }
+
+    if (!options.quiet) {
+      console.log(renderStandings(output, timeZone));
       if (runtime.staleFallback) {
         console.log(getStaleFallbackLine(runtime.cachedAt));
-      }
-      const noMatchHints = getResultsNoMatchesHint({
-        mode: hasApiKey ? 'direct' : 'proxy',
-        timeZone,
-        leagues: selectedLeagues,
-        matchCount: output.matches.length,
-        limit,
-      });
-      if (noMatchHints.length > 0) {
-        console.log('');
-        for (const line of noMatchHints) console.log(line);
       }
       const quotaLine = getProxyQuotaLine(proxyStatus, hasApiKey, {
         staleFallback: runtime.staleFallback,
@@ -142,15 +112,13 @@ export async function resultsCommand(
       if (quotaLine) console.log(quotaLine);
 
       const hints: string[] = [];
-      if (output.matches.length > 0) {
-        const first = output.matches[0];
-        hints.push(leagueInput ? `See upcoming games: rugbyclaw fixtures ${leagueInput}` : 'See upcoming games: rugbyclaw fixtures');
-        if (first.home?.name) {
-          hints.push(`Track this team: rugbyclaw team next ${quoteArg(first.home.name)}`);
-        }
+      if (leagueInput && selectedLeagues.length === 1) {
+        const slug = selectedLeagues[0].slug;
+        hints.push(`See upcoming games: rugbyclaw fixtures ${slug}`);
+        hints.push(`See recent results: rugbyclaw results ${slug}`);
       } else {
-        hints.push('Try a different league: rugbyclaw results top14');
-        hints.push('Check upcoming matches instead: rugbyclaw fixtures');
+        hints.push('See upcoming games: rugbyclaw fixtures');
+        hints.push('See recent results: rugbyclaw results');
       }
       printFollowups(options, hints);
     }

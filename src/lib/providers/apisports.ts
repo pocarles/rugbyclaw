@@ -1,11 +1,15 @@
 import type { Provider, CacheOptions } from './types.js';
 import { ProviderError, CACHE_PROFILES } from './types.js';
-import type { Match, Team, MatchStatus, RateLimitInfo } from '../../types/index.js';
+import type { Match, Team, MatchStatus, RateLimitInfo, StandingsEntry } from '../../types/index.js';
 import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 import { loadKickoffOverrides } from '../kickoff-overrides.js';
 import { randomUUID } from 'node:crypto';
 import { resolveOfficialKickoffFallbacks } from './top14-fallback.js';
+import { fetchEspnStandings, type EspnStandingsEntry } from './espn-standings.js';
+import { fetchAllRugbyStandings } from './allrugby-standings.js';
+import { fetchPremStandings } from './prem-standings.js';
+import { fetchUrcStandings } from './urc-standings.js';
 
 export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
@@ -123,11 +127,50 @@ interface ApiTeam {
   };
 }
 
+interface ApiStandingsEntry {
+  position: number;
+  description?: string | null;
+  team: {
+    id: number;
+    name: string;
+    logo?: string;
+  };
+  games?: {
+    played?: number;
+    win?: {
+      total?: number;
+    };
+    draw?: {
+      total?: number;
+    };
+    lose?: {
+      total?: number;
+    };
+  };
+  goals?: {
+    for?: number;
+    against?: number;
+  };
+  points?: number;
+  form?: string;
+}
+
 const TOP14_LEAGUE_ID = '16';
 const PRO_D2_LEAGUE_ID = '17';
+const PREMIERSHIP_LEAGUE_ID = '13';
 const URC_LEAGUE_ID = '76';
+const SIX_NATIONS_LEAGUE_ID = '51';
+const SUPER_RUGBY_LEAGUE_ID = '71';
+const CHAMPIONS_CUP_LEAGUE_ID = '54';
+const CHALLENGE_CUP_LEAGUE_ID = '52';
 const LNR_LEAGUE_IDS = new Set([TOP14_LEAGUE_ID, PRO_D2_LEAGUE_ID]);
-const INCROWD_FALLBACK_LEAGUE_IDS = new Set(['13', '51', '71', '54', '52']);
+const INCROWD_FALLBACK_LEAGUE_IDS = new Set([
+  PREMIERSHIP_LEAGUE_ID,
+  SIX_NATIONS_LEAGUE_ID,
+  SUPER_RUGBY_LEAGUE_ID,
+  CHAMPIONS_CUP_LEAGUE_ID,
+  CHALLENGE_CUP_LEAGUE_ID,
+]);
 const KICKOFF_FALLBACK_LEAGUE_IDS = new Set([
   ...LNR_LEAGUE_IDS,
   URC_LEAGUE_ID,
@@ -209,9 +252,17 @@ function getCurrentSeason(leagueId?: string): number {
   const month = now.getMonth(); // 0-indexed
   const year = now.getFullYear();
 
-  // International tournaments and southern hemisphere leagues use calendar year
-  const calendarYearLeagues = ['51', '71']; // Six Nations, Super Rugby
-  if (leagueId && calendarYearLeagues.includes(leagueId)) {
+  if (leagueId === SIX_NATIONS_LEAGUE_ID) {
+    return year;
+  }
+
+  // EPCR cup data can lag one extra season in API-Sports while current season is in progress.
+  if (leagueId && (leagueId === CHAMPIONS_CUP_LEAGUE_ID || leagueId === CHALLENGE_CUP_LEAGUE_ID)) {
+    if (month < 7) return year - 2;
+    return year - 1;
+  }
+
+  if (leagueId === SUPER_RUGBY_LEAGUE_ID) {
     return year;
   }
 
@@ -222,6 +273,70 @@ function getCurrentSeason(leagueId?: string): number {
     return year - 1;
   }
   return year;
+}
+
+/**
+ * Team name aliases for cross-source matching.
+ * Maps normalized alternative names to the normalized canonical (API-Sports) name.
+ * Only needed when the two sources use genuinely different names for the same club.
+ */
+const TEAM_NAME_ALIASES: Record<string, string> = {
+  // Top 14
+  'pau': 'sectionpaloise',
+  'montpellierherault': 'montpellier',
+  'clermontauvergne': 'clermont',
+  'toulon': 'rctoulonnais',
+  'larochelle': 'staderochelais',
+  'bayonne': 'avironbayonnais',
+  'perpignan': 'usaperpignan',
+  // Premiership
+  'bathrugby': 'bath',
+  'bristolrugby': 'bristol',
+  'gloucesterrugby': 'gloucester',
+  'newcastlefalcons': 'newcastleredbulls',
+  // URC
+  'cardiffblues': 'cardiffrugby',
+  'ospreys': 'ospreysps',
+  'connacht': 'connachteagles',
+  'edinburgh': 'edinburghacademical',
+  'edinburghrugby': 'edinburghacademical',
+  'benettontreviso': 'benetton',
+  'scarlets': 'scarletsps',
+};
+
+function normalizeTeamName(value: string): string {
+  const norm = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return TEAM_NAME_ALIASES[norm] || norm;
+}
+
+function toInteger(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.trunc(parsed);
+  }
+  return 0;
+}
+
+function normalizeGamesTotal(value: unknown): number {
+  if (typeof value === 'number' || typeof value === 'string') {
+    return toInteger(value);
+  }
+  if (value && typeof value === 'object' && 'total' in value) {
+    return toInteger((value as { total?: unknown }).total);
+  }
+  return 0;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
 }
 
 /**
@@ -348,7 +463,8 @@ export class ApiSportsProvider implements Provider {
     const searchParams = new URLSearchParams(params);
     const baseUrl = this.mode === 'proxy' ? PROXY_URL : API_SPORTS_BASE_URL;
     const url = `${baseUrl}/${endpoint}?${searchParams}`;
-    const key = cacheKey(endpoint, params);
+    const cacheNamespace = `${this.mode}:${new URL(baseUrl).host}`;
+    const key = cacheKey(endpoint, params, cacheNamespace);
     const clientTraceId = randomUUID();
 
     // Check cache first
@@ -506,6 +622,180 @@ export class ApiSportsProvider implements Provider {
     };
   }
 
+  private parseStandingsRows(rows: ApiStandingsEntry[]): StandingsEntry[] {
+    return rows
+      .map((row) => {
+        const pointsFor = toInteger(row.goals?.for);
+        const pointsAgainst = toInteger(row.goals?.against);
+        const pointsDiff = pointsFor - pointsAgainst;
+        return {
+          position: toInteger(row.position),
+          team: {
+            id: String(row.team?.id ?? ''),
+            name: row.team?.name || 'Unknown Team',
+            badge: row.team?.logo,
+          },
+          played: toInteger(row.games?.played),
+          won: normalizeGamesTotal(row.games?.win),
+          drawn: normalizeGamesTotal(row.games?.draw),
+          lost: normalizeGamesTotal(row.games?.lose),
+          points_for: pointsFor,
+          points_against: pointsAgainst,
+          points_diff: pointsDiff,
+          points: toInteger(row.points),
+          form: row.form || undefined,
+          description: row.description || undefined,
+        } satisfies StandingsEntry;
+      })
+      .filter((entry) => entry.position > 0 && entry.team.id.length > 0)
+      .sort((a, b) => a.position - b.position);
+  }
+
+  private mergeEspnStandings(
+    primaryStandings: StandingsEntry[],
+    espnStandings: EspnStandingsEntry[] | null
+  ): StandingsEntry[] {
+    if (!espnStandings || espnStandings.length === 0) return primaryStandings;
+
+    // Only merge by normalized team name — never fall back to rank matching,
+    // because ESPN and API-Sports may be on different seasons/rounds.
+    const byName = new Map<string, StandingsEntry>();
+    for (const entry of primaryStandings) {
+      byName.set(normalizeTeamName(entry.team.name), entry);
+    }
+
+    for (const espn of espnStandings) {
+      const target = byName.get(normalizeTeamName(espn.teamName));
+      if (!target) continue;
+
+      // ONLY enrich with fields that API-Sports does not provide.
+      // Never overwrite core fields (played, won, drawn, lost, points, PF, PA, PD)
+      // because ESPN may be on a different season or round.
+      if (target.bonus_points === undefined) {
+        target.bonus_points = toOptionalNumber(espn.bonusPoints);
+      }
+      if (target.bonus_points_try === undefined) {
+        target.bonus_points_try = toOptionalNumber(espn.bonusPointsTry);
+      }
+      if (target.bonus_points_losing === undefined) {
+        target.bonus_points_losing = toOptionalNumber(espn.bonusPointsLosing);
+      }
+      if (target.tries_for === undefined) {
+        target.tries_for = toOptionalNumber(espn.triesFor);
+      }
+      if (target.tries_against === undefined) {
+        target.tries_against = toOptionalNumber(espn.triesAgainst);
+      }
+      if (target.tries_diff === undefined) {
+        target.tries_diff = toOptionalNumber(espn.triesDifference);
+      }
+      if (target.win_percent === undefined) {
+        target.win_percent = toOptionalNumber(espn.winPercent);
+      }
+      if (target.avg_points_for === undefined) {
+        target.avg_points_for = toOptionalNumber(espn.avgPointsFor);
+      }
+      if (target.avg_points_against === undefined) {
+        target.avg_points_against = toOptionalNumber(espn.avgPointsAgainst);
+      }
+      if (!target.form && espn.form) {
+        target.form = espn.form;
+      }
+    }
+
+    return primaryStandings;
+  }
+
+  private isEspnSeasonCompatible(
+    primaryStandings: StandingsEntry[],
+    espnStandings: EspnStandingsEntry[] | null
+  ): boolean {
+    if (!espnStandings || espnStandings.length === 0) return false;
+
+    const byName = new Map<string, StandingsEntry>();
+    for (const entry of primaryStandings) {
+      byName.set(normalizeTeamName(entry.team.name), entry);
+    }
+
+    let comparedTeams = 0;
+    for (const espn of espnStandings) {
+      const target = byName.get(normalizeTeamName(espn.teamName));
+      if (!target) continue;
+      if (espn.gamesPlayed === undefined) continue;
+
+      comparedTeams += 1;
+      if (Math.abs(target.played - espn.gamesPlayed) > 2) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private async fetchApiStandingsWithSeasonFallback(leagueId: string): Promise<StandingsEntry[]> {
+    const primarySeason = getCurrentSeason(leagueId);
+    const candidateSeasons = [primarySeason];
+
+    if (leagueId === SUPER_RUGBY_LEAGUE_ID) {
+      candidateSeasons.push(primarySeason - 1, primarySeason - 2);
+    }
+
+    const uniqueSeasons = Array.from(new Set(candidateSeasons));
+    let lastStandings: StandingsEntry[] = [];
+
+    for (let index = 0; index < uniqueSeasons.length; index++) {
+      const season = uniqueSeasons[index];
+      const response = await this.fetch<ApiStandingsEntry[] | ApiStandingsEntry[][]>(
+        'standings',
+        { league: leagueId, season: String(season) },
+        CACHE_PROFILES.standard
+      );
+      const rows = Array.isArray(response[0])
+        ? (response as ApiStandingsEntry[][]).flat()
+        : (response as ApiStandingsEntry[]);
+      const standings = this.parseStandingsRows(rows);
+      if (standings.length > 0) return standings;
+      lastStandings = standings;
+    }
+
+    return lastStandings;
+  }
+
+  async getStandings(leagueId: string): Promise<StandingsEntry[]> {
+    const league = getLeagueById(leagueId);
+    if (!league) {
+      return this.fetchApiStandingsWithSeasonFallback(leagueId);
+    }
+
+    let standings: StandingsEntry[] | null = null;
+
+    const MIN_VALID_TEAMS = 4;
+
+    // 1) Official scrapers
+    if (league.slug === 'premiership') {
+      standings = await fetchPremStandings(league.slug, this.cache);
+    } else if (league.slug === 'urc') {
+      standings = await fetchUrcStandings(league.slug, this.cache);
+    }
+
+    // 2) all.rugby universal fallback
+    if (!standings || standings.length < MIN_VALID_TEAMS) {
+      standings = await fetchAllRugbyStandings(league.slug, this.cache);
+    }
+
+    // 3) API-Sports fallback
+    if (!standings || standings.length < MIN_VALID_TEAMS) {
+      standings = await this.fetchApiStandingsWithSeasonFallback(leagueId);
+    }
+
+    const espnStandings = await fetchEspnStandings(league.slug, this.cache);
+    if (!this.isEspnSeasonCompatible(standings, espnStandings)) {
+      return standings;
+    }
+
+    return this.mergeEspnStandings(standings, espnStandings);
+  }
+
   async searchTeams(query: string): Promise<Team[]> {
     const teams = await this.fetch<ApiTeam[]>(
       'teams',
@@ -572,6 +862,8 @@ export class ApiSportsProvider implements Provider {
     const dateStr = options?.dateYmd || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     const matchMap = new Map<string, Match>();
+    const failedLeagues: string[] = [];
+    let successfulLeagues = 0;
 
     // Fetch games for today across all favorite leagues
     // API-Sports allows filtering by date
@@ -582,6 +874,7 @@ export class ApiSportsProvider implements Provider {
           { league: leagueId, date: dateStr },
           CACHE_PROFILES.live
         );
+        successfulLeagues += 1;
         const fallbackOverrides = await this.resolveKickoffFallbackOverrides(games);
 
         for (const game of games) {
@@ -591,8 +884,16 @@ export class ApiSportsProvider implements Provider {
           }
         }
       } catch {
-        // Skip leagues that fail
+        failedLeagues.push(leagueId);
       }
+    }
+
+    if (successfulLeagues === 0 && failedLeagues.length > 0) {
+      throw new ProviderError(
+        `Failed to fetch matches for ${dateStr}: all ${failedLeagues.length} league requests failed.`,
+        'NETWORK_ERROR',
+        this.name
+      );
     }
 
     // Sort by time
@@ -604,6 +905,8 @@ export class ApiSportsProvider implements Provider {
    */
   async getLive(leagueIds: string[]): Promise<Match[]> {
     const matchMap = new Map<string, Match>();
+    const failedLeagues: string[] = [];
+    let successfulLeagues = 0;
 
     for (const leagueId of leagueIds) {
       try {
@@ -613,6 +916,7 @@ export class ApiSportsProvider implements Provider {
           { league: leagueId, season: String(season) },
           CACHE_PROFILES.live
         );
+        successfulLeagues += 1;
 
         for (const game of games) {
           const match = this.parseGame(game);
@@ -621,8 +925,16 @@ export class ApiSportsProvider implements Provider {
           }
         }
       } catch {
-        // Skip leagues that fail
+        failedLeagues.push(leagueId);
       }
+    }
+
+    if (successfulLeagues === 0 && failedLeagues.length > 0) {
+      throw new ProviderError(
+        `Failed to fetch live matches: all ${failedLeagues.length} league requests failed.`,
+        'NETWORK_ERROR',
+        this.name
+      );
     }
 
     return Array.from(matchMap.values()).sort((a, b) => a.timestamp - b.timestamp);

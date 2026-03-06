@@ -4,6 +4,8 @@ import type {
   ScoresOutput,
   FixturesOutput,
   ResultsOutput,
+  StandingsEntry,
+  StandingsOutput,
   TeamSearchOutput,
   NotifyOutput,
   Match,
@@ -57,6 +59,14 @@ function formatTime(timeStr: string): string {
   const [hours, minutes] = timeStr.split(':');
   if (!hours || !minutes) return timeStr;
   return `${hours}:${minutes}`;
+}
+
+function sanitizeTerminalText(value: string | undefined | null): string {
+  if (!value) return '';
+  return value
+    .replace(/\x1B\][^\u0007]*(?:\u0007|\x1B\\)/g, '')
+    .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '')
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 }
 
 function usesSecondaryKickoff(match: MatchOutput): boolean {
@@ -119,8 +129,8 @@ function formatMatchLine(match: MatchOutput, showId = false): string {
     scorePart = '   vs   ';
   }
 
-  const homeName = (match.home.name || 'TBD').padEnd(25);
-  const awayName = (match.away.name || 'TBD').padStart(25);
+  const homeName = (sanitizeTerminalText(match.home.name) || 'TBD').padEnd(25);
+  const awayName = (sanitizeTerminalText(match.away.name) || 'TBD').padStart(25);
 
   let line = `  ${homeName} ${scorePart} ${awayName}`;
 
@@ -173,7 +183,7 @@ export function renderScores(output: ScoresOutput): string {
   }
 
   for (const [league, matches] of byLeague) {
-    lines.push(chalk.cyan.bold(league));
+    lines.push(chalk.cyan.bold(sanitizeTerminalText(league)));
     for (const match of matches) {
       lines.push(formatMatchLine(match));
     }
@@ -203,7 +213,7 @@ export function renderFixtures(
   }
 
   const title = output.league
-    ? `Upcoming: ${output.league}`
+    ? `Upcoming: ${sanitizeTerminalText(output.league)}`
     : 'Upcoming Fixtures';
 
   const lines: string[] = [
@@ -274,7 +284,7 @@ export function renderResults(output: ResultsOutput): string {
   }
 
   const title = output.league
-    ? `Results: ${output.league}`
+    ? `Results: ${sanitizeTerminalText(output.league)}`
     : 'Recent Results';
 
   const lines: string[] = [
@@ -285,12 +295,89 @@ export function renderResults(output: ResultsOutput): string {
   for (const match of output.matches) {
     lines.push(formatMatchLine(match));
     if (match.summary) {
-      lines.push(chalk.dim(`  ${match.summary}`));
+      lines.push(chalk.dim(`  ${sanitizeTerminalText(match.summary)}`));
     }
     lines.push('');
   }
 
   return lines.join('\n');
+}
+
+function formatForm(form?: string): string {
+  if (!form || form.trim().length === 0) return '--';
+  return form.trim().slice(0, 6);
+}
+
+function formatCell(value: string | number, width: number, align: 'start' | 'end' = 'end'): string {
+  const str = String(value);
+  if (align === 'start') return str.padEnd(width);
+  return str.padStart(width);
+}
+
+function styleStandingsRow(entry: StandingsEntry, line: string): string {
+  const description = (entry.description || '').toLowerCase();
+  if (description.includes('relegation')) return chalk.dim(line);
+  if (entry.position <= 4) return chalk.bold(line);
+  return line;
+}
+
+/**
+ * Render standings output.
+ */
+export function renderStandings(output: StandingsOutput, _timeZone?: string): string {
+  if (output.standings.length === 0) {
+    return chalk.dim('No standings found.');
+  }
+
+  const title = output.league ? `Standings: ${output.league}` : 'Standings';
+  const lines: string[] = [chalk.bold(title), ''];
+  const byLeague = new Map<string, StandingsEntry[]>();
+
+  for (const entry of output.standings) {
+    const league = output.league || entry.league || 'Standings';
+    if (!byLeague.has(league)) byLeague.set(league, []);
+    byLeague.get(league)!.push(entry);
+  }
+
+  for (const [league, entries] of byLeague) {
+    if (!output.league) {
+      lines.push(chalk.cyan.bold(sanitizeTerminalText(league)));
+    }
+    lines.push('  # Team                    P   W   D   L   PF   PA   PD  BP  Pts Form');
+
+    const sorted = [...entries].sort((a, b) => a.position - b.position);
+    for (const entry of sorted) {
+      const safeTeamName = sanitizeTerminalText(entry.team.name);
+      const teamName = safeTeamName.length > 22 ? `${safeTeamName.slice(0, 21)}…` : safeTeamName;
+      const row = [
+        `${formatCell(`${entry.position}.`, 3, 'end')}`,
+        `${formatCell(teamName, 22, 'start')}`,
+        `${formatCell(entry.played, 3)}`,
+        `${formatCell(entry.won, 3)}`,
+        `${formatCell(entry.drawn, 3)}`,
+        `${formatCell(entry.lost, 3)}`,
+        `${formatCell(entry.points_for, 4)}`,
+        `${formatCell(entry.points_against, 4)}`,
+        `${formatCell(entry.points_diff, 4)}`,
+        `${formatCell(entry.bonus_points ?? '-', 3)}`,
+        `${formatCell(entry.points, 4)}`,
+        `${formatCell(formatForm(entry.form), 4, 'start')}`,
+      ].join(' ');
+      lines.push(`  ${styleStandingsRow(entry, row)}`);
+    }
+
+    const described = sorted.filter((entry) => entry.description && entry.description.trim().length > 0);
+    if (described.length > 0) {
+      lines.push('');
+      lines.push(chalk.dim('  Notes:'));
+      for (const entry of described) {
+        lines.push(chalk.dim(`   ${entry.position}. ${sanitizeTerminalText(entry.team.name)}: ${sanitizeTerminalText(entry.description)}`));
+      }
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
 }
 
 /**
@@ -302,15 +389,15 @@ export function renderTeamSearch(output: TeamSearchOutput): string {
   }
 
   const lines: string[] = [
-    chalk.bold(`Teams matching "${output.query}"`),
+    chalk.bold(`Teams matching "${sanitizeTerminalText(output.query)}"`),
     '',
   ];
 
   for (const team of output.teams) {
-    const country = team.country ? chalk.dim(` (${team.country})`) : '';
-    lines.push(`  ${chalk.cyan(team.id)}  ${team.name}${country}`);
+    const country = team.country ? chalk.dim(` (${sanitizeTerminalText(team.country)})`) : '';
+    lines.push(`  ${chalk.cyan(sanitizeTerminalText(team.id))}  ${sanitizeTerminalText(team.name)}${country}`);
     if (team.leagues.length > 0) {
-      lines.push(chalk.dim(`         ${team.leagues.join(', ')}`));
+      lines.push(chalk.dim(`         ${team.leagues.map((league) => sanitizeTerminalText(league)).join(', ')}`));
     }
   }
 
@@ -336,8 +423,8 @@ export function renderMatch(
       : `${formatDate(match.date, timeZone)} at ${formatTime(match.time)}${secondaryKickoff ? '*' : ''}`
     : formatDate(match.date, timeZone);
 
-  lines.push(chalk.bold(`${match.home.name} vs ${match.away.name}`));
-  lines.push(`${chalk.dim(match.league)} · ${dateTime} ${status}`);
+  lines.push(chalk.bold(`${sanitizeTerminalText(match.home.name)} vs ${sanitizeTerminalText(match.away.name)}`));
+  lines.push(`${chalk.dim(sanitizeTerminalText(match.league))} · ${dateTime} ${status}`);
 
   if (match.home.score !== undefined && match.away.score !== undefined) {
     lines.push('');
@@ -346,12 +433,12 @@ export function renderMatch(
 
   if (match.summary) {
     lines.push('');
-    lines.push(match.summary);
+    lines.push(sanitizeTerminalText(match.summary));
   }
 
   if (match.venue) {
     lines.push('');
-    lines.push(chalk.dim(`📍 ${match.venue}`));
+    lines.push(chalk.dim(`📍 ${sanitizeTerminalText(match.venue)}`));
   }
 
   if (secondaryKickoff) {
@@ -384,7 +471,7 @@ export function renderNotify(output: NotifyOutput): string {
   const lines: string[] = [];
 
   for (const notification of output.notifications) {
-    lines.push(notification.message);
+    lines.push(sanitizeTerminalText(notification.message));
     lines.push('');
   }
 
@@ -396,15 +483,15 @@ export function renderNotify(output: NotifyOutput): string {
  */
 export function renderMarketPulse(output: MarketPulseOutput): string {
   const lines: string[] = [];
-  const matchParts = [output.match.home, 'vs', output.match.away];
-  if (output.match.league) matchParts.push(`(${output.match.league})`);
-  if (output.match.date) matchParts.push(output.match.date);
+  const matchParts = [sanitizeTerminalText(output.match.home), 'vs', sanitizeTerminalText(output.match.away)];
+  if (output.match.league) matchParts.push(`(${sanitizeTerminalText(output.match.league)})`);
+  if (output.match.date) matchParts.push(sanitizeTerminalText(output.match.date));
 
   lines.push(chalk.bold('Market Pulse'));
   lines.push(matchParts.join(' '));
   lines.push(`Source: Polymarket • Confidence ${formatConfidence(output.confidence)}`);
   lines.push('');
-  lines.push(chalk.cyan(output.market_name));
+  lines.push(chalk.cyan(sanitizeTerminalText(output.market_name)));
   lines.push('');
   lines.push('Implied probabilities:');
 
@@ -413,13 +500,13 @@ export function renderMarketPulse(output: MarketPulseOutput): string {
   const away = output.outcomes.find((o) => o.selection === 'away');
 
   if (home) {
-    lines.push(`  ${output.match.home.padEnd(22)} ${formatPercent(home.implied_prob)}`);
+    lines.push(`  ${sanitizeTerminalText(output.match.home).padEnd(22)} ${formatPercent(home.implied_prob)}`);
   }
   if (draw) {
     lines.push(`  ${'Draw'.padEnd(22)} ${formatPercent(draw.implied_prob)}`);
   }
   if (away) {
-    lines.push(`  ${output.match.away.padEnd(22)} ${formatPercent(away.implied_prob)}`);
+    lines.push(`  ${sanitizeTerminalText(output.match.away).padEnd(22)} ${formatPercent(away.implied_prob)}`);
   }
 
   const metaParts: string[] = [];
@@ -439,7 +526,7 @@ export function renderMarketPulse(output: MarketPulseOutput): string {
     lines.push('');
     lines.push(renderWarning('Confidence gates:'));
     for (const warn of output.quality_warnings) {
-      lines.push(chalk.dim(` - ${warn.replace(/_/g, ' ')}`));
+      lines.push(chalk.dim(` - ${sanitizeTerminalText(warn.replace(/_/g, ' '))}`));
     }
   }
 
@@ -460,20 +547,20 @@ export function matchToOutput(match: Match, options?: { timeZone?: string }): Ma
   return {
     id: match.id,
     home: {
-      name: match.homeTeam.name,
+      name: sanitizeTerminalText(match.homeTeam.name),
       score: match.score?.home,
     },
     away: {
-      name: match.awayTeam.name,
+      name: sanitizeTerminalText(match.awayTeam.name),
       score: match.score?.away,
     },
-    league: match.league.name,
+    league: sanitizeTerminalText(match.league.name),
     date: formatDateYMD(kickoff, timeZone),
     time: match.timeTbd ? '' : formatTimeHM(kickoff, timeZone),
     time_tbd: match.timeTbd || undefined,
     time_confidence: match.timeTbd ? 'pending' : 'exact',
     time_source: match.timeSource,
-    venue: match.venue,
+    venue: match.venue ? sanitizeTerminalText(match.venue) : undefined,
     status: match.status,
     summary: match.status === 'finished' ? generateNeutralSummary(match) : undefined,
   };

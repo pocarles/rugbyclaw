@@ -162,7 +162,9 @@ export async function loadConfig(): Promise<Config> {
     }
 
     return config;
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT') throw error;
     return { ...DEFAULT_CONFIG };
   }
 }
@@ -194,7 +196,9 @@ export async function loadSecrets(): Promise<Secrets | null> {
   try {
     const data = await readFile(secretsPath, 'utf-8');
     return JSON.parse(data) as Secrets;
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT') throw error;
     return null;
   }
 }
@@ -257,7 +261,9 @@ export async function loadState(): Promise<State> {
   try {
     const data = await readFile(statePath, 'utf-8');
     return JSON.parse(data) as State;
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT') throw error;
     return { ...DEFAULT_STATE };
   }
 }

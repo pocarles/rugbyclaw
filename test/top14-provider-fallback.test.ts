@@ -37,10 +37,13 @@ const TOP14_HTML = `<score-slider :matches='${JSON.stringify([{
 
 describe('top14 provider fallback', () => {
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-01T00:00:00.000Z'));
     await getCache().clear();
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     await getCache().clear();
   });

@@ -90,6 +90,7 @@ function getResultType(
   if (margin > 0) {
     // Win
     if (margin >= 15) return 'big_win';
+    if (margin <= 3) return 'nail_biter';
     if (margin <= 7) return 'close_win';
     return 'close_win'; // Default to close for 8-14 margin
   } else {
