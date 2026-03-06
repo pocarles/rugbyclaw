@@ -49,15 +49,38 @@ function extractCells(rowHtml: string): string[] {
 export function parseAllRugbyStandingsHtml(html: string, leagueSlug: string): StandingsEntry[] | null {
   if (!html || !leagueSlug) return null;
 
-  const rows = Array.from(html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)).map((match) => match[1] || '');
+  // Extract the first table that contains a PTS/Pts header (the main standings table)
+  const tables = Array.from(html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi));
+  let bestTable = '';
+  for (const tableMatch of tables) {
+    const tableHtml = tableMatch[1] || '';
+    if (/\bPTS\b/i.test(tableHtml) && /<tr/i.test(tableHtml)) {
+      bestTable = tableHtml;
+      break;
+    }
+  }
+  if (!bestTable) return null;
+
+  const rows = Array.from(bestTable.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)).map((match) => match[1] || '');
   if (rows.length < 2) return null;
 
   const headerCells = extractCells(rows[0]);
   if (headerCells.length === 0) return null;
 
+  // Build header→index map, but skip blank headers to align with data
+  // all.rugby headers have blanks for logo/rank columns that don't exist in data after slicing
   const headerIndex = new Map<string, number>();
-  headerCells.forEach((header, index) => {
-    headerIndex.set(normalizeHeader(header), index);
+  let dataOffset = 0;
+  headerCells.forEach((header) => {
+    const key = normalizeHeader(header);
+    if (!key) {
+      // Blank header — skip it, don't increment data offset
+      return;
+    }
+    if (!headerIndex.has(key)) {
+      headerIndex.set(key, dataOffset);
+    }
+    dataOffset++;
   });
 
   const findIndex = (...aliases: string[]): number => {
@@ -68,7 +91,13 @@ export function parseAllRugbyStandingsHtml(html: string, leagueSlug: string): St
     return -1;
   };
 
-  const teamIdx = findIndex('team', 'club');
+  // all.rugby uses "ALL.RUGBY" as header for the team column
+  // Some pages have blank headers for rank/logo cols, with team name at index 2
+  let teamIdx = findIndex('team', 'club', 'allrugby');
+  // If no team header found, try column 2 (rank, logo, team pattern)
+  if (teamIdx < 0 && headerCells.length > 3) {
+    teamIdx = 2;
+  }
   const ptsIdx = findIndex('pts', 'points');
   const playedIdx = findIndex('pl', 'played', 'p');
   const wonIdx = findIndex('w', 'won');
@@ -91,11 +120,37 @@ export function parseAllRugbyStandingsHtml(html: string, leagueSlug: string): St
   const entries: StandingsEntry[] = [];
 
   for (let i = 1; i < rows.length; i++) {
-    const cells = extractCells(rows[i]);
+    let cells = extractCells(rows[i]);
+    // all.rugby data rows may have extra columns (rank number, blank logo) vs headers.
+    // Strip leading cells that don't map to any meaningful header:
+    // 1) If first cell is a small number (rank) and we have more cells than non-blank headers
+    const nonBlankHeaderCount = headerCells.filter(h => normalizeHeader(h) !== '').length;
+    while (cells.length > nonBlankHeaderCount && (/^\d{1,3}$/.test(cells[0]) || cells[0] === '')) {
+      cells = cells.slice(1);
+    }
     if (cells.length <= Math.max(teamIdx, ptsIdx, playedIdx)) continue;
 
     const rawTeam = cells[teamIdx] || '';
-    const teamName = rawTeam.replace(/^\d+\s*/, '').trim();
+    const stripped = rawTeam.replace(/^\d+\s*/, '').trim();
+    // all.rugby cells often contain "TeamName TeamName" (img alt + display text)
+    // Also may have trailing abbreviation: "ToulouseST", "PauSP"
+    let teamName = stripped;
+    // Check for exact duplicate: "Brumbies Brumbies" → "Brumbies"
+    const words = stripped.split(' ');
+    const half = Math.floor(words.length / 2);
+    if (half > 0 && words.length % 2 === 0) {
+      const firstHalf = words.slice(0, half).join(' ');
+      const secondHalf = words.slice(half).join(' ');
+      if (firstHalf === secondHalf) {
+        teamName = firstHalf;
+      }
+    }
+    // Also handle "Western Force Western Force" (even-length duplicate)
+    // And "ToulouseST" → strip trailing 2-5 uppercase abbreviation
+    const abbrevMatch = teamName.match(/^(.+?)([A-Z]{2,5})$/);
+    if (abbrevMatch && abbrevMatch[1].trim().length > 1) {
+      teamName = abbrevMatch[1].trim();
+    }
     if (!teamName) continue;
 
     const pointsFor = toInt(cells[pfIdx]);
@@ -162,7 +217,10 @@ export async function fetchAllRugbyStandings(
     let response: Response;
     try {
       response = await fetch(`${ALL_RUGBY_BASE_URL}/${mapped}/table`, {
-        headers: { Accept: 'text/html' },
+        headers: {
+          Accept: 'text/html',
+          'User-Agent': 'Mozilla/5.0 (compatible; rugbyclaw/0.2.0)',
+        },
         signal: controller.signal,
       });
     } finally {
