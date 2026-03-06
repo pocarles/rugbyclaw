@@ -1,1 +1,0 @@
-{"data":{"get":"teams","parameters":{},"errors":[],"results":1,"response":[{"id":1,"name":"Leinster Rugby","logo":"","national":false,"founded":1879,"arena":{"name":null,"capacity":null,"location":null},"country":{"id":1,"name":"Ireland","code":"IE","flag":""}}]},"timestamp":1772824821623,"stale_at":1772911221623,"expires_at":1773429621623}
