@@ -4,6 +4,8 @@ import type {
   ScoresOutput,
   FixturesOutput,
   ResultsOutput,
+  StandingsEntry,
+  StandingsOutput,
   TeamSearchOutput,
   NotifyOutput,
   Match,
@@ -291,6 +293,82 @@ export function renderResults(output: ResultsOutput): string {
   }
 
   return lines.join('\n');
+}
+
+function formatForm(form?: string): string {
+  if (!form || form.trim().length === 0) return '--';
+  return form.trim().slice(0, 6);
+}
+
+function formatCell(value: string | number, width: number, align: 'start' | 'end' = 'end'): string {
+  const str = String(value);
+  if (align === 'start') return str.padEnd(width);
+  return str.padStart(width);
+}
+
+function styleStandingsRow(entry: StandingsEntry, line: string): string {
+  const description = (entry.description || '').toLowerCase();
+  if (description.includes('relegation')) return chalk.dim(line);
+  if (entry.position <= 4) return chalk.bold(line);
+  return line;
+}
+
+/**
+ * Render standings output.
+ */
+export function renderStandings(output: StandingsOutput, _timeZone?: string): string {
+  if (output.standings.length === 0) {
+    return chalk.dim('No standings found.');
+  }
+
+  const title = output.league ? `Standings: ${output.league}` : 'Standings';
+  const lines: string[] = [chalk.bold(title), ''];
+  const byLeague = new Map<string, StandingsEntry[]>();
+
+  for (const entry of output.standings) {
+    const league = output.league || entry.league || 'Standings';
+    if (!byLeague.has(league)) byLeague.set(league, []);
+    byLeague.get(league)!.push(entry);
+  }
+
+  for (const [league, entries] of byLeague) {
+    if (!output.league) {
+      lines.push(chalk.cyan.bold(league));
+    }
+    lines.push('  # Team                    P   W   D   L   PF   PA   PD  BP  Pts Form');
+
+    const sorted = [...entries].sort((a, b) => a.position - b.position);
+    for (const entry of sorted) {
+      const teamName = entry.team.name.length > 22 ? `${entry.team.name.slice(0, 21)}…` : entry.team.name;
+      const row = [
+        `${formatCell(`${entry.position}.`, 3, 'end')}`,
+        `${formatCell(teamName, 22, 'start')}`,
+        `${formatCell(entry.played, 3)}`,
+        `${formatCell(entry.won, 3)}`,
+        `${formatCell(entry.drawn, 3)}`,
+        `${formatCell(entry.lost, 3)}`,
+        `${formatCell(entry.points_for, 4)}`,
+        `${formatCell(entry.points_against, 4)}`,
+        `${formatCell(entry.points_diff, 4)}`,
+        `${formatCell(entry.bonus_points ?? '-', 3)}`,
+        `${formatCell(entry.points, 4)}`,
+        `${formatCell(formatForm(entry.form), 4, 'start')}`,
+      ].join(' ');
+      lines.push(`  ${styleStandingsRow(entry, row)}`);
+    }
+
+    const described = sorted.filter((entry) => entry.description && entry.description.trim().length > 0);
+    if (described.length > 0) {
+      lines.push('');
+      lines.push(chalk.dim('  Notes:'));
+      for (const entry of described) {
+        lines.push(chalk.dim(`   ${entry.position}. ${entry.team.name}: ${entry.description}`));
+      }
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
 }
 
 /**

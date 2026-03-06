@@ -1,11 +1,12 @@
 import type { Provider, CacheOptions } from './types.js';
 import { ProviderError, CACHE_PROFILES } from './types.js';
-import type { Match, Team, MatchStatus, RateLimitInfo } from '../../types/index.js';
+import type { Match, Team, MatchStatus, RateLimitInfo, StandingsEntry } from '../../types/index.js';
 import { getLeagueById } from '../leagues.js';
 import { getCache, cacheKey } from '../cache.js';
 import { loadKickoffOverrides } from '../kickoff-overrides.js';
 import { randomUUID } from 'node:crypto';
 import { resolveOfficialKickoffFallbacks } from './top14-fallback.js';
+import { fetchEspnStandings, type EspnStandingsEntry } from './espn-standings.js';
 
 export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
@@ -123,6 +124,30 @@ interface ApiTeam {
   };
 }
 
+interface ApiStandingsEntry {
+  position: number;
+  description?: string | null;
+  team: {
+    id: number;
+    name: string;
+    logo?: string;
+  };
+  games?: {
+    played?: number;
+    win?: {
+      total?: number;
+    };
+    draw?: number;
+    lose?: number;
+  };
+  goals?: {
+    for?: number;
+    against?: number;
+  };
+  points?: number;
+  form?: string;
+}
+
 const TOP14_LEAGUE_ID = '16';
 const PRO_D2_LEAGUE_ID = '17';
 const URC_LEAGUE_ID = '76';
@@ -222,6 +247,30 @@ function getCurrentSeason(leagueId?: string): number {
     return year - 1;
   }
   return year;
+}
+
+function normalizeTeamName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function toInteger(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.trunc(parsed);
+  }
+  return 0;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
 }
 
 /**
@@ -504,6 +553,96 @@ export class ApiSportsProvider implements Provider {
       timeTbd,
       timeSource: override || hasRuntimeKickoff ? 'secondary' : 'provider',
     };
+  }
+
+  private parseStandingsRows(rows: ApiStandingsEntry[]): StandingsEntry[] {
+    return rows
+      .map((row) => {
+        const pointsFor = toInteger(row.goals?.for);
+        const pointsAgainst = toInteger(row.goals?.against);
+        const pointsDiff = pointsFor - pointsAgainst;
+        return {
+          position: toInteger(row.position),
+          team: {
+            id: String(row.team?.id ?? ''),
+            name: row.team?.name || 'Unknown Team',
+            badge: row.team?.logo,
+          },
+          played: toInteger(row.games?.played),
+          won: toInteger(row.games?.win?.total),
+          drawn: toInteger(row.games?.draw),
+          lost: toInteger(row.games?.lose),
+          points_for: pointsFor,
+          points_against: pointsAgainst,
+          points_diff: pointsDiff,
+          points: toInteger(row.points),
+          form: row.form || undefined,
+          description: row.description || undefined,
+        } satisfies StandingsEntry;
+      })
+      .filter((entry) => entry.position > 0 && entry.team.id.length > 0)
+      .sort((a, b) => a.position - b.position);
+  }
+
+  private mergeEspnStandings(
+    apiStandings: StandingsEntry[],
+    espnStandings: EspnStandingsEntry[] | null
+  ): StandingsEntry[] {
+    if (!espnStandings || espnStandings.length === 0) return apiStandings;
+
+    const byName = new Map<string, StandingsEntry>();
+    for (const entry of apiStandings) {
+      byName.set(normalizeTeamName(entry.team.name), entry);
+    }
+
+    for (const espn of espnStandings) {
+      const byNormalizedName = byName.get(normalizeTeamName(espn.teamName));
+      const byRank = apiStandings.find((entry) => entry.position === espn.rank);
+      const target = byNormalizedName || byRank;
+      if (!target) continue;
+
+      target.played = espn.gamesPlayed ?? target.played;
+      target.won = espn.gamesWon ?? target.won;
+      target.drawn = espn.gamesDrawn ?? target.drawn;
+      target.lost = espn.gamesLost ?? target.lost;
+      target.points = espn.points ?? target.points;
+      target.points_for = espn.pointsFor ?? target.points_for;
+      target.points_against = espn.pointsAgainst ?? target.points_against;
+      target.points_diff = espn.pointsDifference ?? (target.points_for - target.points_against);
+      target.bonus_points = toOptionalNumber(espn.bonusPoints);
+      target.bonus_points_try = toOptionalNumber(espn.bonusPointsTry);
+      target.bonus_points_losing = toOptionalNumber(espn.bonusPointsLosing);
+      target.tries_for = toOptionalNumber(espn.triesFor);
+      target.tries_against = toOptionalNumber(espn.triesAgainst);
+      target.tries_diff = toOptionalNumber(espn.triesDifference);
+      target.win_percent = toOptionalNumber(espn.winPercent);
+      target.avg_points_for = toOptionalNumber(espn.avgPointsFor);
+      target.avg_points_against = toOptionalNumber(espn.avgPointsAgainst);
+      if (!target.form && espn.form) {
+        target.form = espn.form;
+      }
+    }
+
+    return apiStandings;
+  }
+
+  async getStandings(leagueId: string): Promise<StandingsEntry[]> {
+    const season = getCurrentSeason(leagueId);
+    const response = await this.fetch<ApiStandingsEntry[] | ApiStandingsEntry[][]>(
+      'standings',
+      { league: leagueId, season: String(season) },
+      CACHE_PROFILES.standard
+    );
+    const rows = Array.isArray(response[0])
+      ? (response as ApiStandingsEntry[][]).flat()
+      : (response as ApiStandingsEntry[]);
+    const standings = this.parseStandingsRows(rows);
+
+    const league = getLeagueById(leagueId);
+    if (!league) return standings;
+
+    const espnStandings = await fetchEspnStandings(league.slug, this.cache);
+    return this.mergeEspnStandings(standings, espnStandings);
   }
 
   async searchTeams(query: string): Promise<Team[]> {

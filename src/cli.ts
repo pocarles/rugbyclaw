@@ -10,6 +10,7 @@ import { configCommand } from './commands/config.js';
 import { scoresCommand } from './commands/scores.js';
 import { fixturesCommand } from './commands/fixtures.js';
 import { resultsCommand } from './commands/results.js';
+import { standingsCommand } from './commands/standings.js';
 import { teamCommand } from './commands/team.js';
 import { calendarCommand } from './commands/calendar.js';
 import { notifyCommand } from './commands/notify.js';
@@ -265,6 +266,21 @@ ${chalk.cyan('Examples:')}
 `)
   .action(async (league, options) => {
     await resultsCommand(league, { ...program.opts(), ...options });
+  });
+
+// Standings command
+program
+  .command('standings [league]')
+  .description('League standings table')
+  .addHelpText('after', `
+${chalk.cyan('Examples:')}
+  ${chalk.white('rugbyclaw standings')}             Standings across your favorite leagues
+  ${chalk.white('rugbyclaw standings top14')}       Top 14 table
+  ${chalk.white('rugbyclaw standings --json')}      Output as JSON
+  ${chalk.white('rugbyclaw standings --agent')}     Strict envelope output
+`)
+  .action(async (league, options) => {
+    await standingsCommand(league, { ...program.opts(), ...options });
   });
 
 // Market Pulse command
