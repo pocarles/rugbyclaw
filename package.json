@@ -1,6 +1,6 @@
 {
   "name": "rugbyclaw",
-  "version": "0.1.12",
+  "version": "0.2.0",
   "description": "Rugby scores, fixtures, and results CLI + OpenClaw skill",
   "type": "module",
   "main": "dist/cli.js",

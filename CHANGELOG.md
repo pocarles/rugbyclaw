@@ -1,4 +1,31 @@
 # Changelog
+## [0.2.0] - 2026-03-06
+
+### Added
+- `rugbyclaw standings [league]` — league tables with full stats
+- Priority cascade: official league scrapers → all.rugby → API-Sports → ESPN enrichment
+- Official scrapers for premiershiprugby.com (Premiership) and stats.unitedrugby.com (URC)
+- Universal all.rugby scraper covering all leagues including Champions Cup, Challenge Cup, Six Nations
+- ESPN season validation — skips enrichment when season mismatch detected
+- Team name alias map for cross-source matching (93%+ match rate)
+- `nail_biter` personality now triggers for margin ≤ 3 points
+- 8 new test files (108 tests total, all passing)
+
+### Fixed
+- Silent failure masking: `getToday()` / `getLive()` now throw when ALL leagues fail instead of returning empty
+- Notify output type correctly emits `'all'` when no mode flag is provided (was `'live'`)
+- Cache key includes provider mode and host to prevent proxy/direct cross-contamination
+- Cache index uses write queue + atomic rename for concurrency safety
+- Standings draw/loss parsing accepts both `number` and `{total: number}` shapes from API-Sports
+- Date validation rejects impossible dates like `2026-99-99`
+- Path traversal prevention in ICS filename generation (team names sanitized to `[a-z0-9-]`)
+- Terminal control-sequence injection stripped from all rendered upstream strings
+- Config/secrets/state loaders now throw on corruption/permission errors (previously silent fallback)
+- Follow-up hints use correct CLI argument order (`team next "Name"` not `team "Name" next`)
+- `getCurrentSeason()` fixed for Champions Cup and Super Rugby (season offset was wrong)
+
+### Removed
+- Unused `halftime` notification state from types and notification logic
 
 All notable changes to **RugbyClaw** will be documented in this file.
 
