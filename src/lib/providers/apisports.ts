@@ -268,10 +268,18 @@ const TEAM_NAME_ALIASES: Record<string, string> = {
   'bayonne': 'avironbayonnais',
   'perpignan': 'usaperpignan',
   // Premiership
-  'bath': 'bathrugby',
-  'leicester': 'leicestertigers',
-  'northampton': 'northamptonsaints',
-  'sale': 'salesharks',
+  'bathrugby': 'bath',
+  'bristolrugby': 'bristol',
+  'gloucesterrugby': 'gloucester',
+  'newcastlefalcons': 'newcastleredbulls',
+  // URC
+  'cardiffblues': 'cardiffrugby',
+  'ospreys': 'ospreysps',
+  'connacht': 'connachteagles',
+  'edinburgh': 'edinburghacademical',
+  'edinburghrugby': 'edinburghacademical',
+  'benettontreviso': 'benetton',
+  'scarlets': 'scarletsps',
 };
 
 function normalizeTeamName(value: string): string {
