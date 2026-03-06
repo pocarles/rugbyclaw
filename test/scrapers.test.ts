@@ -98,7 +98,15 @@ describe('standings scrapers', () => {
       }
 
       if (url === 'https://all.rugby/tournament/premiership-rugby/table') {
-        return new Response(ALL_RUGBY_SAMPLE_HTML.replace('Toulouse', 'Bath Rugby').replace('66', '43'), { status: 200 });
+        const rows = [
+          '<tr><td>1</td><td>Bath Rugby</td><td>10</td><td>8</td><td>0</td><td>2</td><td>106</td><td>9</td><td>343</td><td>237</td><td>40</td><td>28</td><td>8</td><td>1</td><td>WWW</td><td>43</td></tr>',
+          '<tr><td>2</td><td>Bristol Bears</td><td>10</td><td>8</td><td>0</td><td>2</td><td>55</td><td>5</td><td>290</td><td>235</td><td>35</td><td>25</td><td>5</td><td>0</td><td>WWW</td><td>37</td></tr>',
+          '<tr><td>3</td><td>Leicester Tigers</td><td>10</td><td>7</td><td>0</td><td>3</td><td>63</td><td>8</td><td>301</td><td>238</td><td>38</td><td>28</td><td>7</td><td>1</td><td>WLW</td><td>36</td></tr>',
+          '<tr><td>4</td><td>Exeter Chiefs</td><td>10</td><td>6</td><td>1</td><td>3</td><td>93</td><td>9</td><td>272</td><td>179</td><td>30</td><td>20</td><td>6</td><td>3</td><td>WLL</td><td>35</td></tr>',
+          '<tr><td>5</td><td>Saracens</td><td>10</td><td>5</td><td>0</td><td>5</td><td>135</td><td>12</td><td>383</td><td>248</td><td>45</td><td>30</td><td>9</td><td>3</td><td>WLW</td><td>32</td></tr>',
+        ].join('\n');
+        const html = '<table><thead><tr><th>#</th><th>Team</th><th>PL</th><th>W</th><th>D</th><th>L</th><th>DIFF</th><th>BP</th><th>PF</th><th>PA</th><th>TF</th><th>TA</th><th>TB</th><th>LB</th><th>Form</th><th>PTS</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        return new Response(html, { status: 200 });
       }
 
       if (url.includes('/apis/v2/sports/rugby/267979/standings')) {
@@ -111,7 +119,7 @@ describe('standings scrapers', () => {
     const provider = new ApiSportsProvider('test-key');
     const standings = await provider.getStandings('13');
 
-    expect(standings.length).toBeGreaterThan(0);
+    expect(standings.length).toBeGreaterThanOrEqual(4);
     expect(standings[0]?.team.name).toBe('Bath Rugby');
     expect(calls.some((url) => url.includes('/standings?league=13&season='))).toBe(false);
   });
@@ -121,7 +129,14 @@ describe('standings scrapers', () => {
       const url = String(input);
 
       if (url === 'https://all.rugby/tournament/top-14/table') {
-        return new Response(ALL_RUGBY_SAMPLE_HTML, { status: 200 });
+        const rows = [
+          '<tr><td>1</td><td>Toulouse</td><td>18</td><td>14</td><td>0</td><td>4</td><td>145</td><td>10</td><td>520</td><td>375</td><td>55</td><td>40</td><td>8</td><td>2</td><td>WWLWW</td><td>66</td></tr>',
+          '<tr><td>2</td><td>Pau</td><td>18</td><td>12</td><td>0</td><td>6</td><td>80</td><td>8</td><td>480</td><td>400</td><td>50</td><td>42</td><td>6</td><td>2</td><td>WLWLL</td><td>56</td></tr>',
+          '<tr><td>3</td><td>Montpellier</td><td>18</td><td>10</td><td>1</td><td>7</td><td>60</td><td>9</td><td>460</td><td>400</td><td>48</td><td>40</td><td>7</td><td>2</td><td>WWWLW</td><td>51</td></tr>',
+          '<tr><td>4</td><td>Clermont</td><td>18</td><td>11</td><td>0</td><td>7</td><td>50</td><td>7</td><td>450</td><td>400</td><td>45</td><td>38</td><td>5</td><td>2</td><td>WWLWW</td><td>51</td></tr>',
+        ].join('\n');
+        const html = '<table><thead><tr><th>#</th><th>Team</th><th>PL</th><th>W</th><th>D</th><th>L</th><th>DIFF</th><th>BP</th><th>PF</th><th>PA</th><th>TF</th><th>TA</th><th>TB</th><th>LB</th><th>Form</th><th>PTS</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        return new Response(html, { status: 200 });
       }
 
       if (url.includes('/apis/v2/sports/rugby/270559/standings')) {
@@ -152,7 +167,7 @@ describe('standings scrapers', () => {
     const provider = new ApiSportsProvider('test-key');
     const standings = await provider.getStandings('16');
 
-    expect(standings).toHaveLength(1);
+    expect(standings).toHaveLength(4);
     expect(standings[0]?.played).toBe(18);
     expect(standings[0]?.bonus_points).toBe(10);
     expect(standings[0]?.avg_points_for).toBeUndefined();

@@ -758,6 +758,8 @@ export class ApiSportsProvider implements Provider {
 
     let standings: StandingsEntry[] | null = null;
 
+    const MIN_VALID_TEAMS = 4;
+
     // 1) Official scrapers
     if (league.slug === 'premiership') {
       standings = await fetchPremStandings(league.slug, this.cache);
@@ -766,12 +768,12 @@ export class ApiSportsProvider implements Provider {
     }
 
     // 2) all.rugby universal fallback
-    if (!standings || standings.length === 0) {
+    if (!standings || standings.length < MIN_VALID_TEAMS) {
       standings = await fetchAllRugbyStandings(league.slug, this.cache);
     }
 
     // 3) API-Sports fallback
-    if (!standings || standings.length === 0) {
+    if (!standings || standings.length < MIN_VALID_TEAMS) {
       standings = await this.fetchApiStandingsWithSeasonFallback(leagueId);
     }
 
