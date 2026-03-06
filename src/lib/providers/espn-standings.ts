@@ -135,12 +135,14 @@ function parseEspnEntry(entry: EspnEntryNode): EspnStandingsEntry | null {
   };
 }
 
-function collectStandingsEntries(node: unknown, output: EspnStandingsEntry[]): void {
-  if (!node) return;
+const MAX_TRAVERSAL_DEPTH = 10;
+
+function collectStandingsEntries(node: unknown, output: EspnStandingsEntry[], depth = 0): void {
+  if (!node || depth > MAX_TRAVERSAL_DEPTH) return;
 
   if (Array.isArray(node)) {
     for (const value of node) {
-      collectStandingsEntries(value, output);
+      collectStandingsEntries(value, output, depth + 1);
     }
     return;
   }
@@ -156,7 +158,7 @@ function collectStandingsEntries(node: unknown, output: EspnStandingsEntry[]): v
   }
 
   for (const value of Object.values(candidate)) {
-    collectStandingsEntries(value, output);
+    collectStandingsEntries(value, output, depth + 1);
   }
 }
 
@@ -174,9 +176,17 @@ export async function fetchEspnStandings(
   }
 
   try {
-    const response = await fetch(`${ESPN_BASE_URL}/${espnLeagueId}/standings`, {
-      headers: { Accept: 'application/json' },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    let response: Response;
+    try {
+      response = await fetch(`${ESPN_BASE_URL}/${espnLeagueId}/standings`, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!response.ok) {
       return cached?.data || null;
     }

@@ -112,9 +112,10 @@ export async function standingsCommand(
       if (quotaLine) console.log(quotaLine);
 
       const hints: string[] = [];
-      if (leagueInput) {
-        hints.push(`See upcoming games: rugbyclaw fixtures ${leagueInput}`);
-        hints.push(`See recent results: rugbyclaw results ${leagueInput}`);
+      if (leagueInput && selectedLeagues.length === 1) {
+        const slug = selectedLeagues[0].slug;
+        hints.push(`See upcoming games: rugbyclaw fixtures ${slug}`);
+        hints.push(`See recent results: rugbyclaw results ${slug}`);
       } else {
         hints.push('See upcoming games: rugbyclaw fixtures');
         hints.push('See recent results: rugbyclaw results');
