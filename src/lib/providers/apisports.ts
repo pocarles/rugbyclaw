@@ -137,8 +137,12 @@ interface ApiStandingsEntry {
     win?: {
       total?: number;
     };
-    draw?: number;
-    lose?: number;
+    draw?: {
+      total?: number;
+    };
+    lose?: {
+      total?: number;
+    };
   };
   goals?: {
     for?: number;
@@ -249,8 +253,30 @@ function getCurrentSeason(leagueId?: string): number {
   return year;
 }
 
+/**
+ * Team name aliases for cross-source matching.
+ * Maps normalized alternative names to the normalized canonical (API-Sports) name.
+ * Only needed when the two sources use genuinely different names for the same club.
+ */
+const TEAM_NAME_ALIASES: Record<string, string> = {
+  // Top 14
+  'pau': 'sectionpaloise',
+  'montpellierherault': 'montpellier',
+  'clermontauvergne': 'clermont',
+  'toulon': 'rctoulonnais',
+  'larochelle': 'staderochelais',
+  'bayonne': 'avironbayonnais',
+  'perpignan': 'usaperpignan',
+  // Premiership
+  'bath': 'bathrugby',
+  'leicester': 'leicestertigers',
+  'northampton': 'northamptonsaints',
+  'sale': 'salesharks',
+};
+
 function normalizeTeamName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const norm = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return TEAM_NAME_ALIASES[norm] || norm;
 }
 
 function toInteger(value: unknown): number {
@@ -570,8 +596,8 @@ export class ApiSportsProvider implements Provider {
           },
           played: toInteger(row.games?.played),
           won: toInteger(row.games?.win?.total),
-          drawn: toInteger(row.games?.draw),
-          lost: toInteger(row.games?.lose),
+          drawn: toInteger(row.games?.draw?.total),
+          lost: toInteger(row.games?.lose?.total),
           points_for: pointsFor,
           points_against: pointsAgainst,
           points_diff: pointsDiff,
@@ -590,25 +616,20 @@ export class ApiSportsProvider implements Provider {
   ): StandingsEntry[] {
     if (!espnStandings || espnStandings.length === 0) return apiStandings;
 
+    // Only merge by normalized team name — never fall back to rank matching,
+    // because ESPN and API-Sports may be on different seasons/rounds.
     const byName = new Map<string, StandingsEntry>();
     for (const entry of apiStandings) {
       byName.set(normalizeTeamName(entry.team.name), entry);
     }
 
     for (const espn of espnStandings) {
-      const byNormalizedName = byName.get(normalizeTeamName(espn.teamName));
-      const byRank = apiStandings.find((entry) => entry.position === espn.rank);
-      const target = byNormalizedName || byRank;
+      const target = byName.get(normalizeTeamName(espn.teamName));
       if (!target) continue;
 
-      target.played = espn.gamesPlayed ?? target.played;
-      target.won = espn.gamesWon ?? target.won;
-      target.drawn = espn.gamesDrawn ?? target.drawn;
-      target.lost = espn.gamesLost ?? target.lost;
-      target.points = espn.points ?? target.points;
-      target.points_for = espn.pointsFor ?? target.points_for;
-      target.points_against = espn.pointsAgainst ?? target.points_against;
-      target.points_diff = espn.pointsDifference ?? (target.points_for - target.points_against);
+      // ONLY enrich with fields that API-Sports does not provide.
+      // Never overwrite core fields (played, won, drawn, lost, points, PF, PA, PD)
+      // because ESPN may be on a different season or round.
       target.bonus_points = toOptionalNumber(espn.bonusPoints);
       target.bonus_points_try = toOptionalNumber(espn.bonusPointsTry);
       target.bonus_points_losing = toOptionalNumber(espn.bonusPointsLosing);
