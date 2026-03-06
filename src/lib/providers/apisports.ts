@@ -320,6 +320,16 @@ function toInteger(value: unknown): number {
   return 0;
 }
 
+function normalizeGamesTotal(value: unknown): number {
+  if (typeof value === 'number' || typeof value === 'string') {
+    return toInteger(value);
+  }
+  if (value && typeof value === 'object' && 'total' in value) {
+    return toInteger((value as { total?: unknown }).total);
+  }
+  return 0;
+}
+
 function toOptionalNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -453,7 +463,8 @@ export class ApiSportsProvider implements Provider {
     const searchParams = new URLSearchParams(params);
     const baseUrl = this.mode === 'proxy' ? PROXY_URL : API_SPORTS_BASE_URL;
     const url = `${baseUrl}/${endpoint}?${searchParams}`;
-    const key = cacheKey(endpoint, params);
+    const cacheNamespace = `${this.mode}:${new URL(baseUrl).host}`;
+    const key = cacheKey(endpoint, params, cacheNamespace);
     const clientTraceId = randomUUID();
 
     // Check cache first
@@ -625,9 +636,9 @@ export class ApiSportsProvider implements Provider {
             badge: row.team?.logo,
           },
           played: toInteger(row.games?.played),
-          won: toInteger(row.games?.win?.total),
-          drawn: toInteger(row.games?.draw?.total),
-          lost: toInteger(row.games?.lose?.total),
+          won: normalizeGamesTotal(row.games?.win),
+          drawn: normalizeGamesTotal(row.games?.draw),
+          lost: normalizeGamesTotal(row.games?.lose),
           points_for: pointsFor,
           points_against: pointsAgainst,
           points_diff: pointsDiff,
@@ -851,6 +862,8 @@ export class ApiSportsProvider implements Provider {
     const dateStr = options?.dateYmd || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     const matchMap = new Map<string, Match>();
+    const failedLeagues: string[] = [];
+    let successfulLeagues = 0;
 
     // Fetch games for today across all favorite leagues
     // API-Sports allows filtering by date
@@ -861,6 +874,7 @@ export class ApiSportsProvider implements Provider {
           { league: leagueId, date: dateStr },
           CACHE_PROFILES.live
         );
+        successfulLeagues += 1;
         const fallbackOverrides = await this.resolveKickoffFallbackOverrides(games);
 
         for (const game of games) {
@@ -870,8 +884,16 @@ export class ApiSportsProvider implements Provider {
           }
         }
       } catch {
-        // Skip leagues that fail
+        failedLeagues.push(leagueId);
       }
+    }
+
+    if (successfulLeagues === 0 && failedLeagues.length > 0) {
+      throw new ProviderError(
+        `Failed to fetch matches for ${dateStr}: all ${failedLeagues.length} league requests failed.`,
+        'NETWORK_ERROR',
+        this.name
+      );
     }
 
     // Sort by time
@@ -883,6 +905,8 @@ export class ApiSportsProvider implements Provider {
    */
   async getLive(leagueIds: string[]): Promise<Match[]> {
     const matchMap = new Map<string, Match>();
+    const failedLeagues: string[] = [];
+    let successfulLeagues = 0;
 
     for (const leagueId of leagueIds) {
       try {
@@ -892,6 +916,7 @@ export class ApiSportsProvider implements Provider {
           { league: leagueId, season: String(season) },
           CACHE_PROFILES.live
         );
+        successfulLeagues += 1;
 
         for (const game of games) {
           const match = this.parseGame(game);
@@ -900,8 +925,16 @@ export class ApiSportsProvider implements Provider {
           }
         }
       } catch {
-        // Skip leagues that fail
+        failedLeagues.push(leagueId);
       }
+    }
+
+    if (successfulLeagues === 0 && failedLeagues.length > 0) {
+      throw new ProviderError(
+        `Failed to fetch live matches: all ${failedLeagues.length} league requests failed.`,
+        'NETWORK_ERROR',
+        this.name
+      );
     }
 
     return Array.from(matchMap.values()).sort((a, b) => a.timestamp - b.timestamp);

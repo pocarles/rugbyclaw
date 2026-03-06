@@ -144,7 +144,6 @@ async function handleDaily(
           day_before: false,
           hour_before: false,
           kickoff: false,
-          halftime: false,
           fulltime: false,
         },
       };
@@ -239,7 +238,6 @@ async function handleLive(
         day_before: false,
         hour_before: false,
         kickoff: false,
-        halftime: false,
         fulltime: false,
       },
     };
@@ -378,7 +376,7 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
 
     const runtime = provider.consumeRuntimeMeta();
     const output: NotifyOutput = {
-      type: options.weekly ? 'weekly' : options.daily ? 'daily' : 'live',
+      type: options.weekly ? 'weekly' : options.daily ? 'daily' : options.live ? 'live' : 'all',
       notifications,
       generated_at: new Date().toISOString(),
       trace_id: runtime.traceId || undefined,
@@ -392,7 +390,7 @@ export async function notifyCommand(options: NotifyOptions): Promise<void> {
       if (notifications.length > 0) {
         console.log(renderNotify(output));
       } else {
-        const mode = options.weekly ? 'weekly' : options.daily ? 'daily' : 'live';
+        const mode = options.weekly ? 'weekly' : options.daily ? 'daily' : options.live ? 'live' : 'all';
         console.log(`No ${mode} notifications at this time.`);
       }
       if (runtime.staleFallback) {

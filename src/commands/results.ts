@@ -146,7 +146,7 @@ export async function resultsCommand(
         const first = output.matches[0];
         hints.push(leagueInput ? `See upcoming games: rugbyclaw fixtures ${leagueInput}` : 'See upcoming games: rugbyclaw fixtures');
         if (first.home?.name) {
-          hints.push(`Track this team: rugbyclaw team ${quoteArg(first.home.name)} next`);
+          hints.push(`Track this team: rugbyclaw team next ${quoteArg(first.home.name)}`);
         }
       } else {
         hints.push('Try a different league: rugbyclaw results top14');

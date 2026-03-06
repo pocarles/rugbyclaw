@@ -147,4 +147,22 @@ describe('market pulse command output', () => {
     consoleSpy.mockRestore();
     exitSpy.mockRestore();
   });
+
+  it('rejects impossible dates', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`exit:${code}`);
+    }) as never);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(marketPulseCommand({
+      home: 'Home XV',
+      away: 'Away XV',
+      date: '2026-99-99',
+      quiet: true,
+    })).rejects.toThrow(/exit:2/);
+
+    expect(exitSpy).toHaveBeenCalledWith(2);
+    consoleSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
 });

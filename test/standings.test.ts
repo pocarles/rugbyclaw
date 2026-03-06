@@ -161,6 +161,40 @@ describe('standings', () => {
     expect(table[0].points).toBe(37);
   });
 
+  it('parses standings draw/loss totals when provider uses numeric shape', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes('/standings?league=9999&season=2025')) {
+        return new Response(JSON.stringify({
+          get: 'standings',
+          parameters: { league: '9999', season: '2025' },
+          errors: [],
+          results: 1,
+          response: [
+            {
+              position: 1,
+              team: { id: 101, name: 'Test RFC', logo: '' },
+              games: { played: 10, win: 6, draw: 2, lose: 2 },
+              goals: { for: 250, against: 200 },
+              points: 30,
+            },
+          ],
+        }), { status: 200, headers: { 'x-request-id': 'trace-api-2b' } });
+      }
+
+      return new Response('{}', { status: 404 });
+    }));
+
+    const provider = new ApiSportsProvider('test-key');
+    const table = await provider.getStandings('9999');
+
+    expect(table).toHaveLength(1);
+    expect(table[0].won).toBe(6);
+    expect(table[0].drawn).toBe(2);
+    expect(table[0].lost).toBe(2);
+  });
+
   it('emits standings JSON contract with --json', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rugbyclaw-standings-json-'));
     tempDirs.push(dir);

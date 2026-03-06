@@ -190,7 +190,7 @@ export async function fixturesCommand(
           hints.push(`Show IDs for calendar export: ${fixturesCommand} --show-ids`);
         }
         if (first.home?.name) {
-          hints.push(`Track one team next match: rugbyclaw team ${quoteArg(first.home.name)} next`);
+          hints.push(`Track one team next match: rugbyclaw team next ${quoteArg(first.home.name)}`);
         }
         hints.push(leagueInput ? `See recent results too: rugbyclaw results ${leagueInput}` : 'See recent results too: rugbyclaw results');
       } else {

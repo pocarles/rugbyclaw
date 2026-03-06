@@ -76,7 +76,6 @@ export interface MatchNotificationState {
     day_before: boolean;
     hour_before: boolean;
     kickoff: boolean;
-    halftime: boolean;
     fulltime: boolean;
   };
 }
@@ -201,7 +200,7 @@ export interface TeamSearchOutput {
 }
 
 export interface NotifyOutput {
-  type: 'weekly' | 'daily' | 'live';
+  type: 'weekly' | 'daily' | 'live' | 'all';
   notifications: Notification[];
   generated_at: string;
   trace_id?: string;
@@ -210,7 +209,7 @@ export interface NotifyOutput {
 }
 
 export interface Notification {
-  type: 'weekly_digest' | 'day_before' | 'hour_before' | 'kickoff' | 'score_update' | 'halftime' | 'fulltime';
+  type: 'weekly_digest' | 'day_before' | 'hour_before' | 'kickoff' | 'score_update' | 'fulltime';
   match_id: string;
   message: string;
   match?: MatchOutput;

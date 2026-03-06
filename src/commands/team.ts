@@ -1,4 +1,5 @@
 import { writeFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 import {
   loadConfig,
   loadSecrets,
@@ -31,6 +32,14 @@ interface TeamOptions {
   quiet?: boolean;
   followups?: boolean;
   ics?: boolean;
+}
+
+function toSafeFilenamePart(value: string): string {
+  const sanitized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return sanitized || 'team';
 }
 
 export async function teamCommand(
@@ -254,7 +263,7 @@ async function handleSearch(
     const firstTeam = output.teams[0];
     if (firstTeam) {
       printFollowups(options, [
-        `Next match: rugbyclaw team ${quoteArg(firstTeam.name)} next`,
+        `Next match: rugbyclaw team next ${quoteArg(firstTeam.name)}`,
         `Last result: rugbyclaw team ${quoteArg(firstTeam.name)} last`,
       ]);
     }
@@ -398,7 +407,9 @@ async function handleNext(
   // Export to ICS if requested
   if (options.ics) {
     const ics = matchToICS(nextMatch);
-    const filename = `${nextMatch.homeTeam.name.toLowerCase().replace(/\s+/g, '-')}-vs-${nextMatch.awayTeam.name.toLowerCase().replace(/\s+/g, '-')}.ics`;
+    const filename = basename(
+      `${toSafeFilenamePart(nextMatch.homeTeam.name)}-vs-${toSafeFilenamePart(nextMatch.awayTeam.name)}.ics`
+    );
     await writeFile(filename, ics);
     if (!options.quiet) {
       console.log(renderSuccess(`Calendar saved to ${filename}`));
@@ -572,7 +583,7 @@ async function handleLast(
       console.log(getStaleFallbackLine(runtime.cachedAt));
     }
     printFollowups(options, [
-      `See upcoming match too: rugbyclaw team ${quoteArg(nameOrId)} next`,
+      `See upcoming match too: rugbyclaw team next ${quoteArg(nameOrId)}`,
       'Browse upcoming fixtures: rugbyclaw fixtures',
     ]);
   }

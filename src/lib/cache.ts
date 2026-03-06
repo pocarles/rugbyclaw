@@ -1,11 +1,14 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
 import type { CacheEntry, CacheOptions } from './providers/types.js';
 
-const CACHE_DIR = join(homedir(), '.cache', 'rugbyclaw');
+const CACHE_DIR = process.env.RUGBYCLAW_CACHE_DIR
+  || (process.env.NODE_ENV === 'test'
+    ? join(process.cwd(), '.cache', 'rugbyclaw')
+    : join(homedir(), '.cache', 'rugbyclaw'));
 const MAX_CACHE_SIZE_MB = 10;
 const MAX_ENTRIES = 1000;
 
@@ -20,6 +23,7 @@ interface CacheIndex {
 export class Cache {
   private indexPath: string;
   private index: CacheIndex | null = null;
+  private writeQueue: Promise<void> = Promise.resolve();
 
   constructor() {
     this.indexPath = join(CACHE_DIR, 'index.json');
@@ -46,7 +50,25 @@ export class Cache {
 
   private async saveIndex(): Promise<void> {
     await this.ensureDir();
-    await writeFile(this.indexPath, JSON.stringify(this.index, null, 2));
+    const tempPath = `${this.indexPath}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tempPath, JSON.stringify(this.index, null, 2));
+    await rename(tempPath, this.indexPath);
+  }
+
+  private async withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+    let release!: () => void;
+    const wait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const previous = this.writeQueue;
+    this.writeQueue = previous.then(() => wait);
+
+    await previous;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
   }
 
   private keyToFilename(key: string): string {
@@ -60,111 +82,135 @@ export class Cache {
    * Returns { data, stale } where stale indicates if background refresh is needed.
    */
   async get<T>(key: string): Promise<{ data: T; stale: boolean; cachedAt: number } | null> {
-    const index = await this.loadIndex();
-    const entry = index.entries[key];
+    return this.withWriteLock(async () => {
+      const index = await this.loadIndex();
+      const entry = index.entries[key];
 
-    if (!entry) return null;
+      if (!entry) return null;
 
-    try {
-      const filePath = join(CACHE_DIR, entry.file);
-      const content = await readFile(filePath, 'utf-8');
-      const cached: CacheEntry<T> = JSON.parse(content);
+      try {
+        const filePath = join(CACHE_DIR, entry.file);
+        const content = await readFile(filePath, 'utf-8');
+        const cached: CacheEntry<T> = JSON.parse(content);
 
-      const now = Date.now();
+        const now = Date.now();
 
-      // Expired completely
-      if (now > cached.expires_at) {
-        await this.delete(key);
+        // Expired completely
+        if (now > cached.expires_at) {
+          try {
+            const { unlink } = await import('node:fs/promises');
+            await unlink(join(CACHE_DIR, entry.file));
+          } catch {
+            // File already gone
+          }
+          index.total_size -= entry.size;
+          delete index.entries[key];
+          await this.saveIndex();
+          return null;
+        }
+
+        // Update access time
+        index.entries[key].accessed = now;
+        await this.saveIndex();
+
+        // Return with stale indicator
+        return {
+          data: cached.data,
+          stale: now > cached.stale_at,
+          cachedAt: cached.timestamp,
+        };
+      } catch {
+        try {
+          const { unlink } = await import('node:fs/promises');
+          await unlink(join(CACHE_DIR, entry.file));
+        } catch {
+          // File already gone
+        }
+        index.total_size -= entry.size;
+        delete index.entries[key];
+        await this.saveIndex();
         return null;
       }
-
-      // Update access time
-      index.entries[key].accessed = now;
-      await this.saveIndex();
-
-      // Return with stale indicator
-      return {
-        data: cached.data,
-        stale: now > cached.stale_at,
-        cachedAt: cached.timestamp,
-      };
-    } catch {
-      await this.delete(key);
-      return null;
-    }
+    });
   }
 
   /**
    * Set cached data with options.
    */
   async set<T>(key: string, data: T, options: CacheOptions): Promise<void> {
-    await this.ensureDir();
-    const index = await this.loadIndex();
+    await this.withWriteLock(async () => {
+      await this.ensureDir();
+      const index = await this.loadIndex();
 
-    const now = Date.now();
-    const entry: CacheEntry<T> = {
-      data,
-      timestamp: now,
-      stale_at: now + options.stale_after,
-      expires_at: now + options.expires_after,
-    };
+      const now = Date.now();
+      const entry: CacheEntry<T> = {
+        data,
+        timestamp: now,
+        stale_at: now + options.stale_after,
+        expires_at: now + options.expires_after,
+      };
 
-    const filename = this.keyToFilename(key);
-    const filePath = join(CACHE_DIR, filename);
-    const content = JSON.stringify(entry);
-    const size = Buffer.byteLength(content);
+      const filename = this.keyToFilename(key);
+      const filePath = join(CACHE_DIR, filename);
+      const content = JSON.stringify(entry);
+      const size = Buffer.byteLength(content);
 
-    await writeFile(filePath, content);
+      await writeFile(filePath, content);
 
-    // Update index
-    if (index.entries[key]) {
-      index.total_size -= index.entries[key].size;
-    }
-    index.entries[key] = { file: filename, size, accessed: now };
-    index.total_size += size;
+      // Update index
+      if (index.entries[key]) {
+        index.total_size -= index.entries[key].size;
+      }
+      index.entries[key] = { file: filename, size, accessed: now };
+      index.total_size += size;
 
-    // Evict if needed
-    await this.evictIfNeeded(index);
-    await this.saveIndex();
+      // Evict if needed
+      await this.evictIfNeeded(index);
+      await this.saveIndex();
+    });
   }
 
   /**
    * Delete a cache entry.
    */
   async delete(key: string): Promise<void> {
-    const index = await this.loadIndex();
-    const entry = index.entries[key];
+    await this.withWriteLock(async () => {
+      const index = await this.loadIndex();
+      const entry = index.entries[key];
 
-    if (entry) {
-      try {
-        const { unlink } = await import('node:fs/promises');
-        await unlink(join(CACHE_DIR, entry.file));
-      } catch {
-        // File already gone
+      if (entry) {
+        try {
+          const { unlink } = await import('node:fs/promises');
+          await unlink(join(CACHE_DIR, entry.file));
+        } catch {
+          // File already gone
+        }
+        index.total_size -= entry.size;
+        delete index.entries[key];
+        await this.saveIndex();
       }
-      index.total_size -= entry.size;
-      delete index.entries[key];
-      await this.saveIndex();
-    }
+    });
   }
 
   /**
    * Clear all cache entries.
    */
   async clear(): Promise<void> {
-    const index = await this.loadIndex();
-    const { unlink } = await import('node:fs/promises');
+    await this.withWriteLock(async () => {
+      const index = await this.loadIndex();
+      const { unlink } = await import('node:fs/promises');
 
-    for (const entry of Object.values(index.entries)) {
-      try {
-        await unlink(join(CACHE_DIR, entry.file));
-      } catch {
-        // Ignore
+      for (const entry of Object.values(index.entries)) {
+        try {
+          await unlink(join(CACHE_DIR, entry.file));
+        } catch {
+          // Ignore
+        }
       }
-    }
 
-    this.index = { entries: {}, total_size: 0 };
-    await this.saveIndex();
+      this.index = { entries: {}, total_size: 0 };
+      await this.saveIndex();
+    });
   }
 
   /**
@@ -212,11 +258,16 @@ export function getCache(): Cache {
 /**
  * Create a cache key from endpoint and params.
  */
-export function cacheKey(endpoint: string, params: Record<string, string | number | undefined>): string {
+export function cacheKey(
+  endpoint: string,
+  params: Record<string, string | number | undefined>,
+  namespace?: string
+): string {
   const sortedParams = Object.entries(params)
     .filter(([, v]) => v !== undefined)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join('&');
-  return `${endpoint}?${sortedParams}`;
+  const prefix = namespace ? `${namespace}|` : '';
+  return `${prefix}${endpoint}?${sortedParams}`;
 }
