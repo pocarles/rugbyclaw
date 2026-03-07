@@ -19,12 +19,35 @@ import { emitCommandError } from '../lib/command-error.js';
 import { EXIT_CODES } from '../lib/exit-codes.js';
 import { emitCommandSuccess, wantsStructuredOutput } from '../lib/output.js';
 import { printFollowups } from '../lib/followups.js';
+import { validateStandings } from '../lib/validators.js';
 
 interface StandingsOptions {
   json?: boolean;
   agent?: boolean;
   quiet?: boolean;
   followups?: boolean;
+}
+
+const STANDINGS_TEAM_RANGES: Record<string, [number, number]> = {
+  top14: [14, 14],
+  pro_d2: [16, 16],
+  premiership: [10, 10],
+  urc: [16, 16],
+  six_nations: [6, 6],
+  champions_cup: [4, 40],
+  challenge_cup: [4, 40],
+  super_rugby: [10, 20],
+};
+
+function warnIfStandingsInvalid(
+  entries: StandingsEntry[],
+  leagueSlug: string,
+  options: StandingsOptions
+): void {
+  const validation = validateStandings(entries, STANDINGS_TEAM_RANGES[leagueSlug]);
+  if (validation.valid || wantsStructuredOutput(options) || options.quiet) return;
+  const summary = validation.errors.slice(0, 3).join('; ');
+  console.warn(renderWarning(`Standings validation warning for ${leagueSlug}: ${summary}`));
 }
 
 export async function standingsCommand(
@@ -65,6 +88,7 @@ export async function standingsCommand(
       leagueName = league.name;
       selectedLeagues = [{ slug: league.slug, id: league.id, name: league.name }];
       standings = await provider.getStandings(league.id) ?? [];
+      warnIfStandingsInvalid(standings, league.slug, options);
     } else {
       const favoriteLeagues = hasApiKey ? await getEffectiveLeagues() : DEFAULT_PROXY_LEAGUES;
       selectedLeagues = favoriteLeagues
@@ -74,6 +98,7 @@ export async function standingsCommand(
 
       for (const league of selectedLeagues) {
         const leagueStandings = await provider.getStandings(league.id) ?? [];
+        warnIfStandingsInvalid(leagueStandings, league.slug, options);
         standings.push(
           ...leagueStandings.map((entry) => ({ ...entry, league: league.name }))
         );

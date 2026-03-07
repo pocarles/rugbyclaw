@@ -44,7 +44,12 @@ export async function fixturesCommand(
   const secrets = await loadSecrets();
   const hasApiKey = Boolean(secrets?.api_key);
   const provider = new ApiSportsProvider(secrets?.api_key);
-  const limit = parseInt(options.limit || '15', 10);
+  const rawLimit = parseInt(options.limit || '15', 10);
+  if (isNaN(rawLimit) || rawLimit < 0) {
+    console.error('Error: --limit must be a non-negative integer');
+    process.exit(1);
+  }
+  const limit = rawLimit;
 
   let matches: Match[] = [];
   let leagueName: string | undefined;

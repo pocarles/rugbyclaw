@@ -11,6 +11,14 @@ const CACHE_DIR = process.env.RUGBYCLAW_CACHE_DIR
     : join(homedir(), '.cache', 'rugbyclaw'));
 const MAX_CACHE_SIZE_MB = 10;
 const MAX_ENTRIES = 1000;
+const SAFE_CACHE_FILENAME = /^[a-f0-9]{32}\.json$/;
+
+function safeCachePath(filename: string): string {
+  if (!SAFE_CACHE_FILENAME.test(filename)) {
+    throw new Error(`Invalid cache filename: ${filename}`);
+  }
+  return join(CACHE_DIR, filename);
+}
 
 interface CacheIndex {
   entries: Record<string, { file: string; size: number; accessed: number }>;
@@ -89,7 +97,7 @@ export class Cache {
       if (!entry) return null;
 
       try {
-        const filePath = join(CACHE_DIR, entry.file);
+        const filePath = safeCachePath(entry.file);
         const content = await readFile(filePath, 'utf-8');
         const cached: CacheEntry<T> = JSON.parse(content);
 
@@ -99,7 +107,7 @@ export class Cache {
         if (now > cached.expires_at) {
           try {
             const { unlink } = await import('node:fs/promises');
-            await unlink(join(CACHE_DIR, entry.file));
+            await unlink(safeCachePath(entry.file));
           } catch {
             // File already gone
           }
@@ -122,7 +130,7 @@ export class Cache {
       } catch {
         try {
           const { unlink } = await import('node:fs/promises');
-          await unlink(join(CACHE_DIR, entry.file));
+          await unlink(safeCachePath(entry.file));
         } catch {
           // File already gone
         }
@@ -151,7 +159,7 @@ export class Cache {
       };
 
       const filename = this.keyToFilename(key);
-      const filePath = join(CACHE_DIR, filename);
+      const filePath = safeCachePath(filename);
       const content = JSON.stringify(entry);
       const size = Buffer.byteLength(content);
 
@@ -181,7 +189,7 @@ export class Cache {
       if (entry) {
         try {
           const { unlink } = await import('node:fs/promises');
-          await unlink(join(CACHE_DIR, entry.file));
+          await unlink(safeCachePath(entry.file));
         } catch {
           // File already gone
         }
@@ -202,7 +210,7 @@ export class Cache {
 
       for (const entry of Object.values(index.entries)) {
         try {
-          await unlink(join(CACHE_DIR, entry.file));
+          await unlink(safeCachePath(entry.file));
         } catch {
           // Ignore
         }
@@ -235,7 +243,7 @@ export class Cache {
     ) {
       const [key, entry] = entries.shift()!;
       try {
-        await unlink(join(CACHE_DIR, entry.file));
+        await unlink(safeCachePath(entry.file));
       } catch {
         // Ignore
       }

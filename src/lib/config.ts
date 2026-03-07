@@ -174,7 +174,7 @@ export async function loadConfig(): Promise<Config> {
  */
 export async function saveConfig(config: Config): Promise<void> {
   await ensureConfigDir();
-  await writeFile(configPath, JSON.stringify(config, null, 2));
+  await writeFile(configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
 }
 
 /**
@@ -274,7 +274,7 @@ export async function loadState(): Promise<State> {
 export async function saveState(state: State): Promise<void> {
   await ensureConfigDir();
   state.last_updated = Date.now();
-  await writeFile(statePath, JSON.stringify(state, null, 2));
+  await writeFile(statePath, JSON.stringify(state, null, 2), { mode: 0o600 });
 }
 
 /**

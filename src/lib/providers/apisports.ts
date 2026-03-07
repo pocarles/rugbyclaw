@@ -7,13 +7,41 @@ import { loadKickoffOverrides } from '../kickoff-overrides.js';
 import { randomUUID } from 'node:crypto';
 import { resolveOfficialKickoffFallbacks } from './top14-fallback.js';
 import { fetchEspnStandings, type EspnStandingsEntry } from './espn-standings.js';
-import { fetchAllRugbyStandings } from './allrugby-standings.js';
-import { fetchPremStandings } from './prem-standings.js';
-import { fetchUrcStandings } from './urc-standings.js';
 
 export const API_SPORTS_BASE_URL = 'https://v1.rugby.api-sports.io';
 const DEFAULT_PROXY_URL = 'https://rugbyclaw-proxy.pocarles.workers.dev';
-export const PROXY_URL = process.env.RUGBYCLAW_PROXY_URL || DEFAULT_PROXY_URL;
+
+function validateProxyUrl(url: string | undefined): string {
+  if (!url) return DEFAULT_PROXY_URL;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') {
+      console.warn(`[rugbyclaw] RUGBYCLAW_PROXY_URL rejected: must use https (got ${parsed.protocol}). Using default proxy.`);
+      return DEFAULT_PROXY_URL;
+    }
+    const host = parsed.hostname;
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host.startsWith('10.') ||
+      host.startsWith('192.168.') ||
+      host.startsWith('172.') ||
+      host === '169.254.169.254' ||
+      host.endsWith('.internal') ||
+      host.endsWith('.local')
+    ) {
+      console.warn(`[rugbyclaw] RUGBYCLAW_PROXY_URL rejected: private/internal host "${host}". Using default proxy.`);
+      return DEFAULT_PROXY_URL;
+    }
+    return url;
+  } catch {
+    console.warn(`[rugbyclaw] RUGBYCLAW_PROXY_URL rejected: invalid URL. Using default proxy.`);
+    return DEFAULT_PROXY_URL;
+  }
+}
+
+export const PROXY_URL = validateProxyUrl(process.env.RUGBYCLAW_PROXY_URL);
 
 export interface ProxyStatus {
   status: string;
@@ -256,10 +284,11 @@ function getCurrentSeason(leagueId?: string): number {
     return year;
   }
 
-  // EPCR cup data can lag one extra season in API-Sports while current season is in progress.
+  // EPCR cups (Oct-May season): use year-1 as primary season.
+  // Season fallback in fetchApiStandingsWithSeasonFallback handles lag.
   if (leagueId && (leagueId === CHAMPIONS_CUP_LEAGUE_ID || leagueId === CHALLENGE_CUP_LEAGUE_ID)) {
-    if (month < 7) return year - 2;
-    return year - 1;
+    if (month < 7) return year - 1;
+    return year;
   }
 
   if (leagueId === SUPER_RUGBY_LEAGUE_ID) {
@@ -525,8 +554,8 @@ export class ApiSportsProvider implements Provider {
       // Check for API errors
       if (data.errors && Object.keys(data.errors).length > 0) {
         const errorMsg = Array.isArray(data.errors)
-          ? data.errors.join(', ')
-          : Object.values(data.errors).join(', ');
+          ? data.errors.map((e: unknown) => typeof e === 'string' ? e : JSON.stringify(e)).join(', ')
+          : Object.values(data.errors).map((e: unknown) => typeof e === 'string' ? e : JSON.stringify(e)).join(', ');
         throw new ProviderError(
           `API error: ${errorMsg}`,
           'UNKNOWN',
@@ -740,6 +769,11 @@ export class ApiSportsProvider implements Provider {
       candidateSeasons.push(primarySeason - 1, primarySeason - 2);
     }
 
+    // EPCR cups: API-Sports data can lag — try previous season as fallback
+    if (leagueId === CHAMPIONS_CUP_LEAGUE_ID || leagueId === CHALLENGE_CUP_LEAGUE_ID) {
+      candidateSeasons.push(primarySeason - 1);
+    }
+
     const uniqueSeasons = Array.from(new Set(candidateSeasons));
     let lastStandings: StandingsEntry[] = [];
 
@@ -763,37 +797,20 @@ export class ApiSportsProvider implements Provider {
 
   async getStandings(leagueId: string): Promise<StandingsEntry[]> {
     const league = getLeagueById(leagueId);
-    if (!league) {
-      return this.fetchApiStandingsWithSeasonFallback(leagueId);
-    }
+    const standings = await this.fetchApiStandingsWithSeasonFallback(leagueId);
 
-    let standings: StandingsEntry[] | null = null;
+    if (!league) return standings;
 
-    const MIN_VALID_TEAMS = 4;
-
-    // 1) Official scrapers
-    if (league.slug === 'premiership') {
-      standings = await fetchPremStandings(league.slug, this.cache);
-    } else if (league.slug === 'urc') {
-      standings = await fetchUrcStandings(league.slug, this.cache);
-    }
-
-    // 2) all.rugby universal fallback
-    if (!standings || standings.length < MIN_VALID_TEAMS) {
-      standings = await fetchAllRugbyStandings(league.slug, this.cache);
-    }
-
-    // 3) API-Sports fallback
-    if (!standings || standings.length < MIN_VALID_TEAMS) {
-      standings = await this.fetchApiStandingsWithSeasonFallback(leagueId);
-    }
-
-    const espnStandings = await fetchEspnStandings(league.slug, this.cache);
-    if (!this.isEspnSeasonCompatible(standings, espnStandings)) {
+    // ESPN enrichment is purely optional/additive
+    try {
+      const espnStandings = await fetchEspnStandings(league.slug, this.cache);
+      if (!this.isEspnSeasonCompatible(standings, espnStandings)) {
+        return standings;
+      }
+      return this.mergeEspnStandings(standings, espnStandings);
+    } catch {
       return standings;
     }
-
-    return this.mergeEspnStandings(standings, espnStandings);
   }
 
   async searchTeams(query: string): Promise<Team[]> {
