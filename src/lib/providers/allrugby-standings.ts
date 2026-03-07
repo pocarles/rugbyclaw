@@ -6,12 +6,12 @@ const ALL_RUGBY_BASE_URL = 'https://all.rugby/tournament';
 const LEAGUE_SLUG_MAP: Record<string, string> = {
   top14: 'top-14',
   pro_d2: 'pro-d2',
-  premiership: 'premiership-rugby',
+  premiership: 'premiership',
   urc: 'urc',
   champions_cup: 'champions-cup',
   challenge_cup: 'challenge-cup',
   super_rugby: 'super-rugby-pacific',
-  six_nations: 'six-nations',
+  six_nations: '6-nations',
 };
 
 function cleanText(value: string): string {
