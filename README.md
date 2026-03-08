@@ -141,6 +141,16 @@ rugbyclaw results
 rugbyclaw results premiership
 ```
 
+### `rugbyclaw standings [league]`
+
+Show standings table for one league or across your effective leagues.
+
+```bash
+rugbyclaw standings
+rugbyclaw standings top14
+rugbyclaw standings --json
+```
+
 ### `rugbyclaw team <name> <action>`
 
 Query a specific team.
@@ -192,7 +202,6 @@ rugbyclaw openclaw init --agent
 
 ## Coming Soon
 
-- `rugbyclaw standings [league]` — planned league table command (not available yet).
 - Additional competitions listed below are planned but not selectable yet.
 
 ## Supported Leagues
